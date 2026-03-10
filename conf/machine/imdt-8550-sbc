@@ -1,0 +1,28 @@
+#@TYPE: Machine
+#@NAME: IMDT  8550 SBC 
+#@DESCRIPTION: Machine configuration for IMDT  8550 SBC
+
+require conf/machine/include/qcom-qcs8550.inc
+
+MACHINE_FEATURES += "efi pci tpm2"
+
+KERNEL_DEVICETREE ?= " \
+                      qcom/qcs8550-hdk.dtb \
+                      "
+
+
+
+# MACHINE_ESSENTIAL_EXTRA_RRECOMMENDS += " \
+#     packagegroup-iq-8550-evk-firmware \
+#     packagegroup-iq-8550-evk-hexagon-dsp-binaries \
+#     qairt-sdk-hexagon-v73 \
+#     qcom-fastcv-binaries-sa8775p-ride-dsp \
+# "
+
+QCOM_CDT_FILE = "cdt_rb8_core_kit"
+QCOM_BOOT_FILES_SUBDIR = "qcs8550"
+QCOM_PARTITION_FILES_SUBDIR ?= "partitions/8550-evk/ufs"
+
+QCOM_BOOT_FIRMWARE = "firmware-qcom-boot-qcs8550-imdt-sbc"
+
+

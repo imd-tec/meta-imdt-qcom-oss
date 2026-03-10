@@ -1,0 +1,2 @@
+recipes-bsp/firmware-boot/files/8550-hdk-fw_87_1.zip filter=lfs diff=lfs merge=lfs -text
+recipes-bsp/firmware-boot/files/imdt-8550-sbc-fw-v2_0_0.zip filter=lfs diff=lfs merge=lfs -text
