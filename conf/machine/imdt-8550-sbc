@@ -7,7 +7,7 @@ require conf/machine/include/qcom-qcs8550.inc
 MACHINE_FEATURES += "efi pci tpm2"
 
 KERNEL_DEVICETREE ?= " \
-                      qcom/qcs8550-hdk.dtb \
+                      qcom/sm8550-hdk.dtb \
                       "
 
 
@@ -21,8 +21,8 @@ KERNEL_DEVICETREE ?= " \
 
 QCOM_CDT_FILE = "cdt_rb8_core_kit"
 QCOM_BOOT_FILES_SUBDIR = "qcs8550"
-QCOM_PARTITION_FILES_SUBDIR ?= "partitions/8550-evk/ufs"
+QCOM_PARTITION_FILES_SUBDIR ?= "partitions/qcs8550-hdk/ufs"
 
 QCOM_BOOT_FIRMWARE = "firmware-qcom-boot-qcs8550-imdt-sbc"
 
-
+FIT_DTB_COMPATIBLE[imdt-8550-sbc] = "qcom,sm8550-hdk"
