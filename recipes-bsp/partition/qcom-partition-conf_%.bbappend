@@ -1,7 +1,2 @@
-SRC_URI:append = " file://8550-hdk-gpt-87.1.zip;name=8550-hdk-gpt"
-
-do_configure:append() {
-    install -d ${S}/platforms/qcs8550-hdk
-    cp -r  ${S}/../8550-hdk/* ${S}/platforms/qcs8550-hdk
-}
-FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
+SRC_URI = "git://github.com/imd-tec/imdt-qcom-ptool.git;branch=main;protocol=https"
+SRCREV = "3f7481e2923ec22eb3bf8538df6aefffb048fc52"
