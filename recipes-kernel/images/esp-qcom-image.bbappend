@@ -65,4 +65,3 @@ python __anonymous() {
     d.setVar('PACKAGE_INSTALL', pkg_install.strip())
     
 }
-IMAGE_PREPROCESS_COMMAND:append = " install_initramfs"
