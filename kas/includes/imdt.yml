@@ -1,0 +1,15 @@
+
+header:
+  version: 14
+
+repos:
+  meta-imdt-qcom-oss:
+  # Used for Wi-Fi firmware binaries
+  meta-freescale:
+    url: https://git.yoctoproject.org/meta-freescale
+    branch: master
+
+local_conf_header:
+  imdt: |
+    IMAGE_ROOTFS_EXTRA_SPACE = "1048576"
+    ERROR_QA:remove = "version-going-backwards"

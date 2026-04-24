@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/siemens/kas/master/kas/schema-kas.json
+# Base YML file for all images, this includes all the common repos and configuration.
+# Copyright IMDT 2026
+header:
+  version: 14
+  includes:
+    - repo: meta-qcom
+      file: ci/base.yml
+
+
+defaults:
+  repos:
+    branch: master
+
+repos:
+  meta-qcom:
+    url: https://github.com/qualcomm-linux/meta-qcom.git
+
+
+
+

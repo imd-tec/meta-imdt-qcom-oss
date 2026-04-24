@@ -1,0 +1,10 @@
+header:
+  version: 14
+  #This image needs
+  includes:
+    - repo: meta-qcom
+      file: ci/qcom-distro.yml
+
+# This image needs qcom-distro for the ADB support
+distro: qcom-distro
+target: imdt-image-base
