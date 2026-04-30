@@ -23,6 +23,17 @@ UBOOT_CONFIG_DEFAULT = "qcs8550-hdk"
 UBOOT_CONFIG = "sm8550"
 UBOOT_CONFIG[sm8550] = "qcom_defconfig"
 BOARD_MBN_HEADER[sm8550] = "v7" 
+# Build u-boot initial env binary
+UBOOT_INITIAL_ENV_BINARY_SIZE = "0x2000"
+UBOOT_INITIAL_ENV_BINARY = '1'
+# FAT32 partition image wrapping the binary env as /uboot.env.
+UBOOT_ENV_IMG_NAME       = "uboot_env.img"
+UBOOT_ENV_FILENAME       = "uboot.env"
+UBOOT_ENV_IMG_LABEL      = "UBOOT_ENV"
+UBOOT_ENV_IMG_SIZE_MIB   = "64"
+UBOOT_ENV_IMG_SIZE_BYTES = "${@int(d.getVar('UBOOT_ENV_IMG_SIZE_MIB')) * 1024 * 1024}"
+# UFS wants 4K logical block size, so use that for the FAT32 partition as well.
+UBOOT_FAT32_LOGICAL_SIZE = "4096"
 #Use u-boot as an UEFI App so that Device tree fixups can be applied
 EFI_PROVIDER = "u-boot-qcom"
 # U-boot extlinux config file settings
