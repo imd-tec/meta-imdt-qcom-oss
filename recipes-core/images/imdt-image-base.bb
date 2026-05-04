@@ -21,4 +21,5 @@ IMAGE_INSTALL:append = " \
     v4l-utils \
     pciutils \
     usbutils \
+    imdt-camss \
 "
