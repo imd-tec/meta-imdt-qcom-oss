@@ -17,6 +17,8 @@ defaults:
 repos:
   meta-qcom:
     url: https://github.com/qualcomm-linux/meta-qcom.git
+  meta-swupdate:
+    url: https://github.com/sbabic/meta-swupdate.git
 
 
 

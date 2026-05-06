@@ -24,4 +24,10 @@ IMAGE_INSTALL:append = " \
     pciutils \
     usbutils \
     imdt-camss \
+    swupdate \
+    swupdate-www \
 "
+
+# .swu bundles require a raw rootfs image to bundle. The .swu recipe
+# (imdt-image-base.swu.bb) declares SWUPDATE_IMAGES_FSTYPES[...] = ".ext4.gz".
+IMAGE_FSTYPES:append = " ext4.gz"

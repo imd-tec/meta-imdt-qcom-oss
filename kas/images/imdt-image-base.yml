@@ -7,4 +7,6 @@ header:
 
 # This image needs qcom-distro for the ADB support
 distro: qcom-distro
-target: imdt-image-base
+target:
+  - imdt-image-base
+  - imdt-image-base.swu
