@@ -22,6 +22,8 @@ MACHINE_ESSENTIAL_EXTRA_RDEPENDS += " \
 
 MACHINE_EXTRA_RRECOMMENDS += " \
     packagegroup-qcom-boot-additional \
+    imdt-fw-env-config \
+    u-boot-fw-utils \
 "
 
 
@@ -30,6 +32,7 @@ UBOOT_CONFIG = "sm8550"
 UBOOT_CONFIG[sm8550] = "qcom_defconfig"
 BOARD_MBN_HEADER[sm8550] = "v7" 
 # Build u-boot initial env binary
+UBOOT_INITIAL_ENV = "u-boot-initial-env"
 UBOOT_INITIAL_ENV_BINARY_SIZE = "0x2000"
 UBOOT_INITIAL_ENV_BINARY = '1'
 # FAT32 partition image wrapping the binary env as /uboot.env.
