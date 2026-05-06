@@ -17,5 +17,9 @@ SRC_URI[imdt_prefix.sha256sum]   = "d72cc31882436722e4c4c006612449e6492d74fd1981
 SRC_URI[imdt_bindings.sha256sum] = "c759d8893924518772501779255328b449fbd17273419ef290ea3a9e9888ec32"
 SRC_URI[imdt_qcs8550.sha256sum]  = "f88e7bd72770a49efbb2f060ade2e3ed229e0342a8eb79d4eec8726c38b9a5e4"
 # This QA fails on lore.kernel patch files even though the patches
-# are being upstreamed. 
+# are being upstreamed.
 ERROR_QA:remove = "patch-status"
+
+# Compile DTBs with -@ so __symbols__ are emitted and overlays
+# can be applied at runtime (fdt apply / fdtoverlay / configfs).
+EXTRA_OEMAKE:append = " DTC_FLAGS=-@"
