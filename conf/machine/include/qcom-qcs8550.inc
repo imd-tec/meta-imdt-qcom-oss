@@ -22,7 +22,6 @@ MACHINE_ESSENTIAL_EXTRA_RDEPENDS += " \
 
 MACHINE_EXTRA_RRECOMMENDS += " \
     packagegroup-qcom-boot-additional \
-    imdt-fw-env-config \
     u-boot-fw-utils \
 "
 
