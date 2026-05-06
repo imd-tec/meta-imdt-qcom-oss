@@ -1,0 +1,127 @@
+From 93b3b3ab8f228f0bbdcda39863e528097c45470c Mon Sep 17 00:00:00 2001
+From: William Bright <William.Bright@imd-tec.com>
+Date: Tue, 14 Apr 2026 15:17:45 +0100
+Subject: [PATCH 5/5] arm64: dts: qcom: qcs8550-imdt-sbc: Split AR1335 CSI0
+ into separate dtsi
+
+Move the AR1335 camera sensor on CSI0 (camss port@0, cci0, and
+associated pinctrl) from the main board dts into a dedicated overlay
+dtsi. This also removes the unused CSI2/cci1 second sensor definition,
+leaving only the single AR1335 on CSI0.
+
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+Upstream-Status: Inappropriate [Needs checking with the
+v4l2-compliance tool]
+---
+ arch/arm64/boot/dts/qcom/Makefile             |  5 +-
+ .../qcom/qcs8550-imdt-sbc-ar1335-csi0.dtso    | 81 +++++++++++++++++++
+ 2 files changed, 83 insertions(+), 3 deletions(-)
+ create mode 100644 arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi0.dtso
+
+diff --git a/arch/arm64/boot/dts/qcom/Makefile b/arch/arm64/boot/dts/qcom/Makefile
+index e58fc8fe5619..9cf3b88de476 100644
+--- a/arch/arm64/boot/dts/qcom/Makefile
++++ b/arch/arm64/boot/dts/qcom/Makefile
+@@ -182,10 +182,9 @@ qcs8300-ride-el2-dtbs := qcs8300-ride.dtb monaco-el2.dtbo
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8300-ride-el2.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-aim300-aiot.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc.dtb
++dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-display.dtbo
++dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-ar1335-csi0.dtbo
+ 
+-qcs8550-imdt-sbc-display-dtbs	:= qcs8550-imdt-sbc.dtb qcs8550-imdt-sbc-display.dtbo
+-
+-dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-display.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs9100-ride.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs9100-ride-r3.dtb
+ 
+diff --git a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi0.dtso b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi0.dtso
+new file mode 100644
+index 000000000000..4d3f9842a0df
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi0.dtso
+@@ -0,0 +1,81 @@
++// SPDX-License-Identifier: BSD-3-Clause
++/*
++ * QCS8550 IMDT SBC AR1335 CSI0 camera overlay
++ *
++ * Copyright (c) 2026 IMD Technologies Ltd
++ */
++
++#include <dt-bindings/clock/qcom,sm8550-camcc.h>
++#include <dt-bindings/gpio/gpio.h>
++
++/dts-v1/;
++/plugin/;
++
++&tlmm {
++	ar1335_rst_default: ar1335-rst-default {
++		mux {
++			pins = "gpio116";
++			function = "gpio";
++		};
++
++		config {
++			pins = "gpio116";
++			drive-strength = <16>;
++			bias-disable;
++		};
++	};
++};
++
++&camss {
++	status = "okay";
++
++	vdda-phy-supply = <&vreg_l1e_0p88>;
++	vdda-pll-supply = <&vreg_l3e_1p2>;
++
++	ports {
++		port@0 {
++			csiphy0_ep: endpoint {
++				clock-lanes = <4>;
++				data-lanes = <0 1 2 3>;
++				remote-endpoint = <&ar1335_ep>;
++			};
++		};
++
++	};
++};
++
++&cci0 {
++	status = "okay";
++};
++
++&cci0_i2c0 {
++	#address-cells = <1>;
++	#size-cells = <0>;
++
++	clock-frequency = <100000>;
++	ar1335: sensor@36 {
++		compatible = "onnn,ar1335";
++		reg = <0x36>;
++
++		clocks = <&camcc CAM_CC_MCLK0_CLK>;
++		clock-names = "extclk";
++		assigned-clocks = <&camcc CAM_CC_MCLK0_CLK>;
++		assigned-clock-rates = <19200000>;
++
++		reset-gpios = <&tlmm 116 GPIO_ACTIVE_LOW>;
++
++		pinctrl-names = "default";
++		pinctrl-0 = <&cam0_default &ar1335_rst_default>;
++
++		vdd_io-supply = <&cam_1v8_reg>;
++		vdd-supply = <&cam_1v2_reg>;
++		vaa-supply = <&hr_cam_pwr>;
++
++		port {
++			ar1335_ep: endpoint {
++				data-lanes = <1 2 3 4>;
++				remote-endpoint = <&csiphy0_ep>;
++			};
++		};
++	};
++};
+-- 
+2.43.0
+

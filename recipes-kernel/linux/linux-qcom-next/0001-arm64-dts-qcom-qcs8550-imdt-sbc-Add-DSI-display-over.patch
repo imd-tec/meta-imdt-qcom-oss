@@ -1,0 +1,106 @@
+From 6bb184ba6efda97631cf4ed251787875c93c7b61 Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Fri, 1 May 2026 13:16:49 +0100
+Subject: [PATCH 1/5] arm64: dts: qcom: qcs8550-imdt-sbc: Add DSI display
+ overlay
+
+Add a board-level overlay that brings up the MIPI-DSI display path on
+the IMDT QCS8550 SBC with a Team Source Display TST070WSBE-196C panel.
+The overlay enables MDS, DSI0 controller and PHY (with the
+required vdda/vdds supplies).
+
+The panel regulator node requries a 300ms start-up time otherwise
+the panel won't show any pixels.
+
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+Upstream-Status: Inappropriate [Waiting for RFC patch
+(Previous patchset)]
+---
+ arch/arm64/boot/dts/qcom/Makefile             |  4 ++
+ .../dts/qcom/qcs8550-imdt-sbc-display.dtso    | 59 +++++++++++++++++++
+ 2 files changed, 63 insertions(+)
+ create mode 100644 arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-display.dtso
+
+diff --git a/arch/arm64/boot/dts/qcom/Makefile b/arch/arm64/boot/dts/qcom/Makefile
+index d38fb3c43c13..e58fc8fe5619 100644
+--- a/arch/arm64/boot/dts/qcom/Makefile
++++ b/arch/arm64/boot/dts/qcom/Makefile
+@@ -182,6 +182,10 @@ qcs8300-ride-el2-dtbs := qcs8300-ride.dtb monaco-el2.dtbo
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8300-ride-el2.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-aim300-aiot.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc.dtb
++
++qcs8550-imdt-sbc-display-dtbs	:= qcs8550-imdt-sbc.dtb qcs8550-imdt-sbc-display.dtbo
++
++dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-display.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs9100-ride.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs9100-ride-r3.dtb
+ 
+diff --git a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-display.dtso b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-display.dtso
+new file mode 100644
+index 000000000000..0b7f7e594e2c
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-display.dtso
+@@ -0,0 +1,59 @@
++// SPDX-License-Identifier: BSD-3-Clause
++/*
++ * Copyright (c) 2026 IMD Technologies Ltd
++ */
++
++/dts-v1/;
++/plugin/;
++
++#include <dt-bindings/gpio/gpio.h>
++
++&mdss {
++	status = "okay";
++};
++
++&mdss_dsi0 {
++	#address-cells = <1>;
++	#size-cells = <0>;
++	vdda-supply = <&vreg_l3e_1p2>;
++	status = "okay";
++
++	panel@0 {
++		compatible = "team-source-display,tst070wsbe-196c";
++		reg = <0>;
++
++		enable-gpios = <&tlmm 133 GPIO_ACTIVE_HIGH>;
++
++		pinctrl-0 = <&panel_reset_default>;
++		pinctrl-names = "default";
++
++		power-supply = <&display_panel_pwr_en>;
++		backlight = <&backlight>;
++
++		port {
++			panel0_in: endpoint {
++				remote-endpoint = <&mdss_dsi0_out>;
++			};
++		};
++	};
++};
++
++&mdss_dp0 {
++	status = "disabled";
++};
++
++&mdss_dsi0_out {
++	remote-endpoint = <&panel0_in>;
++	data-lanes = <0 1 2 3>;
++	status = "okay";
++};
++
++&mdss_dsi0_phy {
++	vdds-supply = <&vreg_l1e_0p88>;
++	status = "okay";
++};
++
++&display_panel_pwr_en {
++	/* The panel power takes 300ms to come up */
++	startup-delay-us = <300000>;
++};
+-- 
+2.43.0
+

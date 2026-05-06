@@ -1,0 +1,133 @@
+From 771215fb5b41ef52dfd0c43ceed8aa5a22683186 Mon Sep 17 00:00:00 2001
+From: William Bright <William.Bright@imd-tec.com>
+Date: Wed, 8 Apr 2026 10:43:00 +0100
+Subject: [PATCH 2/5] dt-bindings: media: i2c: Add ON Semiconductor AR1335
+ sensor binding
+
+Add devicetree binding documentation for the ON Semiconductor AR1335,
+a 13MP raw CMOS image sensor with MIPI CSI-2 interface.
+
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+Upstream-Status: Inappropriate [Needs checking with the
+v4l2-compliance tool]
+---
+ .../bindings/media/i2c/onnn,ar1335.yaml       | 107 ++++++++++++++++++
+ 1 file changed, 107 insertions(+)
+ create mode 100644 Documentation/devicetree/bindings/media/i2c/onnn,ar1335.yaml
+
+diff --git a/Documentation/devicetree/bindings/media/i2c/onnn,ar1335.yaml b/Documentation/devicetree/bindings/media/i2c/onnn,ar1335.yaml
+new file mode 100644
+index 000000000000..ea33cb60dbab
+--- /dev/null
++++ b/Documentation/devicetree/bindings/media/i2c/onnn,ar1335.yaml
+@@ -0,0 +1,107 @@
++# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
++%YAML 1.2
++---
++$id: http://devicetree.org/schemas/media/i2c/onnn,ar1335.yaml#
++$schema: http://devicetree.org/meta-schemas/core.yaml#
++
++title: ON Semiconductor AR1335 MIPI CSI-2 sensor
++
++maintainers:
++  - William Bright <William.Bright@imd-tec.com>
++
++description: |-
++  The AR1335 is a 13MP raw CMOS image sensor with MIPI CSI-2 and
++  I2C-compatible control interface.
++
++properties:
++  compatible:
++    const: onnn,ar1335
++
++  reg:
++    maxItems: 1
++
++  clocks:
++    maxItems: 1
++
++  clock-names:
++    const: extclk
++
++  vaa-supply:
++    description:
++      Definition of the regulator used as analog (2.7 V) voltage supply.
++
++  vdd-supply:
++    description:
++      Definition of the regulator used as digital core (1.2 V) voltage supply.
++
++  vdd_io-supply:
++    description:
++      Definition of the regulator used as digital I/O (1.8 V) voltage supply.
++
++  reset-gpios:
++    description: reset GPIO, usually active low
++    maxItems: 1
++
++  port:
++    $ref: /schemas/graph.yaml#/$defs/port-base
++    unevaluatedProperties: false
++    description: |
++      Video output port.
++
++    properties:
++      endpoint:
++        $ref: /schemas/media/video-interfaces.yaml#
++        unevaluatedProperties: false
++
++        properties:
++          data-lanes:
++            anyOf:
++              - items:
++                  - const: 1
++              - items:
++                  - const: 1
++                  - const: 2
++              - items:
++                  - const: 1
++                  - const: 2
++                  - const: 3
++                  - const: 4
++
++required:
++  - compatible
++  - reg
++  - clocks
++  - clock-names
++  - vaa-supply
++  - vdd-supply
++  - vdd_io-supply
++  - port
++
++additionalProperties: false
++
++examples:
++  - |
++    #include <dt-bindings/gpio/gpio.h>
++
++    i2c {
++            #address-cells = <1>;
++            #size-cells = <0>;
++
++            camera-sensor@36 {
++                    compatible = "onnn,ar1335";
++                    reg = <0x36>;
++                    clocks = <&clk_extclk>;
++                    clock-names = "extclk";
++                    reset-gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
++                    vaa-supply = <&reg_2p7v>;
++                    vdd-supply = <&reg_1p2v>;
++                    vdd_io-supply = <&reg_1p8v>;
++
++                    port {
++                            ar1335_ep: endpoint {
++                                    remote-endpoint = <&csi_in>;
++                                    data-lanes = <1 2 3 4>;
++                            };
++                    };
++            };
++    };
+-- 
+2.43.0
+

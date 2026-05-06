@@ -1,5 +1,7 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/linux-qcom-next:"
 
+# We have a mix of patches that are in the process of upstreamed
+# and patches that are WiP.
 SRC_URI:append = " \
     https://lore.kernel.org/all/20260427-sm8550-sdhc4-support-v2-1-a4241f43ecd5@imd-tec.com/raw;downloadfilename=0001-sm8550-sdhc4-support.patch;apply=yes;striplevel=1;name=sdhc4 \
     https://lore.kernel.org/all/20260428-imdt-dsi-display-v2-1-cf7294b5d7d6@imd-tec.com/raw;downloadfilename=0002-dsi-bindings.patch;apply=yes;striplevel=1;name=dsi_bindings \
@@ -7,6 +9,11 @@ SRC_URI:append = " \
     https://lore.kernel.org/linux-arm-msm/20260430-imdt-qcs8550-sbc-rfc-v1-1-4d2b6675eaa3@imd-tec.com/raw;downloadfilename=0004-imdt-prefix.patch;apply=yes;striplevel=1;name=imdt_prefix \
     https://lore.kernel.org/linux-arm-msm/20260430-imdt-qcs8550-sbc-rfc-v1-2-4d2b6675eaa3@imd-tec.com/raw;downloadfilename=0005-imdt-bindings.patch;apply=yes;striplevel=1;name=imdt_bindings \
     https://lore.kernel.org/linux-arm-msm/20260430-imdt-qcs8550-sbc-rfc-v1-3-4d2b6675eaa3@imd-tec.com/raw;downloadfilename=0006-imdt-qcs8550.patch;apply=yes;striplevel=1;name=imdt_qcs8550 \
+    file://0001-arm64-dts-qcom-qcs8550-imdt-sbc-Add-DSI-display-over.patch \
+    file://0002-dt-bindings-media-i2c-Add-ON-Semiconductor-AR1335-se.patch \
+    file://0003-media-i2c-ar1335-Add-ON-Semiconductor-AR1335-camera-.patch \
+    file://0004-media-i2c-ar1335-Convert-to-V4L2-CCI-and-fix-streami.patch \
+    file://0005-arm64-dts-qcom-qcs8550-imdt-sbc-Split-AR1335-CSI0-in.patch \
     file://configs/imdt.cfg \
 "
 
