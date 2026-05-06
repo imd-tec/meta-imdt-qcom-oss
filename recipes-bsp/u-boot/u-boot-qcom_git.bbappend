@@ -9,7 +9,7 @@
 #     python3-cryptography not building
 SRC_URI:remove:qcs8550 = "git://github.com/qualcomm-linux/u-boot.git;${SRCBRANCH};protocol=https;name=uboot"
 SRC_URI:append:qcs8550 = " git://git@github.com/imd-tec/qcom-u-boot-dev.git;branch=master;protocol=ssh"
-SRCREV:qcs8550 = "b36d1b4c35832518e530295a4e9167dcfcf29256"
+SRCREV:qcs8550 = "db006c8fe1fcc24173f9839c9691c37a5d07d194"
 
 inherit deploy
 
@@ -18,6 +18,35 @@ DEPENDS:remove:qcs8550 = "qtestsign-native"
 
 # Tools for wrapping the binary u-boot env into a FAT32 partition image
 DEPENDS:append:qcs8550 = " dosfstools-native mtools-native"
+
+# Set the default overlay list to be blank
+UBOOT_DEFAULT_FDT_OVERLAYS ?= ""
+
+# Inject the overlay list into u-boot's Kconfig. Setting it via EXTRA_OEMAKE
+# does not work because CONFIG_IMDT_QCS8550_OVERLAYS is a Kconfig string,
+# read from .config rather than from the make command line. When UBOOT_CONFIG
+# is set, u-boot.inc puts .config in ${B}/${config}-${type}, so mirror that
+# loop here.
+do_configure:append:qcs8550() {
+    if [ -n "${UBOOT_CONFIG}" ]; then
+        unset i j
+        for config in ${UBOOT_MACHINE}; do
+            i=$(expr $i + 1)
+            for type in ${UBOOT_CONFIG}; do
+                j=$(expr $j + 1)
+                if [ $j -eq $i ]; then
+                    ${S}/scripts/config --file ${B}/${config}-${type}/.config \
+                        --set-str IMDT_QCS8550_OVERLAYS "${UBOOT_DEFAULT_FDT_OVERLAYS}"
+                fi
+            done
+            unset j
+        done
+        unset i
+    else
+        ${S}/scripts/config --file ${B}/.config \
+            --set-str IMDT_QCS8550_OVERLAYS "${UBOOT_DEFAULT_FDT_OVERLAYS}"
+    fi
+}
 
 python () {
     d.setVar('BOARD_MBN_HEADER', '')
