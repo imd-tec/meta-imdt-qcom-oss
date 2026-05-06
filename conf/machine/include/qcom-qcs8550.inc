@@ -13,6 +13,12 @@ MACHINE_ESSENTIAL_EXTRA_RRECOMMENDS += " \
     packagegroup-machine-essential-qcom-qcs8550-soc \
     abl2esp \
 "
+# PC-like strategy: ship kernel + DTBs in /boot
+MACHINE_ESSENTIAL_EXTRA_RDEPENDS += " \
+    kernel-image \
+    kernel-devicetree \
+    kernel-modules \
+"
 
 MACHINE_EXTRA_RRECOMMENDS += " \
     packagegroup-qcom-boot-additional \

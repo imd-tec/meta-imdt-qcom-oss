@@ -10,7 +10,6 @@ IMAGE_FEATURES += "enable-adbd"
 inherit image-adbd
 
 IMAGE_INSTALL:append = " \
-    kernel-modules \
     android-tools-adbd \
     iproute2 \
     i2c-tools \
