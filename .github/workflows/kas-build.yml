@@ -89,6 +89,7 @@ jobs:
         run: |
           kas-container --ssh-dir ~/.ssh/ dump --resolve-refs --resolve-local --sort ${{ inputs.kas-config }} \
             > ${{ inputs.artifact-name }}-${{ github.sha }}-kas-dump.yml
+          cp ${{ inputs.artifact-name }}-${{ github.sha }}-kas-dump.yml ${{ inputs.artifact-name }}-kas-dump.yml
 
       - name: Upload build artifacts
         if: success()
@@ -113,6 +114,7 @@ jobs:
           files: |
             ${{ inputs.artifact-name }}-${{ github.sha }}.tar.zst
             ${{ inputs.artifact-name }}-${{ github.sha }}-kas-dump.yml
+            ${{ inputs.artifact-name }}-kas-dump.yml
 
   notify:
     runs-on: imx-runner
