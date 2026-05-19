@@ -15,7 +15,7 @@ jobs:
   build:
     uses: ./.github/workflows/kas-build.yml
     with:
-      kas-config: 'kas/includes/base.yml:kas/includes/imdt.yml:kas/machine/imdt-8550-sbc.yml:kas/images/imdt-image-base.yml'
+      kas-config: 'kas/default.yml'
       machine: 'imdt-8550-sbc'
       artifact-name: 'imdt-image-base'
     secrets:
