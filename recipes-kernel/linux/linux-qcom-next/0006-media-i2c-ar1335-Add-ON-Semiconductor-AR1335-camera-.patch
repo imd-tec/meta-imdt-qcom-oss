@@ -1,7 +1,7 @@
-From 20dc518659eda586b3e467ed43ad7c2d767e82cc Mon Sep 17 00:00:00 2001
+From 80ea4fb1452dff75117bd3227114de32a95d657c Mon Sep 17 00:00:00 2001
 From: William Bright <William.Bright@imd-tec.com>
 Date: Wed, 8 Apr 2026 10:43:05 +0100
-Subject: [PATCH 3/5] media: i2c: ar1335: Add ON Semiconductor AR1335 camera
+Subject: [PATCH 6/8] media: i2c: ar1335: Add ON Semiconductor AR1335 camera
  sensor driver
 
 Add a V4L2 subdevice driver for the ON Semiconductor AR1335 13MP CMOS
@@ -19,7 +19,7 @@ v4l2-compliance tool]
  create mode 100644 drivers/media/i2c/ar1335.c
 
 diff --git a/drivers/media/i2c/Kconfig b/drivers/media/i2c/Kconfig
-index 5eb1e0e0a87a..1be1900f6139 100644
+index 8f2ba4121586..890a8114b477 100644
 --- a/drivers/media/i2c/Kconfig
 +++ b/drivers/media/i2c/Kconfig
 @@ -60,6 +60,15 @@ config VIDEO_AR0521
@@ -39,7 +39,7 @@ index 5eb1e0e0a87a..1be1900f6139 100644
  	tristate "GalaxyCore GC0308 sensor support"
  	select V4L2_CCI_I2C
 diff --git a/drivers/media/i2c/Makefile b/drivers/media/i2c/Makefile
-index a3a6396df3c4..f1abc1bad7f2 100644
+index 90b276a7417a..031247160432 100644
 --- a/drivers/media/i2c/Makefile
 +++ b/drivers/media/i2c/Makefile
 @@ -16,6 +16,7 @@ obj-$(CONFIG_VIDEO_ADV7511) += adv7511-v4l2.o

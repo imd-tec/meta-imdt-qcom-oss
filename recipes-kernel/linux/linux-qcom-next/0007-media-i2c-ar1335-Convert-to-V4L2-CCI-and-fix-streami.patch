@@ -1,7 +1,7 @@
-From e34552859ee08609ac215a7f2220640127fc962d Mon Sep 17 00:00:00 2001
+From 30df22d93cf1ca080243a3b04dacd547782f11bf Mon Sep 17 00:00:00 2001
 From: William Bright <William.Bright@imd-tec.com>
 Date: Tue, 14 Apr 2026 15:01:02 +0100
-Subject: [PATCH 4/5] media: i2c: ar1335: Convert to V4L2 CCI and fix streaming
+Subject: [PATCH 7/8] media: i2c: ar1335: Convert to V4L2 CCI and fix streaming
  failures
 
 Replace raw i2c_transfer() register access with the V4L2 CCI regmap
@@ -50,7 +50,7 @@ index ea33cb60dbab..72e858cc374d 100644
              anyOf:
                - items:
 diff --git a/drivers/media/i2c/Kconfig b/drivers/media/i2c/Kconfig
-index 1be1900f6139..e902bf1c990a 100644
+index 890a8114b477..85e3565d3544 100644
 --- a/drivers/media/i2c/Kconfig
 +++ b/drivers/media/i2c/Kconfig
 @@ -62,6 +62,7 @@ config VIDEO_AR0521

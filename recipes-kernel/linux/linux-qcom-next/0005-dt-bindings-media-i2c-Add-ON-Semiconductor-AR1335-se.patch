@@ -1,7 +1,7 @@
-From 771215fb5b41ef52dfd0c43ceed8aa5a22683186 Mon Sep 17 00:00:00 2001
+From 2cf81352365358cbea737b94e7963211f7e967bb Mon Sep 17 00:00:00 2001
 From: William Bright <William.Bright@imd-tec.com>
 Date: Wed, 8 Apr 2026 10:43:00 +0100
-Subject: [PATCH 2/5] dt-bindings: media: i2c: Add ON Semiconductor AR1335
+Subject: [PATCH 5/8] dt-bindings: media: i2c: Add ON Semiconductor AR1335
  sensor binding
 
 Add devicetree binding documentation for the ON Semiconductor AR1335,

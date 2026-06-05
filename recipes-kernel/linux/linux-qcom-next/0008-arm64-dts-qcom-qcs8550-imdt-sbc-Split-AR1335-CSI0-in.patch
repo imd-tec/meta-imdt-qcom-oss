@@ -1,7 +1,7 @@
-From 93b3b3ab8f228f0bbdcda39863e528097c45470c Mon Sep 17 00:00:00 2001
+From 79fd1ad916cd514cf296f9d3f0f2494512383d8e Mon Sep 17 00:00:00 2001
 From: William Bright <William.Bright@imd-tec.com>
 Date: Tue, 14 Apr 2026 15:17:45 +0100
-Subject: [PATCH 5/5] arm64: dts: qcom: qcs8550-imdt-sbc: Split AR1335 CSI0
+Subject: [PATCH 8/8] arm64: dts: qcom: qcs8550-imdt-sbc: Split AR1335 CSI0
  into separate dtsi
 
 Move the AR1335 camera sensor on CSI0 (camss port@0, cci0, and
@@ -19,11 +19,11 @@ v4l2-compliance tool]
  create mode 100644 arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi0.dtso
 
 diff --git a/arch/arm64/boot/dts/qcom/Makefile b/arch/arm64/boot/dts/qcom/Makefile
-index e58fc8fe5619..9cf3b88de476 100644
+index a0da749f749c..79fd05a32e00 100644
 --- a/arch/arm64/boot/dts/qcom/Makefile
 +++ b/arch/arm64/boot/dts/qcom/Makefile
-@@ -182,10 +182,9 @@ qcs8300-ride-el2-dtbs := qcs8300-ride.dtb monaco-el2.dtbo
- dtb-$(CONFIG_ARCH_QCOM)	+= qcs8300-ride-el2.dtb
+@@ -219,10 +219,9 @@ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8300-ride-el2.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= monaco-el2.dtbo
  dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-aim300-aiot.dtb
  dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc.dtb
 +dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-display.dtbo
