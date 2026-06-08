@@ -6,6 +6,8 @@ header:
   includes:
     - repo: meta-qcom
       file: ci/base.yml
+    - repo: meta-qcom
+      file: ci/base.lock.yml
 
 
 defaults:
