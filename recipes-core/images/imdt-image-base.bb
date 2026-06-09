@@ -5,6 +5,9 @@ LICENSE = "MIT"
 
 require recipes-core/images/core-image-base.bb
 
+# Allocate an extra 2G of spare space in the rootfs (value is in KiB)
+IMAGE_ROOTFS_EXTRA_SPACE = "2097152"
+
 # Enable ADB
 IMAGE_FEATURES += "enable-adbd"
 inherit image-adbd
