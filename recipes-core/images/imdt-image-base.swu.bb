@@ -1,9 +1,8 @@
 SUMMARY = "SWUpdate .swu bundle for imdt-image-base (A/B rootfs)"
 DESCRIPTION = "Builds a .swu cpio archive that ships an ext4.gz of \
-imdt-image-base together with a sw-description manifest declaring two \
-selections (rootfs_a, rootfs_b). The on-target swupdate-rootfs wrapper \
-picks the inverse of the active slot so the update always lands on the \
-inactive partition; SWUpdate's bootenv handler swaps rootfs_part on \
+imdt-image-base together with a sw-description manifest. The image entry \
+uses the on-target 'rootfs_ab' Lua handler (swupdate-imdt-handlers), \
+which writes the image to the inactive slot and swaps rootfs_part on \
 success."
 
 LICENSE = "MIT"
@@ -26,5 +25,7 @@ do_swuimage[depends] += "imdt-image-base:do_image_complete"
 
 SRC_URI = "file://sw-description"
 
-# Expanded into sw-description's @@VERSION@@ token.
+# Expanded into sw-description's @@SWUPDATE_VERSION@@ token (the bbclass
+# substitutes any @@VAR@@ with the BitBake variable of that name; plain
+# @@VERSION@@ would expand the unset variable VERSION to "").
 SWUPDATE_VERSION ?= "${PV}"

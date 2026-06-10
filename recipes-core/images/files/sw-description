@@ -1,59 +1,27 @@
 /*
  * SWUpdate manifest for the IMDT QCS8550 SBC base image.
  *
- * The embedded Lua block registers a custom image handler 'rootfs_ab'
- * that picks the *inactive* slot at install time by reading the U-Boot
- * 'rootfs_part' env var (3 -> /dev/sda3 active, 4 -> /dev/sda4 active),
- * delegates the actual write to the built-in 'raw' handler, then flips
- * 'rootfs_part' (and resets bootcount / sets upgrade_available) on
- * success. The result: a single .swu can be installed via the web UI,
- * the IPC socket or the CLI without any -e selection or wrapper, and
- * always lands on the inactive slot.
+ * The single image entry uses the custom 'rootfs_ab' handler, shipped on
+ * the target by swupdate-imdt-handlers as swupdate_handlers.lua and
+ * loaded at SWUpdate startup (CONFIG_HANDLER_IN_LUA — handlers cannot be
+ * registered from an embedded-script in sw-description). The handler
+ * picks the *inactive* slot by reading the U-Boot 'rootfs_part' env var
+ * (3 -> /dev/sda3 active, 4 -> /dev/sda4 active), delegates the actual
+ * write to the built-in 'raw' handler, then flips 'rootfs_part' (and
+ * resets bootcount / sets upgrade_available) on success. The result: a
+ * single .swu can be installed via the web UI, the IPC socket or the CLI
+ * without any -e selection or wrapper, and always lands on the inactive
+ * slot.
  *
  * hardware-compatibility is matched against /etc/hwrevision on the
  * target (shipped via base-files: 'imdt-8550-sbc 1.0').
  */
 software =
 {
-    version = "@@VERSION@@";
+    version = "@@SWUPDATE_VERSION@@";
     description = "imdt-image-base A/B rootfs update";
 
     hardware-compatibility: [ "1.0" ];
-
-    embedded-script = "
-        local function inactive_slot()
-            local current = swupdate.getbootenv('rootfs_part') or '3'
-            if current == '4' then
-                return '/dev/sda3', '3'
-            end
-            return '/dev/sda4', '4'
-        end
-
-        local function rootfs_ab(image)
-            local target_dev, new_part = inactive_slot()
-            swupdate.info(string.format(
-                'rootfs_ab: active rootfs_part=%s, writing to %s',
-                swupdate.getbootenv('rootfs_part') or '3', target_dev))
-
-            -- Reuse the built-in raw handler; just point it at the
-            -- inactive slot.
-            image.device = target_dev
-            local err = swupdate.call_handler('raw', image)
-            if err and err ~= 0 then
-                swupdate.error('rootfs_ab: raw write failed: ' .. tostring(err))
-                return err
-            end
-
-            swupdate.info('rootfs_ab: setting rootfs_part=' .. new_part)
-            swupdate.setbootenv('rootfs_part', new_part)
-            swupdate.setbootenv('bootcount', '0')
-            swupdate.setbootenv('upgrade_available', '1')
-            return 0
-        end
-
-        swupdate.register_handler('rootfs_ab', rootfs_ab,
-                                  swupdate.HANDLER_MASK.IMAGE_HANDLER)
-    ";
 
     images = (
         {
