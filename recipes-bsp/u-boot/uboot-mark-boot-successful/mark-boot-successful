@@ -1,0 +1,22 @@
+#!/bin/sh
+# Mark this boot as successful for U-Boot's automatic-rollback scheme:
+# clear bootcount and upgrade_available so U-Boot stops counting attempts
+# and won't fall back to the previous rootfs slot.
+#
+# Only touches the env when a flag is actually set (i.e. the first boot
+# after an upgrade), so steady-state boots never rewrite the env file.
+
+bootcount=$(fw_printenv -n bootcount 2>/dev/null)
+upgrade=$(fw_printenv -n upgrade_available 2>/dev/null)
+
+if [ "${bootcount:-0}" = "0" ] && [ "${upgrade:-0}" = "0" ]; then
+    exit 0
+fi
+
+# Clear upgrade_available first: if power is lost between the two writes,
+# a stale bootcount is harmless once U-Boot no longer arms the counter
+# (and the SWUpdate handler resets it on the next upgrade anyway).
+fw_setenv upgrade_available 0 || exit 1
+fw_setenv bootcount 0 || exit 1
+
+echo "cleared u-boot upgrade_available/bootcount (boot confirmed)"

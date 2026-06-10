@@ -1,0 +1,14 @@
+[Unit]
+Description=Mark boot successful (clear U-Boot rollback flags)
+# The env partition (LABEL=UBOOT_ENV) is mounted at /media/env via fstab
+# with nofail; order after the mount and skip silently if it isn't there.
+RequiresMountsFor=/media/env
+ConditionPathExists=/media/env/uboot.env
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/mark-boot-successful
+
+[Install]
+WantedBy=multi-user.target

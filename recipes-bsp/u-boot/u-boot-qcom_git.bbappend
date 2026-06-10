@@ -8,8 +8,8 @@
 #   - Removing the qtestsign-native dependency since it doesn't build due to
 #     python3-cryptography not building
 SRC_URI:remove:qcs8550 = "git://github.com/qualcomm-linux/u-boot.git;${SRCBRANCH};protocol=https;name=uboot"
-SRC_URI:append:qcs8550 = " git://git@github.com/imd-tec/qcom-u-boot-dev.git;branch=master;protocol=ssh"
-SRCREV:qcs8550 = "db006c8fe1fcc24173f9839c9691c37a5d07d194"
+SRC_URI:append:qcs8550 = " git://github.com/imd-tec/qcom-u-boot.git;branch=master;protocol=https"
+SRCREV:qcs8550 = "d05254dce8db53fee1091f5b70dc5bbddd2c015b"
 
 inherit deploy
 

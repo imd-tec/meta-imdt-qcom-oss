@@ -27,6 +27,7 @@ IMAGE_INSTALL:append = " \
     swupdate \
     swupdate-www \
     swupdate-imdt-handlers \
+    uboot-mark-boot-successful \
 "
 
 # .swu bundles require a raw rootfs image to bundle. The .swu recipe
