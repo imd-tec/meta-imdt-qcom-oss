@@ -31,18 +31,18 @@ python __anonymous() {
     pre_processing = d.getVar('IMAGE_PREPROCESS_COMMAND') or ""
     if efi_provider == 'limine':
         pkg_install = pkg_install.replace('systemd-boot', '')
-        pkg_install = pkg_install.replace('u-boot-qcom', '')
+        pkg_install = pkg_install.replace('u-boot-concept', '')
         pkg_install += ' limine'
         pre_processing += ' remove_UKI install_limine'
         d.setVar('IMAGE_PREPROCESS_COMMAND', pre_processing.strip())
     elif efi_provider == 'systemd-boot':
         pkg_install = pkg_install.replace('limine', '')
-        pkg_install = pkg_install.replace('u-boot-qcom', '')
+        pkg_install = pkg_install.replace('u-boot-concept', '')
         pkg_install += ' systemd-boot'
-    elif efi_provider == 'u-boot-qcom':
+    elif efi_provider == 'u-boot-concept':
         pkg_install = pkg_install.replace('limine', '')
         pkg_install = pkg_install.replace('systemd-boot', '')
-        pkg_install += ' u-boot-qcom'
+        pkg_install += ' u-boot-concept'
         pre_processing += ' remove_UKI'
         if d.getVar('UBOOT_EXTLINUX') == '1':
             pre_processing += ' install_u_boot_extlinux_entry'

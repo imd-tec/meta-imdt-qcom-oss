@@ -1,23 +1,27 @@
-# QCS8550 U-boot changes
-# For QCS8550 needs to use u-boot as a UEFI app
-# This is only supported in the concept u-boot fork
-# There are some other changes that his handles:
-#   - Building an initial env binary and wrapping it in a FAT32
-#     partition image for boards that support CONFIG_ENV_IS_IN_FAT
-#   - Deploying the built u-boot-app.efi to the deploy directory for use in the image recipe
-#   - Removing the qtestsign-native dependency since it doesn't build due to
-#     python3-cryptography not building
-SRC_URI:remove:qcs8550 = "git://github.com/qualcomm-linux/u-boot.git;${SRCBRANCH};protocol=https;name=uboot"
-SRC_URI:append:qcs8550 = " git://github.com/imd-tec/qcom-u-boot.git;branch=master;protocol=https"
-SRCREV:qcs8550 = "d05254dce8db53fee1091f5b70dc5bbddd2c015b"
+# U-Boot "concept" fork (github.com/imd-tec/qcom-u-boot) for QCS8550.
+# QCS8550 needs to use u-boot as a UEFI app, which is only supported in
+# this fork. Compared to meta-qcom's u-boot-qcom recipe this also:
+#   - Builds an initial env binary and wraps it in a FAT32 partition
+#     image for boards that support CONFIG_ENV_IS_IN_FAT
+#   - Deploys the built u-boot-app.efi to the deploy directory for use
+#     in the image recipe
+#   - Drops the qtestsign-native/MBN signing flow (the UEFI app does not
+#     need an MBN header, and qtestsign-native doesn't build due to
+#     python3-cryptography not building)
 
-inherit deploy
+require recipes-bsp/u-boot/u-boot-common.inc
+require recipes-bsp/u-boot/u-boot.inc
 
-# Qtestsign-native doesn't build due to python3-cryptography not building
-DEPENDS:remove:qcs8550 = "qtestsign-native"
-
+DEPENDS += "bc-native dtc-native gnutls-native python3-pyelftools-native xxd-native"
 # Tools for wrapping the binary u-boot env into a FAT32 partition image
 DEPENDS:append:qcs8550 = " dosfstools-native mtools-native"
+
+COMPATIBLE_MACHINE = "(qcs8550)"
+
+PV = "2026.01+git"
+
+SRC_URI = "git://github.com/imd-tec/qcom-u-boot.git;branch=master;protocol=https"
+SRCREV = "d05254dce8db53fee1091f5b70dc5bbddd2c015b"
 
 # Set the default overlay list to be blank
 UBOOT_DEFAULT_FDT_OVERLAYS ?= ""
@@ -48,9 +52,6 @@ do_configure:append:qcs8550() {
     fi
 }
 
-python () {
-    d.setVar('BOARD_MBN_HEADER', '')
-}
 uboot_deploy_uefi() {
     install -d ${D}/boot/EFI/BOOT
     install -m 0644 ${B}/${builddir}/u-boot-app.efi ${D}/boot/EFI/BOOT/BOOTAA64.EFI
@@ -77,4 +78,3 @@ uboot_deploy_config:append:qcs8550() {
         mcopy -i $env_img ${B}/${builddir}/u-boot-initial-env-${type}.bin ::/${UBOOT_ENV_FILENAME}
     fi
 }
-

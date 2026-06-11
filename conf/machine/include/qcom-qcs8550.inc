@@ -42,8 +42,11 @@ UBOOT_ENV_IMG_SIZE_MIB   = "64"
 UBOOT_ENV_IMG_SIZE_BYTES = "${@int(d.getVar('UBOOT_ENV_IMG_SIZE_MIB')) * 1024 * 1024}"
 # UFS wants 4K logical block size, so use that for the FAT32 partition as well.
 UBOOT_FAT32_LOGICAL_SIZE = "4096"
-#Use u-boot as an UEFI App so that Device tree fixups can be applied
-EFI_PROVIDER = "u-boot-qcom"
+#Use u-boot as an UEFI App so that Device tree fixups can be applied.
+#This is only supported in the concept u-boot fork, so prefer that over
+#meta-qcom's u-boot-qcom for the whole SoC family.
+PREFERRED_PROVIDER_virtual/bootloader = "u-boot-concept"
+EFI_PROVIDER = "u-boot-concept"
 # U-boot extlinux config file settings
 UBOOT_EXTLINUX = "1"
 UBOOT_EXTLINUX_ROOT = "root=${QCOM_BOOTIMG_ROOTFS}"
