@@ -12,6 +12,12 @@ IMAGE_ROOTFS_EXTRA_SPACE = "2097152"
 IMAGE_FEATURES += "enable-adbd"
 inherit image-adbd
 
+IMAGE_FEATURES += "ssh-server-openssh allow-root-login"
+
+# Set root password to oelinux123 (consistent with QCOM reference images)
+inherit extrausers
+EXTRA_USERS_PARAMS = "usermod -p '\$6\$f4ft/1v873eIenmM\$Tq7CvkStN3.X1AAUi7IEDDnY3I02hA5etdtGeulSO1Lhz./5mHsQz06Ok6k7JZkw2QUvBc9Bj9g6DeJ7D2mak.' root;"
+
 IMAGE_INSTALL:append = " \
     android-tools-adbd \
     iproute2 \
@@ -28,6 +34,8 @@ IMAGE_INSTALL:append = " \
     swupdate-www \
     swupdate-imdt-handlers \
     uboot-mark-boot-successful \
+    coreutils \
+    lava-ssh-keys \
 "
 
 # .swu bundles require a raw rootfs image to bundle. The .swu recipe

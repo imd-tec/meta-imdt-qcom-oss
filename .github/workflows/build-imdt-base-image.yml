@@ -10,6 +10,11 @@ on:
 
 permissions:
   contents: write
+  checks: write
+  pull-requests: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build:
@@ -18,5 +23,19 @@ jobs:
       kas-config: 'kas/default.yml'
       machine: 'imdt-8550-sbc'
       artifact-name: 'imdt-image-base'
+      rsync-enabled: true
+      rsync-host: ${{ vars.LAVA_HOST }}
+      rsync-user: pi
+      rsync-dest: /home/pi/qcom-oss/
+      rsync-pattern: '*.swu'
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  lava:
+    needs: build
+    if: needs.build.result == 'success'
+    uses: ./.github/workflows/lava-tests.yml
+    with:
+      is-pr: ${{ github.event_name == 'pull_request' }}
+      pr-number: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || 0 }}
+    secrets: inherit

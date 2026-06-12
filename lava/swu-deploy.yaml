@@ -1,0 +1,67 @@
+device_type: docker
+job_name: deploy imdt-image-base swu to imdt-8550-sbc via adb
+tags:
+- dut
+
+timeouts:
+  job:
+    minutes: 30
+  action:
+    minutes: 20
+  connection:
+    minutes: 5
+priority: medium
+visibility: public
+
+actions:
+- deploy:
+    to: docker
+    image:
+      name: lava-adb:latest
+      local: true
+    timeout:
+      minutes: 5
+
+- boot:
+    method: docker
+    command: /bin/bash
+    prompts:
+    - 'root@lava'
+    timeout:
+      minutes: 5
+
+- test:
+    timeout:
+      minutes: 20
+    definitions:
+    - from: inline
+      name: swu-deploy
+      path: inline/swu-deploy.yaml
+      parameters:
+        SWU_FILE: 'imdt-image-base.swu-imdt-8550-sbc.rootfs.swu'
+        SWU_URL: ''
+      repository:
+        metadata:
+          format: Lava-Test Test Definition 1.0
+          name: swu-deploy
+          description: Push .swu over adb and run swupdate (A/B rootfs)
+        run:
+          steps:
+          - adb wait-for-device
+          - lava-test-case adb-detect --shell adb get-serialno
+          - 'echo "Using .swu: ${SWU_URL:-/images/$SWU_FILE}"'
+          - if [ -n "$SWU_URL" ]; then lava-test-case fetch-swu --shell curl -fsSL "$SWU_URL" -o /tmp/update.swu; else lava-test-case copy-swu --shell cp "/images/$SWU_FILE" /tmp/update.swu; fi
+          - ROOT_BEFORE=$(adb shell cat /proc/cmdline | tr ' ' '\n' | grep ^root=)
+          - 'echo "Active rootfs before update: $ROOT_BEFORE"'
+          - adb shell mkdir -p /home/swu
+          - lava-test-case push-swu --shell adb push /tmp/update.swu /home/swu/update.swu
+          - lava-test-case swupdate --shell adb shell "TMPDIR=/home/swu swupdate -i /home/swu/update.swu && echo SWUPDATE_OK"
+          - adb shell rm -rf /home/swu
+          - lava-test-case reboot --shell adb reboot
+          - sleep 5
+          - lava-test-case wait-reboot --shell adb wait-for-device
+          - sleep 5
+          - ROOT_AFTER=$(adb shell cat /proc/cmdline | tr ' ' '\n' | grep ^root=)
+          - 'echo "Active rootfs after update: $ROOT_AFTER"'
+          - if [ "$ROOT_BEFORE" != "$ROOT_AFTER" ]; then lava-test-case slot-switched --result pass; else lava-test-case slot-switched --result fail; fi
+          - lava-test-case post-boot-shell --shell adb shell "cat /etc/hwrevision"

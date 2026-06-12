@@ -1,0 +1,56 @@
+device_type: docker
+job_name: AR1335 frame capture and de-mosaic on imdt-8550-sbc
+tags:
+- dut
+
+timeouts:
+  job:
+    minutes: 15
+  action:
+    minutes: 10
+  connection:
+    minutes: 5
+priority: medium
+visibility: public
+
+actions:
+- deploy:
+    to: docker
+    image:
+      name: lava-adb:latest
+      local: true
+    timeout:
+      minutes: 5
+
+- boot:
+    method: docker
+    command: /bin/bash
+    prompts:
+    - 'root@lava'
+    timeout:
+      minutes: 5
+
+- test:
+    timeout:
+      minutes: 10
+    definitions:
+    - from: inline
+      name: ar1335-capture
+      path: inline/ar1335-capture.yaml
+      repository:
+        metadata:
+          format: Lava-Test Test Definition 1.0
+          name: ar1335-capture
+          description: Capture a raw frame from the AR1335, de-mosaic to 1080p PNG, save to /images/
+        run:
+          steps:
+          - adb wait-for-device
+          - SETUP_OUT=$(adb shell "sh /opt/imdt/camss/qcs8550-csi0-ar1335.sh" 2>&1); SETUP_RC=$?
+          - 'echo "$SETUP_OUT"'
+          - lava-test-case pipeline-setup --result $([ "$SETUP_RC" = "0" ] && echo pass || echo fail)
+          - VIDEO_DEV=$(echo "$SETUP_OUT" | grep -o '/dev/video[0-9]*' | head -n1)
+          - VIDEO_DEV=${VIDEO_DEV:-/dev/video0}
+          - 'echo "Using video device: $VIDEO_DEV"'
+          - lava-test-case capture-raw-frame --shell adb shell "v4l2-ctl -d $VIDEO_DEV --stream-mmap --stream-count=1 --stream-to=/tmp/ar1335_frame.raw"
+          - adb pull /tmp/ar1335_frame.raw /tmp/ar1335_frame.raw
+          - lava-test-case demosaic --shell python3 /usr/local/bin/demosaic.py /tmp/ar1335_frame.raw /images/ar1335_1080p.png

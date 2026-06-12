@@ -8,3 +8,4 @@ docs/logo.png filter=lfs diff=lfs merge=lfs -text
 docs/serial-port-settings.png filter=lfs diff=lfs merge=lfs -text
 docs/connectors-bottom.png filter=lfs diff=lfs merge=lfs -text
 docs/logo.svg filter=lfs diff=lfs merge=lfs -text
+recipes-bsp/firmware/files/NON-HLOS.bin filter=lfs diff=lfs merge=lfs -text

@@ -1,0 +1,148 @@
+device_type: ssh
+job_name: post-update system tests on imdt-8550-sbc
+tags:
+- dut-ssh
+
+timeouts:
+  job:
+    minutes: 45
+  action:
+    minutes: 30
+  connection:
+    minutes: 5
+priority: medium
+visibility: public
+
+actions:
+- deploy:
+    to: ssh
+    os: oe
+    timeout:
+      minutes: 5
+
+- boot:
+    method: ssh
+    prompts:
+    - 'root@'
+    timeout:
+      minutes: 5
+
+- test:
+    timeout:
+      minutes: 30
+    definitions:
+    - from: inline
+      name: system-info
+      path: inline/system-info.yaml
+      repository:
+        metadata:
+          format: Lava-Test Test Definition 1.0
+          name: system-info
+          description: Basic system information (kernel, hwrevision, rootfs slot)
+        run:
+          steps:
+          - lava-test-case kernel-version --shell uname -a
+          - lava-test-case hwrevision --shell cat /etc/hwrevision
+          - ROOT_SLOT=$(cat /proc/cmdline | tr ' ' '\n' | grep ^root=)
+          - 'echo "Active rootfs slot: $ROOT_SLOT"'
+          - lava-test-case rootfs-slot --shell test -n "$ROOT_SLOT"
+
+    - from: inline
+      name: systemd-health
+      path: inline/systemd-health.yaml
+      repository:
+        metadata:
+          format: Lava-Test Test Definition 1.0
+          name: systemd-health
+          description: systemd state and kernel critical log checks
+        run:
+          steps:
+          - SYS_STATE=$(timeout 120 systemctl is-system-running --wait)
+          - 'echo "systemd state: $SYS_STATE"'
+          - systemctl --failed --no-pager || true
+          - if [ "$SYS_STATE" = "running" ] || [ "$SYS_STATE" = "degraded" ]; then lava-test-case systemd-state --result pass; else lava-test-case systemd-state --result fail; fi
+          - DMESG_CRIT=$(dmesg -r | grep -E '^<[0-2]>' || true)
+          - 'echo "Kernel err-level messages (informational):"'
+          - dmesg -r | grep -E '^<3>' || true
+          - if [ -z "$DMESG_CRIT" ]; then lava-test-case dmesg-critical --result pass; else echo "$DMESG_CRIT"; lava-test-case dmesg-critical --result fail; fi
+
+    - from: inline
+      name: resources
+      path: inline/resources.yaml
+      repository:
+        metadata:
+          format: Lava-Test Test Definition 1.0
+          name: resources
+          description: Disk and memory availability checks
+        run:
+          steps:
+          - lava-test-case disk-free --shell df -h /
+          - lava-test-case mem-free --shell free -m
+
+    - from: inline
+      name: wifi
+      path: inline/wifi.yaml
+      repository:
+        metadata:
+          format: Lava-Test Test Definition 1.0
+          name: wifi
+          description: Wi-Fi interface presence check (mlan0)
+        run:
+          steps:
+          - WLAN_IF=$(ip link show mlan0 2>/dev/null)
+          - if [ -n "$WLAN_IF" ]; then lava-test-case wifi-present --result pass; else lava-test-case wifi-present --result fail; fi
+
+    - from: inline
+      name: ar1335-stream
+      path: inline/ar1335-stream.yaml
+      repository:
+        metadata:
+          format: Lava-Test Test Definition 1.0
+          name: ar1335-stream
+          description: Configure the AR1335 CSI0 pipeline and stream frames with v4l2-ctl
+        run:
+          steps:
+          - SETUP_OUT=$(sh /opt/imdt/camss/qcs8550-csi0-ar1335.sh 2>&1); SETUP_RC=$?
+          - 'echo "$SETUP_OUT"'
+          - if [ "$SETUP_RC" = "0" ]; then lava-test-case pipeline-setup --result pass; else lava-test-case pipeline-setup --result fail; fi
+          - lava-test-case sensor-enumerated --shell sh -c "media-ctl -d /dev/media0 -p | grep -q ar1335"
+          - VIDEO_DEV=$(echo "$SETUP_OUT" | grep -o '/dev/video[0-9]*' | head -n1)
+          - VIDEO_DEV=${VIDEO_DEV:-/dev/video0}
+          - 'echo "Using video device: $VIDEO_DEV"'
+          - if [ -n "$VIDEO_DEV" ]; then lava-test-case video-node --result pass; else lava-test-case video-node --result fail; fi
+          - lava-test-case stream-30-frames --shell /usr/bin/timeout 60 v4l2-ctl -d "$VIDEO_DEV" --stream-mmap --stream-count=30
+
+    - from: inline
+      name: sdcard
+      path: inline/sdcard.yaml
+      repository:
+        metadata:
+          format: Lava-Test Test Definition 1.0
+          name: sdcard
+          description: SD card presence check (mmcblk0)
+        run:
+          steps:
+          - SD_DEV=$(ls /dev/mmcblk0 2>/dev/null)
+          - if [ -n "$SD_DEV" ]; then lava-test-case sdcard-present --result pass; else lava-test-case sdcard-present --result fail; fi
+
+    - from: inline
+      name: hardware
+      path: inline/hardware.yaml
+      repository:
+        metadata:
+          format: Lava-Test Test Definition 1.0
+          name: hardware
+          description: Hardware subsystem presence checks (GPU, BT, I2C, RTC, hwrng, IOMMU, CPU freq)
+        run:
+          steps:
+          - lava-test-case gpu-drm-render --shell test -e /dev/dri/renderD128
+          - lava-test-case gpu-drm-card --shell test -e /dev/dri/card0
+          - lava-test-case bluetooth-present --shell test -e /sys/class/bluetooth/hci0
+          - lava-test-case rtc-present --shell test -e /dev/rtc0
+          - lava-test-case cpu-freq-scaling --shell test -f /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+          - I2C_COUNT=$(ls /dev/i2c-* 2>/dev/null | wc -l)
+          - if [ "$I2C_COUNT" -ge 1 ]; then lava-test-case i2c-buses --result pass; else lava-test-case i2c-buses --result fail; fi
+          - IOMMU_COUNT=$(ls /sys/kernel/iommu_groups/ 2>/dev/null | wc -l)
+          - if [ "$IOMMU_COUNT" -ge 1 ]; then lava-test-case iommu-groups --result pass; else lava-test-case iommu-groups --result fail; fi
+          - HWRNG_BYTES=$(dd if=/dev/hwrng bs=16 count=1 2>/dev/null | wc -c)
+          - if [ "$HWRNG_BYTES" -ge 16 ]; then lava-test-case hwrng-readable --result pass; else lava-test-case hwrng-readable --result fail; fi

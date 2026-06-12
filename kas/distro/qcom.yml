@@ -1,0 +1,5 @@
+header:
+  version: 14
+  includes:
+    - repo: meta-qcom
+      file: ci/qcom-distro.yml

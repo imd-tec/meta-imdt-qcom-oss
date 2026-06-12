@@ -1,0 +1,284 @@
+name: LAVA Hardware Tests
+
+on:
+  workflow_call:
+    inputs:
+      is-pr:
+        type: boolean
+        default: false
+      pr-number:
+        type: number
+        default: 0
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  lava-test:
+    runs-on: imx-runner
+    timeout-minutes: 120
+    concurrency:
+      group: lava-dut
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    env:
+      LAVA_TOKEN: ${{ secrets.LAVA_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          persist-credentials: false
+
+      - name: Install lavacli
+        run: pip3 install lavacli --quiet --break-system-packages 2>/dev/null || pip3 install lavacli --quiet
+
+      - name: Configure lavacli identity
+        run: |
+          mkdir -p ~/.config
+          cat > ~/.config/lavacli.yaml <<EOF
+          lava-ci:
+            uri: http://${{ vars.LAVA_HOST }}/RPC2
+            username: ${{ secrets.LAVA_USERNAME }}
+            token: ${LAVA_TOKEN}
+          EOF
+
+      # ── Job 1: swu-deploy (ADB) ─────────────────────────────────────────
+      - name: Submit swu-deploy LAVA job
+        run: |
+          SWU_FILE="imdt-image-base.swu-imdt-8550-sbc.rootfs-${{ github.sha }}.swu"
+          sed "s|SWU_FILE: '.*'|SWU_FILE: '${SWU_FILE}'|" lava/swu-deploy.yaml \
+            > /tmp/lava-swu-deploy.yaml
+          JOB_ID=$(lavacli --identity lava-ci jobs submit /tmp/lava-swu-deploy.yaml)
+          echo "swu-deploy: $JOB_ID — http://${{ vars.LAVA_HOST }}/scheduler/job/$JOB_ID"
+          echo "SWUDEPLOY_JOB_ID=$JOB_ID" >> "$GITHUB_ENV"
+
+      - name: Wait for swu-deploy
+        run: lavacli --identity lava-ci jobs wait "$SWUDEPLOY_JOB_ID"
+
+      # ── Job 2: ssh-tests (SSH DUT) ──────────────────────────────────────
+      - name: Submit ssh-tests LAVA job
+        run: |
+          JOB_ID=$(lavacli --identity lava-ci jobs submit lava/ssh-tests.yaml)
+          echo "ssh-tests: $JOB_ID — http://${{ vars.LAVA_HOST }}/scheduler/job/$JOB_ID"
+          echo "SSHTESTS_JOB_ID=$JOB_ID" >> "$GITHUB_ENV"
+
+      - name: Wait for ssh-tests
+        run: lavacli --identity lava-ci jobs wait "$SSHTESTS_JOB_ID"
+
+      # ── Job 3: ar1335 frame capture (ADB) ──────────────────────────────
+      - name: Submit ar1335-capture LAVA job
+        run: |
+          JOB_ID=$(lavacli --identity lava-ci jobs submit lava/ar1335-capture.yaml)
+          echo "ar1335-capture: $JOB_ID — http://${{ vars.LAVA_HOST }}/scheduler/job/$JOB_ID"
+          echo "CAPTURE_JOB_ID=$JOB_ID" >> "$GITHUB_ENV"
+
+      - name: Wait for ar1335-capture
+        run: lavacli --identity lava-ci jobs wait "$CAPTURE_JOB_ID"
+
+      # ── Results ─────────────────────────────────────────────────────────
+      - name: Show all LAVA job results
+        if: always() && env.SWUDEPLOY_JOB_ID != ''
+        run: |
+          for JOB_ID in "$SWUDEPLOY_JOB_ID" "$SSHTESTS_JOB_ID" "$CAPTURE_JOB_ID"; do
+            [ -z "$JOB_ID" ] && continue
+            echo "=== Job $JOB_ID ==="
+            lavacli --identity lava-ci jobs show "$JOB_ID" || true
+            echo ""
+            lavacli --identity lava-ci results "$JOB_ID" || true
+            echo ""
+          done
+
+      - name: Fetch and combine LAVA results CSVs
+        if: always() && env.SWUDEPLOY_JOB_ID != ''
+        run: |
+          HEADER_WRITTEN=0
+          for JOB_ID in "$SWUDEPLOY_JOB_ID" "$SSHTESTS_JOB_ID" "$CAPTURE_JOB_ID"; do
+            [ -z "$JOB_ID" ] && continue
+            curl -fsSL -H "Authorization: Token $LAVA_TOKEN" \
+              "http://${{ vars.LAVA_HOST }}/results/${JOB_ID}/csv" \
+              -o "/tmp/lava-${JOB_ID}.csv" 2>/dev/null || continue
+            if [ "$HEADER_WRITTEN" = "0" ]; then
+              cat "/tmp/lava-${JOB_ID}.csv" > lava-all-results.csv
+              HEADER_WRITTEN=1
+            else
+              tail -n +2 "/tmp/lava-${JOB_ID}.csv" >> lava-all-results.csv
+            fi
+          done
+
+      - name: Fetch LAVA logs
+        if: always() && env.SWUDEPLOY_JOB_ID != ''
+        run: |
+          mkdir -p lava-logs
+          for name_job in \
+              "swu-deploy:$SWUDEPLOY_JOB_ID" \
+              "ssh-tests:$SSHTESTS_JOB_ID" \
+              "ar1335-capture:$CAPTURE_JOB_ID"; do
+            name="${name_job%%:*}"
+            job_id="${name_job##*:}"
+            [ -z "$job_id" ] && continue
+            lavacli --identity lava-ci jobs logs "$job_id" \
+              > "lava-logs/${name}-${job_id}.log" 2>&1 || true
+          done
+          cp lava-all-results.csv lava-logs/ 2>/dev/null || true
+
+      - name: Upload LAVA logs artifact
+        if: always() && env.SWUDEPLOY_JOB_ID != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: lava-logs-${{ github.sha }}
+          path: lava-logs/
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Convert LAVA results to JUnit XML
+        if: always() && env.SWUDEPLOY_JOB_ID != ''
+        run: |
+          python3 lava/lava_to_junit.py lava-all-results.csv lava-results.xml \
+            "$SWUDEPLOY_JOB_ID $SSHTESTS_JOB_ID $CAPTURE_JOB_ID"
+
+      - name: Publish test results
+        if: always() && env.SWUDEPLOY_JOB_ID != ''
+        uses: dorny/test-reporter@v2
+        with:
+          name: LAVA Test Results
+          path: lava-results.xml
+          reporter: java-junit
+          fail-on-error: true
+
+      - name: Generate PR comment body
+        if: always() && env.SWUDEPLOY_JOB_ID != '' && inputs.is-pr
+        run: |
+          python3 - <<'PYEOF'
+          import csv, os, re
+
+          lava_host = "${{ vars.LAVA_HOST }}"
+          jobs = [
+              ('swu-deploy', os.environ.get('SWUDEPLOY_JOB_ID', '')),
+              ('ssh-tests',  os.environ.get('SSHTESTS_JOB_ID', '')),
+              ('ar1335',     os.environ.get('CAPTURE_JOB_ID', '')),
+          ]
+
+          rows = []
+          try:
+              with open('lava-all-results.csv', newline='') as f:
+                  for row in csv.DictReader(f):
+                      if row.get('suite', '') == 'lava':
+                          continue
+                      rows.append(row)
+          except FileNotFoundError:
+              pass
+
+          def suite_name(raw):
+              return re.sub(r'^\d+_', '', raw)
+
+          passed  = sum(1 for r in rows if r.get('result', '').lower() == 'pass')
+          failed  = sum(1 for r in rows if r.get('result', '').lower() not in ('pass', 'skip'))
+          skipped = sum(1 for r in rows if r.get('result', '').lower() == 'skip')
+
+          status = '✅' if (failed == 0 and rows) else '❌'
+          job_links = ' &nbsp;·&nbsp; '.join(
+              f"[{name} #{jid}](http://{lava_host}/scheduler/job/{jid})"
+              for name, jid in jobs if jid
+          )
+
+          lines = [
+              f"## {status} LAVA Test Results",
+              "",
+              job_links,
+              "",
+              f"**{passed} passed** &nbsp;·&nbsp; **{failed} failed** &nbsp;·&nbsp; {skipped} skipped",
+              "",
+              "| Suite | Test Case | Result |",
+              "|-------|-----------|--------|",
+          ]
+
+          for row in rows:
+              result = row.get('result', '').lower()
+              icon = '✅' if result == 'pass' else ('⏭️' if result == 'skip' else '❌')
+              lines.append(f"| {suite_name(row.get('suite', 'unknown'))} | `{row.get('name', '')}` | {icon} {result} |")
+
+          if not rows:
+              lines.append("| — | No test results found | — |")
+
+          with open('lava-comment.md', 'w') as f:
+              f.write('\n'.join(lines) + '\n')
+          PYEOF
+
+      - name: Post results to PR
+        if: always() && inputs.is-pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let body;
+            try {
+              body = fs.readFileSync('lava-comment.md', 'utf8');
+            } catch {
+              body = `## ❓ LAVA Test Results\n\nResults not available — check the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}).`;
+            }
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ inputs.pr-number }},
+              body,
+            });
+
+      - name: Fetch camera frame from LAVA server
+        if: always() && env.CAPTURE_JOB_ID != ''
+        run: |
+          rsync -av \
+            pi@${{ vars.LAVA_HOST }}:/home/pi/qcom-oss/ar1335_1080p.png \
+            ar1335_1080p.png 2>/dev/null || true
+
+      - name: Upload camera frame artifact
+        if: always() && env.CAPTURE_JOB_ID != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ar1335-frame-${{ github.sha }}
+          path: ar1335_1080p.png
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Fail if any LAVA job did not complete or had test failures
+        if: env.SWUDEPLOY_JOB_ID != ''
+        run: |
+          FAILED=0
+          for JOB_ID in "$SWUDEPLOY_JOB_ID" "$SSHTESTS_JOB_ID" "$CAPTURE_JOB_ID"; do
+            [ -z "$JOB_ID" ] && continue
+            HEALTH=$(lavacli --identity lava-ci jobs show "$JOB_ID" | grep '^Health' | awk '{print $NF}')
+            echo "Job $JOB_ID health: $HEALTH"
+            [ "$HEALTH" = "Complete" ] || { FAILED=1; continue; }
+            CSV_FILE="/tmp/lava-${JOB_ID}.csv"
+            if [ ! -f "$CSV_FILE" ]; then
+              curl -fsSL -H "Authorization: Token $LAVA_TOKEN" \
+                "http://${{ vars.LAVA_HOST }}/results/${JOB_ID}/csv" \
+                -o "$CSV_FILE" || { FAILED=1; continue; }
+            fi
+            python3 lava/check_results.py < "$CSV_FILE"
+            [ $? -eq 0 ] || FAILED=1
+          done
+          [ "$FAILED" = "0" ] || { echo "One or more LAVA jobs did not complete or had test failures"; exit 1; }
+
+      - name: Cleanup
+        if: always()
+        run: rm -f ~/.config/lavacli.yaml
+
+  notify-lava:
+    runs-on: ubuntu-latest
+    needs: lava-test
+    if: always()
+    steps:
+      - name: Send Slack notification
+        uses: slackapi/slack-github-action@v2
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: webhook-trigger
+          payload: |
+            {
+              "text": "${{ needs.lava-test.result == 'success' && '✅' || '❌' }} *LAVA tests* — ${{ needs.lava-test.result }}\n\n*Branch:* ${{ github.ref_name }}\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\n\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
+            }
