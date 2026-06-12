@@ -1,0 +1,58 @@
+name: README PDF
+
+on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - '**'
+
+permissions:
+  contents: write
+
+jobs:
+  pdf:
+    runs-on: imx-runner
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      # The README embeds LFS-tracked images (docs/*.jpg); make sure they
+      # are real files, not pointers, or pandoc fails to load them.
+      - name: Pull LFS objects
+        run: git lfs pull --include="docs/**"
+
+      - name: Generate PDF from README
+        run: |
+          set -euo pipefail
+          docker run --rm -v "$PWD:/data" -u "$(id -u):$(id -g)" pandoc/extra:3 \
+            README.md -o "imdt-8550-sbc-guide-${GITHUB_SHA}.pdf" \
+            --from gfm \
+            --pdf-engine=xelatex \
+            --template eisvogel \
+            --listings \
+            --toc \
+            --shift-heading-level-by=-1 \
+            -V titlepage=true \
+            -V toc-own-page=true \
+            -V colorlinks=true \
+            -V date="$(date +%Y-%m-%d)" \
+            -V footer-left="${GITHUB_REF_NAME}" \
+            -V footer-right="${GITHUB_SHA::8}"
+
+      - name: Upload PDF artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: imdt-8550-sbc-guide-${{ github.sha }}
+          path: imdt-8550-sbc-guide-${{ github.sha }}.pdf
+          retention-days: 90
+
+      - name: Attach PDF to GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: imdt-8550-sbc-guide-${{ github.sha }}.pdf
