@@ -18,7 +18,7 @@ DEPENDS:append:qcs8550 = " dosfstools-native mtools-native"
 
 COMPATIBLE_MACHINE = "(qcs8550)"
 
-PV = "2026.01+git"
+PV = "2026.02+git"
 
 SRC_URI = "git://github.com/imd-tec/qcom-u-boot.git;branch=master;protocol=https"
 SRCREV = "d05254dce8db53fee1091f5b70dc5bbddd2c015b"
