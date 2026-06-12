@@ -1,2 +1,10 @@
 recipes-bsp/firmware-boot/files/imdt-8550-sbc-fw-v2_0_0.zip filter=lfs diff=lfs merge=lfs -text
 recipes-bsp/firmware-boot/files/qcs8550-hdk-fw-87.1.zip filter=lfs diff=lfs merge=lfs -text
+docs/ar1335-csi4.jpg filter=lfs diff=lfs merge=lfs -text
+docs/display-connection.jpg filter=lfs diff=lfs merge=lfs -text
+docs/connectors-top.png filter=lfs diff=lfs merge=lfs -text
+docs/imdt-8550-sbc.png filter=lfs diff=lfs merge=lfs -text
+docs/logo.png filter=lfs diff=lfs merge=lfs -text
+docs/serial-port-settings.png filter=lfs diff=lfs merge=lfs -text
+docs/connectors-bottom.png filter=lfs diff=lfs merge=lfs -text
+docs/logo.svg filter=lfs diff=lfs merge=lfs -text
