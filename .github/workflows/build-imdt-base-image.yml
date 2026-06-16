@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   build:
-    uses: ./.github/workflows/kas-build.yml
+    uses: imd-tec/kas-gh-ci/.github/workflows/kas-build.yml@master
     with:
       kas-config: 'kas/default.yml'
       machine: 'imdt-8550-sbc'
