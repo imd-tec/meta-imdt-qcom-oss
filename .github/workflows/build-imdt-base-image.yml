@@ -3,10 +3,10 @@ name: Build IMDT Base Image
 on:
   push:
     branches:
-      - '**'
-    tags:
-      - '**'
+      - master
   pull_request:
+    branches:
+      - master
 
 permissions:
   contents: write
