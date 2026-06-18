@@ -1,12 +1,65 @@
-<img src="docs/logo.svg" alt="IMD Technologies" width="200"/>
+<img src="docs/logo.png" alt="IMD Technologies" width="200"/>
 
-# IMDT 8550 SBC — Open Source Getting Started Guide
+# meta-imdt-qcom-oss - Getting Started Guide 
 
 [![Build Status](https://github.com/imd-tec/meta-imdt-qcom-oss-dev/actions/workflows/build-imdt-base-image.yml/badge.svg)](https://github.com/imd-tec/meta-imdt-qcom-oss-dev/actions/workflows/build-imdt-base-image.yml)
 
 ![IMDT 8550 SBC](docs/imdt-8550-sbc.png)
 
-This repository contains the Yocto recipes for the IMDT QCS8550 SBC. This guide describes how to build, deploy and run applications on the board.
+The goal of this meta layer is the following:
+  - Provide an open source friendly meta layer for IMDT Qualcomm boards
+  - Track master branch Yocto/OpenEmbedded and meta-qcom
+  - Track upstream Linux and U-Boot
+
+This guide describes how to build, deploy and run applications on the board.
+
+## Table of Contents
+
+- [QCS8550-SBC Feature Support](#qcs8550-sbc-feature-support)
+- [Upstreaming Status](#upstreaming-status)
+- [References](#references)
+- [Prerequisites](#prerequisites)
+- [Building release images](#building-release-images)
+- [Deploying images](#deploying-images)
+- [Working with the board](#working-with-the-board)
+- [SWUpdate](#swupdate)
+- [Appendix](#appendix)
+
+## QCS8550-SBC Feature Support
+
+| Feature | Hardware | Interface | Kernel Driver | Status |
+|---|---|---|---|---|
+| A/B Rootfs Updates | — | — | — | ✅ |
+| ADSP | Hexagon v73 DSP | — | remoteproc |  ❌ |
+| Android Debug Bridge (ADB) | — | USB | — | ✅ |
+| Audio (LPASS) | — | — | — | ❌ |
+| Bluetooth | NXP IW416 | UART14 | btnxpuart | ✅ |
+| Camera (AR1335) | ON Semiconductor AR1335 | CSI0 | ar1335 | ✅ |
+| CDSP | Hexagon v73 DSP | — | remoteproc |  ❌ |
+| Debug Serial Console (J19)| — | UART7 (115200 baud) | qcom-geni-serial | ✅ |
+| Gigabit Ethernet | Microchip LAN7430 | PCIe1 | lan743x | ✅ |
+| GPIO | PM8550 GPIO bank | SPMI | qcom-spmi-gpio | ✅ |
+| GPU (Adreno 740) | Adreno 740 | — | msm drm | ⚠️ Partial (no zap shader) |
+| I2C | QupV3 I2C hub | I2C | geni-i2c | ✅ |
+| IPA | Qualcomm IP Accelerator | — | ipa | ❌ |
+| microSD Card | — | SDHC2 | sdhci | ✅ |
+| MIPI DSI Display | Team Source TST070WSBE-196C 7" | DSI0 | drm/msm | ✅ |
+| OTA Rootfs Updates | — | — | — | ✅ |
+| PCIe Expansion (M.2 Key-E) | M.2 Key-E slot | PCIe0 | qcom-pcie | ✅ |
+| U-Boot as ARM64 UEFI App| — | — | — | ✅ |
+| UFS Storage | — | UFS | ufshcd | ✅ |
+| USB 3.0 Type-C | NXP PTN3222 eUSB2 redriver | DWC3 (QCOM) | dwc3-qcom | ✅ Peripheral mode |
+| Wi-Fi 802.11a/b/g/n/ac | NXP IW416 | SDIO (SDHC4) | mwifiex_sdio | ✅ |
+| Yocto / OpenEmbedded Master branch | — | — | — | ✅ |
+
+
+## Upstreaming Status
+An effort is being made into upstreaming our board and patches into Linux.
+| Patch | Status | Upstream Thread |
+|---|---|---|
+| Team Source TST070WSBE-196C display panel | ✅ Accepted | [v2 on lore.kernel.org](https://lore.kernel.org/all/20260428-imdt-dsi-display-v2-0-cf7294b5d7d6@imd-tec.com/T/#t) |
+| SDHC4 (Wi-Fi SDIO) support | Pending | [v2 on lore.kernel.org](https://lore.kernel.org/all/20260427-sm8550-sdhc4-support-v2-1-a4241f43ecd5@imd-tec.com/T/#u) |
+| QCS8550 SBC device tree | Pending | [v4 on lore.kernel.org](https://lore.kernel.org/linux-arm-msm/20260610-imdt-qcs8550-sbc-rfc-v4-0-358e71d606bc@imd-tec.com/T/#u) |
 
 ## References
 
@@ -29,7 +82,7 @@ It's recommended that anything older than Ubuntu 22.04 isn't used due to quirks 
 
 This section describes the process for building the release images from source.
 
-### Pre-requisites
+### Prerequisites
 
 This needs to be performed once on your machine:
 
@@ -97,9 +150,8 @@ Run these commands on your host machine outside of Docker:
 
 ```bash
 sudo apt install libxml2-dev libusb-1.0-0-dev help2man
-git clone https://github.com/imd-tec/qdl.git
+git clone https://github.com/danielkutik/qdl.git 
 cd qdl
-git checkout d43e4d84e9d3f4c233fa72e01f52f3e9d07a1de1
 make
 sudo make install
 ```
@@ -109,7 +161,7 @@ sudo make install
 Append the below alias to your `.bashrc` file:
 
 ```bash
-alias qcom_flash_sbc='qdl -i qcs8550-imdt-sbc/ -i imdt-image-base-imdt-8550-sbc.rootfs.qcomflash/ qcs8550-imdt-sbc/xbl_s_devprg_ns.melf imdt-image-base-imdt-8550-sbc.rootfs.qcomflash/rawprogram*.xml imdt-image-base-imdt-8550-sbc.rootfs.qcomflash/patch*.xml'
+alias qcom_flash_sbc='qdl -i imdt-image-base-imdt-8550-sbc.rootfs.qcomflash/ xbl_s_devprg_ns.melf imdt-image-base-imdt-8550-sbc.rootfs.qcomflash/rawprogram*.xml imdt-image-base-imdt-8550-sbc.rootfs.qcomflash/patch*.xml'
 ```
 
 #### Flashing an image
