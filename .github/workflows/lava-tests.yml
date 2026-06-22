@@ -110,6 +110,27 @@ jobs:
             fi
           done
 
+      - name: Compute badge values
+        id: badge
+        if: always()
+        run: |
+          if [ ! -f lava-all-results.csv ]; then
+            echo "status=error" >> "$GITHUB_OUTPUT"
+            echo "color=e4e669" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          python3 - <<'PYEOF'
+          import csv, os
+          rows = [r for r in csv.DictReader(open('lava-all-results.csv')) if r.get('suite') != 'lava']
+          passed = sum(1 for r in rows if r.get('result', '').lower() == 'pass')
+          total = len(rows)
+          status = f'{passed} / {total} passed'
+          color = '3fb950' if passed == total and total > 0 else ('f85149' if total > 0 else 'e4e669')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              out.write(f'status={status}\n')
+              out.write(f'color={color}\n')
+          PYEOF
+
       - name: Fetch LAVA logs
         if: always() && env.SWUDEPLOY_JOB_ID != ''
         run: |
@@ -263,6 +284,18 @@ jobs:
             [ $? -eq 0 ] || FAILED=1
           done
           [ "$FAILED" = "0" ] || { echo "One or more LAVA jobs did not complete or had test failures"; exit 1; }
+
+      - name: Update hardware test badge
+        if: always() && !inputs.is-pr
+        uses: schneegans/dynamic-badges-action@v1.8.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: ${{ vars.BADGE_GIST_ID }}
+          filename: hardware-tests.json
+          label: qcs8550-sbc LAVA QA
+          message: ${{ steps.badge.outputs.status }}
+          color: ${{ steps.badge.outputs.color }}
+          namedLogo: qualcomm
 
       - name: Cleanup
         if: always()

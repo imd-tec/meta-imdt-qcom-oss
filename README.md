@@ -3,15 +3,16 @@
 # meta-imdt-qcom-oss - Getting Started Guide 
 
 [![Build Status](https://github.com/imd-tec/meta-imdt-qcom-oss-dev/actions/workflows/build-imdt-base-image.yml/badge.svg)](https://github.com/imd-tec/meta-imdt-qcom-oss-dev/actions/workflows/build-imdt-base-image.yml)
+[![QCS8550-SBC QA Tests](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/WilliamBright-IMD/1a72a27d66a7fdf5017e0f435d8f283d/raw/hardware-tests.json&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0NCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjM2VjNmEwIiBzdHJva2Utd2lkdGg9IjUiLz48dGV4dCB4PSI1MCIgeT0iNjEiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjI4IiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPmltZHQ8L3RleHQ+PC9zdmc+)](https://github.com/imd-tec/meta-imdt-qcom-oss-dev/actions/workflows/build-imdt-base-image.yml)
 
 ![IMDT 8550 SBC](docs/imdt-8550-sbc.png)
 
-The goal of this meta layer is the following:
-  - Provide an open source friendly meta layer for IMDT Qualcomm boards
+The role of this meta layer is the following:
+  - Provide an open source friendly BSP for IMDT Qualcomm boards
+  - No qualcomm login needed
   - Track master branch Yocto/OpenEmbedded and meta-qcom
   - Track upstream Linux and U-Boot
-
-This guide describes how to build, deploy and run applications on the board.
+  - Easy-to-use kas based build process 
 
 ## Table of Contents
 
@@ -42,6 +43,7 @@ This guide describes how to build, deploy and run applications on the board.
 | GPU (Adreno 740) | Adreno 740 | — | msm drm | ⚠️ Partial (no zap shader) |
 | I2C | QupV3 I2C hub | I2C | geni-i2c | ✅ |
 | IPA | Qualcomm IP Accelerator | — | ipa | ❌ |
+| ISP (CAMX) | Qualcomm proprietary camera framework | — | — | ❌ |
 | microSD Card | — | SDHC2 | sdhci | ✅ |
 | MIPI DSI Display | Team Source TST070WSBE-196C 7" | DSI0 | drm/msm | ✅ |
 | OTA Rootfs Updates | — | — | — | ✅ |
@@ -60,6 +62,16 @@ An effort is being made into upstreaming our board and patches into Linux.
 | Team Source TST070WSBE-196C display panel | ✅ Accepted | [v2 on lore.kernel.org](https://lore.kernel.org/all/20260428-imdt-dsi-display-v2-0-cf7294b5d7d6@imd-tec.com/T/#t) |
 | SDHC4 (Wi-Fi SDIO) support | Pending | [v2 on lore.kernel.org](https://lore.kernel.org/all/20260427-sm8550-sdhc4-support-v2-1-a4241f43ecd5@imd-tec.com/T/#u) |
 | QCS8550 SBC device tree | Pending | [v4 on lore.kernel.org](https://lore.kernel.org/linux-arm-msm/20260610-imdt-qcs8550-sbc-rfc-v4-0-358e71d606bc@imd-tec.com/T/#u) |
+
+## Hardware Testing
+
+Every commit is automatically tested on a physical IMDT 8550 SBC via [LAVA](https://lava.readthedocs.io/). Three jobs run in sequence:
+
+1. **SWUpdate deploy** — flashes the new image over ADB and verifies the A/B rootfs slot switches
+2. **System tests** — checks kernel health, systemd state, hardware subsystems (GPU, BT, RTC, IOMMU, I2C, hwrng), Wi-Fi, camera streaming, and SD card over SSH
+3. **AR1335 frame capture** — captures a raw frame from the CSI0 camera and de-mosaics it to a 1080p PNG
+
+See [docs/lava-tests.md](docs/lava-tests.md) for the full list of test cases.
 
 ## References
 
@@ -142,8 +154,6 @@ It's recommended to use a Linux host for deploying images as QDL is complicated 
 
 QDL can be used as a replacement for PCAT for customers without access to Qualcomm tools.
 
-QDL must be built from [here](https://github.com/imd-tec/qdl/commits/feature/Multiple_Include_Folders/) as it has been patched to add support for having more than two include folders.
-
 #### Building QDL
 
 Run these commands on your host machine outside of Docker:
@@ -161,7 +171,7 @@ sudo make install
 Append the below alias to your `.bashrc` file:
 
 ```bash
-alias qcom_flash_sbc='qdl -i imdt-image-base-imdt-8550-sbc.rootfs.qcomflash/ xbl_s_devprg_ns.melf imdt-image-base-imdt-8550-sbc.rootfs.qcomflash/rawprogram*.xml imdt-image-base-imdt-8550-sbc.rootfs.qcomflash/patch*.xml'
+alias flash_qcs8550_sbc='qdl -i imdt-image-base-imdt-8550-sbc.rootfs.qcomflash/ xbl_s_devprg_ns.melf imdt-image-base-imdt-8550-sbc.rootfs.qcomflash/rawprogram*.xml imdt-image-base-imdt-8550-sbc.rootfs.qcomflash/patch*.xml'
 ```
 
 #### Flashing an image
@@ -171,7 +181,7 @@ Please make sure that the board is powered and in EDL as per [these instructions
 After unzipping a prebuilt image or an image you have built yourself:
 
 ```bash
-qcom_flash_sbc
+flash_qcs8550_sbc
 ```
 
 ## Working with the board
