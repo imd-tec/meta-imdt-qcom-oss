@@ -39,7 +39,8 @@ The role of this meta layer is the following:
 | Camera (AR1335 - 13MP) | ON Semiconductor AR1335 | CSI0 | ar1335 | ✅ |
 | CDSP | Hexagon v73 DSP | — | remoteproc |  ❌ |
 | Debug Serial Console (J19)| — | UART7 (115200 baud) | qcom-geni-serial | ✅ |
-| Gigabit Ethernet | Microchip LAN7430 | PCIe1 | lan743x | ✅ |
+| Gigabit Ethernet | Microchip LAN7430 | PCIe1 (default) | lan743x | ✅ |
+| PCIe Expansion (M.2 Key-B) | PCIe switch downstream Key-B port | PCIe1 (overlay) | qcom-pcie | ⚠️ Requires Key-B DTB overlay |
 | GPIO | PM8550 GPIO bank | SPMI | qcom-spmi-gpio | ✅ |
 | GPU (Adreno 740) | Adreno 740 | — | msm drm | ⚠️ Partial (no zap shader) |
 | I2C | QupV3 I2C hub | I2C | geni-i2c | ✅ |
@@ -404,6 +405,58 @@ Network File: /etc/systemd/network/80-wifi-station.network
 State: routable (configured)
 Online state: online
 ```
+
+### PCIe Switch — LAN7430 and M.2 Key-B
+
+The on-board PCIe switch connects PCIe1 to **one** of two downstream paths
+depending on the state of GPIO16:
+
+| GPIO16 | Path | Active DTB |
+|--------|------|------------|
+| Low (default) | Microchip LAN7430 GbE PHY → RJ45 port (J55) | `qcs8550-imdt-sbc.dtb` |
+| High | M.2 Key-B slot (J46) | `qcs8550-imdt-sbc-pcie-keyb.dtb` |
+
+Both DTBs are built and deployed to `/boot/dtb/qcom/` by the Yocto image.
+The active board DTB is stored on the EFI boot partition; switching modes
+requires replacing it and rebooting.
+
+#### Switch to M.2 Key-B mode
+
+```bash
+# On the host — replace the board DTB with the Key-B pre-built overlay DTB
+adb shell "cp /boot/dtb/qcom/qcs8550-imdt-sbc-pcie-keyb.dtb /boot/efi/dtb/qcom/qcs8550-imdt-sbc.dtb"
+adb reboot
+```
+
+After rebooting, the PCIe switch routes PCIe1 to J46. Insert an M.2 Key-B
+card and verify enumeration:
+
+```bash
+adb shell lspci
+# Expect: 0001:01:00.0 ... <your Key-B device>
+# Expect: no Microchip LAN7430 (1055:7430) entry
+```
+
+> **Note:** The LAN7430 Ethernet interface (`eth1`) will be absent in this
+> mode. Use Wi-Fi or a USB Ethernet adapter for network access if needed.
+
+#### Switch back to LAN7430 / GbE mode
+
+```bash
+# On the host — restore the default board DTB
+adb shell "cp /boot/dtb/qcom/qcs8550-imdt-sbc.dtb /boot/efi/dtb/qcom/qcs8550-imdt-sbc.dtb"
+adb reboot
+```
+
+> **EFI partition path:** The path `/boot/efi/dtb/qcom/` above assumes the
+> EFI partition is mounted at `/boot/efi` on the running rootfs. Adjust if
+> your board mounts it elsewhere. You can verify with `findmnt -t vfat`.
+
+#### Testing with LAVA
+
+The `lava/pcie-keyb-test.yaml` job verifies Key-B routing is active. It
+must be submitted after deploying the Key-B DTB. See
+[docs/lava-tests.md](docs/lava-tests.md) for the full list of test cases.
 
 ## SWUpdate
 

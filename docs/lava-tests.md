@@ -88,3 +88,17 @@ Captures a raw frame from the AR1335 camera over ADB and de-mosaics it to a 1080
 | `pipeline-setup` | CSI0 pipeline script exits 0 (run via ADB) |
 | `capture-raw-frame` | `v4l2-ctl --stream-to` captures one raw frame to `/tmp/ar1335_frame.raw` |
 | `demosaic` | `demosaic.py` converts the raw frame to `/images/ar1335_1080p.png` |
+
+## Optional — PCIe Key-B Overlay (`pcie-keyb-test`)
+
+Verifies that the `qcs8550-imdt-sbc-pcie-keyb.dtb` overlay is active and has correctly routed the on-board PCIe switch to the M.2 Key-B slot (J46) instead of the default LAN7430 path.
+
+This job is **not** part of the default CI pipeline. It must be submitted manually after deploying `qcs8550-imdt-sbc-pcie-keyb.dtb` as the active board DTB. See [PCIe Switch — LAN7430 and M.2 Key-B](#pcie-switch--lan7430-and-m2-key-b) in the README for deployment instructions.
+
+| Test Case | Description |
+|-----------|-------------|
+| `dtb-readable` | `/proc/device-tree/model` is accessible (DTB is loaded) |
+| `pcie1-root-complex` | PCIe1 root complex (`0001:00:00.0`) appears in `lspci` — confirms PCIe1 probed correctly |
+| `no-lan7430` | Microchip LAN7430 (`1055:7430`) is **absent** from `lspci` — confirms Key-B routing is active |
+| `no-lan743x-driver` | `lan743x` driver has no bound PCI devices — no LAN7430 enumerated |
+| `pcie-keyb-complete` | Informational: reports any M.2 Key-B device found on `0001:01:00.0` (pass regardless) |

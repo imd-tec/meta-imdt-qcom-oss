@@ -14,6 +14,7 @@ SRC_URI:append = " \
     file://0006-media-i2c-ar1335-Add-ON-Semiconductor-AR1335-camera-.patch \
     file://0007-media-i2c-ar1335-Convert-to-V4L2-CCI-and-fix-streami.patch \
     file://0008-arm64-dts-qcom-qcs8550-imdt-sbc-Split-AR1335-CSI0-in.patch \
+    file://0009-arm64-dts-qcom-qcs8550-imdt-sbc-Add-PCIe-switch-Key-.patch \
     file://configs/imdt.cfg \
 "
 
