@@ -314,7 +314,7 @@ jobs:
         run: |
           FAILED=0
           for JOB_ID in "$SWUDEPLOY_JOB_ID" "$SSHTESTS_JOB_ID" "$CAPTURE_JOB_ID" \
-                        "$KEYB_ENABLE_JOB_ID" "$KEYB_TEST_JOB_ID"; do
+                        "$KEYB_ENABLE_JOB_ID" "$KEYB_TEST_JOB_ID" "$KEYB_RESTORE_JOB_ID"; do
             [ -z "$JOB_ID" ] && continue
             HEALTH=$(lavacli --identity lava-ci jobs show "$JOB_ID" | grep '^Health' | awk '{print $NF}')
             echo "Job $JOB_ID health: $HEALTH"

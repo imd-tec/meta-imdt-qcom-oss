@@ -66,6 +66,13 @@ Runs over SSH on the updated rootfs. Groups of tests are submitted as independen
 |-----------|-------------|
 | `sdcard-present` | `/dev/mmcblk0` is present |
 
+### `gbe` — Gigabit Ethernet (LAN7430)
+
+| Test Case | Description |
+|-----------|-------------|
+| `lan7430-present` | Microchip LAN7430 (`1055:7430`) appears in `lspci` — confirms PCIe switch is in default GbE routing |
+| `lan743x-driver-bound` | `lan743x` driver has at least one bound PCI device |
+
 ### `hardware` — Hardware subsystems
 
 | Test Case | Description |
@@ -91,9 +98,9 @@ Captures a raw frame from the AR1335 camera over ADB and de-mosaics it to a 1080
 
 ## Optional — PCIe Key-B Overlay (`pcie-keyb-test`)
 
-Verifies that the `qcs8550-imdt-sbc-pcie-keyb.dtb` overlay is active and has correctly routed the on-board PCIe switch to the M.2 Key-B slot (J46) instead of the default LAN7430 path.
+Verifies that the `qcs8550-imdt-sbc-pcie-keyb.dtbo` overlay is active and has correctly routed the on-board PCIe switch to the M.2 Key-B slot (J46) instead of the default LAN7430 path.
 
-This job runs automatically in CI. The CI enables the Key-B overlay via `fw_setenv overlays '... qcs8550-imdt-sbc-pcie-keyb.dtbo'` and reboots before running the test, then restores the default overlay list afterwards. See [PCIe Switch — LAN7430 and M.2 Key-B](#pcie-switch--lan7430-and-m2-key-b) in the README for manual `fw_setenv` instructions.
+This job runs automatically in CI. The CI enables the Key-B overlay via `fw_setenv overlays '... qcs8550-imdt-sbc-pcie-keyb.dtbo'` and reboots before running the test, then restores the default overlay list afterwards. See [PCIe Switch — LAN7430 and M.2 Key-B](../README.md#pcie-switch--lan7430-and-m2-key-b) for manual `fw_setenv` instructions.
 
 | Test Case | Description |
 |-----------|-------------|

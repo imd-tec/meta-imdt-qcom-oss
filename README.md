@@ -40,7 +40,7 @@ The role of this meta layer is the following:
 | CDSP | Hexagon v73 DSP | — | remoteproc |  ❌ |
 | Debug Serial Console (J19)| — | UART7 (115200 baud) | qcom-geni-serial | ✅ |
 | Gigabit Ethernet | Microchip LAN7430 | PCIe1 (default) | lan743x | ✅ |
-| PCIe Expansion (M.2 Key-B) | PCIe switch downstream Key-B port | PCIe1 (overlay) | qcom-pcie | ⚠️ Requires Key-B DTB overlay |
+| PCIe Expansion (M.2 Key-B) | PCIe switch downstream Key-B port | PCIe1 (overlay) | qcom-pcie | ⚠️ Requires Key-B DTBO overlay |
 | GPIO | PM8550 GPIO bank | SPMI | qcom-spmi-gpio | ✅ |
 | GPU (Adreno 740) | Adreno 740 | — | msm drm | ⚠️ Partial (no zap shader) |
 | I2C | QupV3 I2C hub | I2C | geni-i2c | ✅ |

@@ -146,3 +146,17 @@ actions:
           - if [ "$IOMMU_COUNT" -ge 1 ]; then lava-test-case iommu-groups --result pass; else lava-test-case iommu-groups --result fail; fi
           - HWRNG_BYTES=$(dd if=/dev/hwrng bs=16 count=1 2>/dev/null | wc -c)
           - if [ "$HWRNG_BYTES" -ge 16 ]; then lava-test-case hwrng-readable --result pass; else lava-test-case hwrng-readable --result fail; fi
+
+    - from: inline
+      name: gbe
+      path: inline/gbe.yaml
+      repository:
+        metadata:
+          format: Lava-Test Test Definition 1.0
+          name: gbe
+          description: LAN7430 GbE PHY presence checks (PCIe enumeration and driver bind)
+        run:
+          steps:
+          - lava-test-case lan7430-present --shell sh -c "lspci -n | grep -q '1055:7430'"
+          - LAN743X_BOUND=$(ls /sys/bus/pci/drivers/lan743x/ 2>/dev/null | grep -v 'bind\|unbind\|new_id\|remove_id\|uevent\|module' || true)
+          - if [ -n "$LAN743X_BOUND" ]; then lava-test-case lan743x-driver-bound --result pass; else lava-test-case lan743x-driver-bound --result fail; fi
