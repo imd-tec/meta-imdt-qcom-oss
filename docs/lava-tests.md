@@ -93,7 +93,7 @@ Captures a raw frame from the AR1335 camera over ADB and de-mosaics it to a 1080
 
 Verifies that the `qcs8550-imdt-sbc-pcie-keyb.dtb` overlay is active and has correctly routed the on-board PCIe switch to the M.2 Key-B slot (J46) instead of the default LAN7430 path.
 
-This job is **not** part of the default CI pipeline. It must be submitted manually after deploying `qcs8550-imdt-sbc-pcie-keyb.dtb` as the active board DTB. See [PCIe Switch — LAN7430 and M.2 Key-B](#pcie-switch--lan7430-and-m2-key-b) in the README for deployment instructions.
+This job runs automatically in CI. The CI enables the Key-B overlay via `fw_setenv overlays '... qcs8550-imdt-sbc-pcie-keyb.dtbo'` and reboots before running the test, then restores the default overlay list afterwards. See [PCIe Switch — LAN7430 and M.2 Key-B](#pcie-switch--lan7430-and-m2-key-b) in the README for manual `fw_setenv` instructions.
 
 | Test Case | Description |
 |-----------|-------------|

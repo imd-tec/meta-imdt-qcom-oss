@@ -80,11 +80,48 @@ jobs:
       - name: Wait for ar1335-capture
         run: lavacli --identity lava-ci jobs wait "$CAPTURE_JOB_ID"
 
+      # ── Job 4: PCIe Key-B switch (enable) ───────────────────────────────
+      - name: Submit pcie-keyb-switch (enable) LAVA job
+        run: |
+          sed "s|PCIE_KEYB_ENABLE: '.*'|PCIE_KEYB_ENABLE: 'yes'|" lava/pcie-keyb-switch.yaml \
+            > /tmp/lava-keyb-enable.yaml
+          JOB_ID=$(lavacli --identity lava-ci jobs submit /tmp/lava-keyb-enable.yaml)
+          echo "pcie-keyb-switch (enable): $JOB_ID — http://${{ vars.LAVA_HOST }}/scheduler/job/$JOB_ID"
+          echo "KEYB_ENABLE_JOB_ID=$JOB_ID" >> "$GITHUB_ENV"
+
+      - name: Wait for pcie-keyb-switch (enable)
+        run: lavacli --identity lava-ci jobs wait "$KEYB_ENABLE_JOB_ID"
+
+      # ── Job 5: PCIe Key-B tests (SSH DUT) ───────────────────────────────
+      - name: Submit pcie-keyb-test LAVA job
+        run: |
+          JOB_ID=$(lavacli --identity lava-ci jobs submit lava/pcie-keyb-test.yaml)
+          echo "pcie-keyb-test: $JOB_ID — http://${{ vars.LAVA_HOST }}/scheduler/job/$JOB_ID"
+          echo "KEYB_TEST_JOB_ID=$JOB_ID" >> "$GITHUB_ENV"
+
+      - name: Wait for pcie-keyb-test
+        run: lavacli --identity lava-ci jobs wait "$KEYB_TEST_JOB_ID"
+
+      # ── Job 6: PCIe Key-B switch (restore default) — always runs ────────
+      - name: Submit pcie-keyb-switch (restore) LAVA job
+        if: always() && env.KEYB_ENABLE_JOB_ID != ''
+        run: |
+          sed "s|PCIE_KEYB_ENABLE: '.*'|PCIE_KEYB_ENABLE: 'no'|" lava/pcie-keyb-switch.yaml \
+            > /tmp/lava-keyb-restore.yaml
+          JOB_ID=$(lavacli --identity lava-ci jobs submit /tmp/lava-keyb-restore.yaml)
+          echo "pcie-keyb-switch (restore): $JOB_ID — http://${{ vars.LAVA_HOST }}/scheduler/job/$JOB_ID"
+          echo "KEYB_RESTORE_JOB_ID=$JOB_ID" >> "$GITHUB_ENV"
+
+      - name: Wait for pcie-keyb-switch (restore)
+        if: always() && env.KEYB_RESTORE_JOB_ID != ''
+        run: lavacli --identity lava-ci jobs wait "$KEYB_RESTORE_JOB_ID"
+
       # ── Results ─────────────────────────────────────────────────────────
       - name: Show all LAVA job results
         if: always() && env.SWUDEPLOY_JOB_ID != ''
         run: |
-          for JOB_ID in "$SWUDEPLOY_JOB_ID" "$SSHTESTS_JOB_ID" "$CAPTURE_JOB_ID"; do
+          for JOB_ID in "$SWUDEPLOY_JOB_ID" "$SSHTESTS_JOB_ID" "$CAPTURE_JOB_ID" \
+                        "$KEYB_ENABLE_JOB_ID" "$KEYB_TEST_JOB_ID" "$KEYB_RESTORE_JOB_ID"; do
             [ -z "$JOB_ID" ] && continue
             echo "=== Job $JOB_ID ==="
             lavacli --identity lava-ci jobs show "$JOB_ID" || true
@@ -97,7 +134,8 @@ jobs:
         if: always() && env.SWUDEPLOY_JOB_ID != ''
         run: |
           HEADER_WRITTEN=0
-          for JOB_ID in "$SWUDEPLOY_JOB_ID" "$SSHTESTS_JOB_ID" "$CAPTURE_JOB_ID"; do
+          for JOB_ID in "$SWUDEPLOY_JOB_ID" "$SSHTESTS_JOB_ID" "$CAPTURE_JOB_ID" \
+                        "$KEYB_ENABLE_JOB_ID" "$KEYB_TEST_JOB_ID" "$KEYB_RESTORE_JOB_ID"; do
             [ -z "$JOB_ID" ] && continue
             curl -fsSL -H "Authorization: Token $LAVA_TOKEN" \
               "http://${{ vars.LAVA_HOST }}/results/${JOB_ID}/csv" \
@@ -138,7 +176,10 @@ jobs:
           for name_job in \
               "swu-deploy:$SWUDEPLOY_JOB_ID" \
               "ssh-tests:$SSHTESTS_JOB_ID" \
-              "ar1335-capture:$CAPTURE_JOB_ID"; do
+              "ar1335-capture:$CAPTURE_JOB_ID" \
+              "pcie-keyb-enable:$KEYB_ENABLE_JOB_ID" \
+              "pcie-keyb-test:$KEYB_TEST_JOB_ID" \
+              "pcie-keyb-restore:$KEYB_RESTORE_JOB_ID"; do
             name="${name_job%%:*}"
             job_id="${name_job##*:}"
             [ -z "$job_id" ] && continue
@@ -160,7 +201,7 @@ jobs:
         if: always() && env.SWUDEPLOY_JOB_ID != ''
         run: |
           python3 lava/lava_to_junit.py lava-all-results.csv lava-results.xml \
-            "$SWUDEPLOY_JOB_ID $SSHTESTS_JOB_ID $CAPTURE_JOB_ID"
+            "$SWUDEPLOY_JOB_ID $SSHTESTS_JOB_ID $CAPTURE_JOB_ID $KEYB_ENABLE_JOB_ID $KEYB_TEST_JOB_ID $KEYB_RESTORE_JOB_ID"
 
       - name: Publish test results
         if: always() && env.SWUDEPLOY_JOB_ID != ''
@@ -179,9 +220,12 @@ jobs:
 
           lava_host = "${{ vars.LAVA_HOST }}"
           jobs = [
-              ('swu-deploy', os.environ.get('SWUDEPLOY_JOB_ID', '')),
-              ('ssh-tests',  os.environ.get('SSHTESTS_JOB_ID', '')),
-              ('ar1335',     os.environ.get('CAPTURE_JOB_ID', '')),
+              ('swu-deploy',       os.environ.get('SWUDEPLOY_JOB_ID', '')),
+              ('ssh-tests',        os.environ.get('SSHTESTS_JOB_ID', '')),
+              ('ar1335',           os.environ.get('CAPTURE_JOB_ID', '')),
+              ('pcie-keyb-enable', os.environ.get('KEYB_ENABLE_JOB_ID', '')),
+              ('pcie-keyb-test',   os.environ.get('KEYB_TEST_JOB_ID', '')),
+              ('pcie-keyb-restore',os.environ.get('KEYB_RESTORE_JOB_ID', '')),
           ]
 
           rows = []
@@ -269,7 +313,8 @@ jobs:
         if: env.SWUDEPLOY_JOB_ID != ''
         run: |
           FAILED=0
-          for JOB_ID in "$SWUDEPLOY_JOB_ID" "$SSHTESTS_JOB_ID" "$CAPTURE_JOB_ID"; do
+          for JOB_ID in "$SWUDEPLOY_JOB_ID" "$SSHTESTS_JOB_ID" "$CAPTURE_JOB_ID" \
+                        "$KEYB_ENABLE_JOB_ID" "$KEYB_TEST_JOB_ID"; do
             [ -z "$JOB_ID" ] && continue
             HEALTH=$(lavacli --identity lava-ci jobs show "$JOB_ID" | grep '^Health' | awk '{print $NF}')
             echo "Job $JOB_ID health: $HEALTH"

@@ -411,20 +411,38 @@ Online state: online
 The on-board PCIe switch connects PCIe1 to **one** of two downstream paths
 depending on the state of GPIO16:
 
-| GPIO16 | Path | Active DTB |
-|--------|------|------------|
-| Low (default) | Microchip LAN7430 GbE PHY → RJ45 port (J55) | `qcs8550-imdt-sbc.dtb` |
-| High | M.2 Key-B slot (J46) | `qcs8550-imdt-sbc-pcie-keyb.dtb` |
+| GPIO16 | Path |
+|--------|------|
+| Low (default) | Microchip LAN7430 GbE PHY → RJ45 port (J55) |
+| High | M.2 Key-B slot (J46) |
 
-Both DTBs are built and deployed to `/boot/dtb/qcom/` by the Yocto image.
-The active board DTB is stored on the EFI boot partition; switching modes
-requires replacing it and rebooting.
+U-Boot applies device tree overlays at boot from the list stored in the
+`overlays` u-boot environment variable. The variable is read/written with
+`fw_printenv` / `fw_setenv` on the running system; the new value takes
+effect on next boot.
+
+#### How device tree overlays work on this board
+
+U-Boot loads the base DTB (`qcs8550-imdt-sbc.dtb`) and then applies each
+overlay listed in the `overlays` env var in order, e.g.:
+
+```
+overlays=qcs8550-imdt-sbc-display.dtbo qcs8550-imdt-sbc-ar1335-csi0.dtbo
+```
+
+All overlay `.dtbo` files live in `/boot/` on the active rootfs partition
+and are deployed there by the Yocto image. To add or remove a feature,
+append or remove the corresponding `.dtbo` filename from `overlays` using
+`fw_setenv`, then reboot.
 
 #### Switch to M.2 Key-B mode
 
 ```bash
-# On the host — replace the board DTB with the Key-B pre-built overlay DTB
-adb shell "cp /boot/dtb/qcom/qcs8550-imdt-sbc-pcie-keyb.dtb /boot/efi/dtb/qcom/qcs8550-imdt-sbc.dtb"
+# Check the current overlay list
+adb shell fw_printenv overlays
+
+# Enable the Key-B overlay (append it to the default overlay list)
+adb shell "fw_setenv overlays 'qcs8550-imdt-sbc-display.dtbo qcs8550-imdt-sbc-ar1335-csi0.dtbo qcs8550-imdt-sbc-pcie-keyb.dtbo'"
 adb reboot
 ```
 
@@ -443,19 +461,16 @@ adb shell lspci
 #### Switch back to LAN7430 / GbE mode
 
 ```bash
-# On the host — restore the default board DTB
-adb shell "cp /boot/dtb/qcom/qcs8550-imdt-sbc.dtb /boot/efi/dtb/qcom/qcs8550-imdt-sbc.dtb"
+# Restore the default overlay list (removes pcie-keyb.dtbo)
+adb shell "fw_setenv overlays 'qcs8550-imdt-sbc-display.dtbo qcs8550-imdt-sbc-ar1335-csi0.dtbo'"
 adb reboot
 ```
 
-> **EFI partition path:** The path `/boot/efi/dtb/qcom/` above assumes the
-> EFI partition is mounted at `/boot/efi` on the running rootfs. Adjust if
-> your board mounts it elsewhere. You can verify with `findmnt -t vfat`.
-
 #### Testing with LAVA
 
-The `lava/pcie-keyb-test.yaml` job verifies Key-B routing is active. It
-must be submitted after deploying the Key-B DTB. See
+The CI automatically runs the PCIe Key-B test suite after every build. It
+enables the Key-B overlay via `fw_setenv`, runs `lava/pcie-keyb-test.yaml`
+over SSH, then restores the default overlay list. See
 [docs/lava-tests.md](docs/lava-tests.md) for the full list of test cases.
 
 ## SWUpdate
