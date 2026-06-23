@@ -28,8 +28,8 @@ def unpack_sgrbg10p(data: bytes, width: int, height: int, bpl: int) -> np.ndarra
     groups = width // 4
     active = groups * 5          # active bytes per row (no padding)
 
-    row_starts  = np.arange(height, dtype=np.int64) * bpl
-    col_offsets = np.arange(active, dtype=np.int64)
+    row_starts  = np.arange(height, dtype=np.int32) * bpl
+    col_offsets = np.arange(active, dtype=np.int32)
     indices     = row_starts[:, None] + col_offsets[None, :]
     rows        = raw[indices].reshape(height, groups, 5)
 

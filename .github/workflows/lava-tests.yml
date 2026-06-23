@@ -253,15 +253,15 @@ jobs:
         if: always() && env.CAPTURE_JOB_ID != ''
         run: |
           rsync -av \
-            pi@${{ vars.LAVA_HOST }}:/home/pi/qcom-oss/ar1335_1080p.png \
-            ar1335_1080p.png 2>/dev/null || true
+            pi@${{ vars.LAVA_HOST }}:/home/pi/qcom-oss/ar1335_4208x3120.png \
+            ar1335_4208x3120.png 2>/dev/null || true
 
       - name: Upload camera frame artifact
         if: always() && env.CAPTURE_JOB_ID != ''
         uses: actions/upload-artifact@v4
         with:
           name: ar1335-frame-${{ github.sha }}
-          path: ar1335_1080p.png
+          path: ar1335_4208x3120.png 
           if-no-files-found: ignore
           retention-days: 30
 
