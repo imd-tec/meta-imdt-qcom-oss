@@ -1,5 +1,5 @@
 device_type: docker
-job_name: deploy imdt-image-base swu to imdt-8550-sbc via adb
+job_name: deploy qcom-console-image swu to imdt-8550-sbc via adb
 tags:
 - dut
 
@@ -38,7 +38,7 @@ actions:
       name: swu-deploy
       path: inline/swu-deploy.yaml
       parameters:
-        SWU_FILE: 'imdt-image-base.swu-imdt-8550-sbc.rootfs.swu'
+        SWU_FILE: 'qcom-console-image.swu-imdt-8550-sbc.rootfs.swu'
         SWU_URL: ''
       repository:
         metadata:

@@ -1,0 +1,9 @@
+header:
+  version: 14
+  # qcom-console-image and its ADB support come from qcom-distro.
+  includes:
+    - kas/distro/qcom-distro.yml
+
+target:
+  - qcom-console-image
+  - qcom-console-image.swu

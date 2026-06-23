@@ -50,7 +50,7 @@ jobs:
       # ── Job 1: swu-deploy (ADB) ─────────────────────────────────────────
       - name: Submit swu-deploy LAVA job
         run: |
-          SWU_FILE="imdt-image-base.swu-imdt-8550-sbc.rootfs-${{ github.sha }}.swu"
+          SWU_FILE="qcom-console-image.swu-imdt-8550-sbc.rootfs-${{ github.sha }}.swu"
           sed "s|SWU_FILE: '.*'|SWU_FILE: '${SWU_FILE}'|" lava/swu-deploy.yaml \
             > /tmp/lava-swu-deploy.yaml
           JOB_ID=$(lavacli --identity lava-ci jobs submit /tmp/lava-swu-deploy.yaml)

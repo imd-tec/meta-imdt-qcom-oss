@@ -6,4 +6,4 @@ header:
     - kas/includes/base.yml
     - kas/includes/imdt.yml
     - kas/machine/imdt-8550-sbc.yml
-    - kas/images/imdt-image-base.yml 
+    - kas/images/qcom-console-image.yml
