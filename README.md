@@ -35,7 +35,7 @@ The role of this meta layer is the following:
 | Android Debug Bridge (ADB) | — | USB | — | ✅ |
 | Audio (LPASS) | — | — | — | ❌ |
 | Bluetooth | NXP IW416 | UART14 | btnxpuart | ✅ |
-| Camera (AR1335) | ON Semiconductor AR1335 | CSI0 | ar1335 | ✅ |
+| Camera (AR1335 - 13MP) | ON Semiconductor AR1335 | CSI0 | ar1335 | ✅ |
 | CDSP | Hexagon v73 DSP | — | remoteproc |  ❌ |
 | Debug Serial Console (J19)| — | UART7 (115200 baud) | qcom-geni-serial | ✅ |
 | Gigabit Ethernet | Microchip LAN7430 | PCIe1 | lan743x | ✅ |
@@ -291,13 +291,33 @@ Pipeline created for CSI0
 Video device: /dev/video0
 ```
 
-You can then run the below command to stream frames into memory at 1080P 30 FPS:
+The setup script configures the pipeline at the sensor's full native resolution (4208 × 3120, raw Bayer `SGRBG10P`). You can then run the below command to stream frames into memory:
 
 ```bash
 v4l2-ctl -d /dev/video0 --stream-mmap
 ```
 
 You may need to change the name of the video device as sometimes it can be `/dev/video1`.
+
+#### AR1335 capture format
+
+The AR1335 streams raw Bayer frames straight off the CSI bus (no ISP/CAMX in the open source release), so frames are captured in the sensor's native raw format:
+
+| Property | Value |
+|---|---|
+| Full resolution | 4208 × 3120 (13 MP) |
+| Pixel format | `V4L2_PIX_FMT_SGRBG10P` (FourCC `pgAA`) |
+| Bayer pattern | GRBG |
+| Bit depth | 10 bits per pixel |
+| Packing | MIPI RAW10 — 4 pixels packed into 5 bytes |
+
+Because the frames are raw Bayer, they must be de-mosaiced before they can be viewed as an RGB image. The [`lava/demosaic.py`](lava/demosaic.py) script unpacks the MIPI RAW10 data, applies a bilinear demosaic with gray-world white balance and a percentile contrast stretch, and writes a PNG:
+
+```bash
+python3 lava/demosaic.py frame.raw frame.png
+```
+
+Pass `--width`, `--height` and `--bpl` to override the sensor defaults, or `--out-size 1920x1080` to downscale the output.
 
 ### Onboard WiFi
 

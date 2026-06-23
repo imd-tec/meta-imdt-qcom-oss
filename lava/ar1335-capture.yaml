@@ -41,7 +41,7 @@ actions:
         metadata:
           format: Lava-Test Test Definition 1.0
           name: ar1335-capture
-          description: Capture a raw frame from the AR1335, de-mosaic to 1080p PNG, save to /images/
+          description: Capture a raw frame from the AR1335 at 4208x3120, de-mosaic to full-resolution PNG, save to /images/
         run:
           steps:
           - adb wait-for-device
@@ -51,6 +51,6 @@ actions:
           - VIDEO_DEV=$(echo "$SETUP_OUT" | grep -o '/dev/video[0-9]*' | head -n1)
           - VIDEO_DEV=${VIDEO_DEV:-/dev/video0}
           - 'echo "Using video device: $VIDEO_DEV"'
-          - lava-test-case capture-raw-frame --shell adb shell "v4l2-ctl -d $VIDEO_DEV --stream-mmap --stream-count=1 --stream-to=/tmp/ar1335_frame.raw"
+          - lava-test-case capture-raw-frame --shell adb shell "v4l2-ctl -d $VIDEO_DEV --set-fmt-video=width=4208,height=3120,pixelformat=pgAA --stream-mmap --stream-count=1 --stream-to=/tmp/ar1335_frame.raw"
           - adb pull /tmp/ar1335_frame.raw /tmp/ar1335_frame.raw
-          - lava-test-case demosaic --shell python3 /usr/local/bin/demosaic.py /tmp/ar1335_frame.raw /images/ar1335_1080p.png
+          - lava-test-case demosaic --shell python3 /usr/local/bin/demosaic.py /tmp/ar1335_frame.raw /images/ar1335_4208x3120.png
