@@ -52,6 +52,30 @@ actions:
           - lava-test-case rootfs-slot --shell test -n "$ROOT_SLOT"
 
     - from: inline
+      name: os-release
+      path: inline/os-release.yaml
+      parameters:
+        # Substituted by the CI workflow with the version the build job baked
+        # into the image. This test confirms the freshly-flashed, running
+        # image reports exactly that version (deploy-integrity check), so the
+        # match is always asserted.
+        EXPECTED_IMDT_VERSION: ''
+      repository:
+        metadata:
+          format: Lava-Test Test Definition 1.0
+          name: os-release
+          description: Verify the running image reports the meta-imdt-qcom-oss version it was built with
+        run:
+          steps:
+          - cat /etc/os-release
+          - lava-test-case osrelease-imdt-version-present --shell grep -q '^META_IMDT_QCOM_OSS_VERSION=' /etc/os-release
+          - IMDT_VER=$(. /etc/os-release; echo "$META_IMDT_QCOM_OSS_VERSION")
+          - 'echo "running image  : $IMDT_VER"'
+          - 'echo "expected build : $EXPECTED_IMDT_VERSION"'
+          - lava-test-case osrelease-imdt-version-nonempty --shell test -n "$IMDT_VER"
+          - if [ "$IMDT_VER" = "$EXPECTED_IMDT_VERSION" ]; then lava-test-case osrelease-imdt-version-matches --result pass; else echo "MISMATCH running=$IMDT_VER expected=$EXPECTED_IMDT_VERSION"; lava-test-case osrelease-imdt-version-matches --result fail; fi
+
+    - from: inline
       name: resources
       path: inline/resources.yaml
       parameters:

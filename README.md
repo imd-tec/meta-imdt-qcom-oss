@@ -329,6 +329,13 @@ kas-container build --update meta-imdt-qcom-oss/kas/imdt-minimal.yml
 kas-container build --update meta-imdt-qcom-oss/kas/imdt-all.yml
 ```
 
+> [!NOTE]
+> Images record the layer version in `/etc/os-release` as
+> `META_IMDT_QCOM_OSS_VERSION`. CI resolves it with `git describe`; a local
+> build gets the `0.0.0` placeholder unless you pass the value in, e.g.
+> `kas-container --runtime-args "-e META_IMDT_LAYER_VERSION=$(git -C meta-imdt-qcom-oss describe --tags --always --dirty)" build ...`
+
+
 Bleeding edge builds can fail from time-to-time. If you wish to build a known working Kas configuration you can use the below command:
 
 ```bash

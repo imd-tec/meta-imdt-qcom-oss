@@ -5,6 +5,18 @@ header:
 repos:
   meta-imdt-qcom-oss:
 
+# Forward the meta-imdt-qcom-oss git version from the host into the build.
+# The CI (imd-tec/kas-gh-ci) resolves this with `git describe` against a
+# full-history, tagged checkout and passes it into kas-container; kas then
+# hands it to bitbake. Defaults to a placeholder for local builds where the
+# user hasn't exported it.
+env:
+  META_IMDT_LAYER_VERSION: "0.0.0"
+
 local_conf_header:
   imdt: |
     ERROR_QA:remove = "version-going-backwards"
+    # Let bitbake import META_IMDT_LAYER_VERSION from the (kas-forwarded)
+    # environment, and provide a fallback when it isn't set.
+    BB_ENV_PASSTHROUGH_ADDITIONS:append = " META_IMDT_LAYER_VERSION"
+    META_IMDT_LAYER_VERSION ??= "0.0.0"

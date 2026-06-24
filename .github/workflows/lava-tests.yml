@@ -43,6 +43,10 @@ on:
       pr-number:
         type: number
         default: 0
+      expected-version:
+        description: 'Version string baked into the image (from the build job); asserted against /etc/os-release'
+        type: string
+        default: ''
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -180,6 +184,11 @@ jobs:
           CAMERA_PRESENT="${{ inputs.has-camera && 'yes' || 'no' }}"
           SDCARD_PRESENT="${{ inputs.has-sdcard && 'yes' || 'no' }}"
           WIFI_PRESENT="${{ inputs.has-wifi && 'yes' || 'no' }}"
+          # The version the build job baked into the image; ssh-tests asserts
+          # /etc/os-release carries exactly this string.
+          EXPECTED_IMDT_VERSION="${{ inputs.expected-version }}"
+          echo "Expected meta-imdt-qcom-oss version: ${EXPECTED_IMDT_VERSION:-<unset>}"
+          echo "IMDT_VERSION=$EXPECTED_IMDT_VERSION" >> "$GITHUB_ENV"
           for f in lava/*.yaml; do
             sed -e "s|^- dut-ssh$|- ${{ inputs.board-tag }}|" \
                 -e "s|SSH_HOST: '[^']*'|SSH_HOST: '${DUT_SSH_HOST}'|" \
@@ -188,6 +197,7 @@ jobs:
                 -e "s|CAMERA_PRESENT: '[^']*'|CAMERA_PRESENT: '${CAMERA_PRESENT}'|" \
                 -e "s|SDCARD_PRESENT: '[^']*'|SDCARD_PRESENT: '${SDCARD_PRESENT}'|" \
                 -e "s|WIFI_PRESENT: '[^']*'|WIFI_PRESENT: '${WIFI_PRESENT}'|" \
+                -e "s|EXPECTED_IMDT_VERSION: '[^']*'|EXPECTED_IMDT_VERSION: '${EXPECTED_IMDT_VERSION}'|" \
                 -e "s|FRAME_OUT: '[^']*'|FRAME_OUT: '/images/ar1335_${{ inputs.board-tag }}.png'|" \
                 -e "s|^job_name: \(.*\)|job_name: \1 [${{ inputs.board-tag }}]|" \
                 "$f" > "/tmp/lava-jobs/$(basename "$f")"
@@ -363,11 +373,14 @@ jobs:
               f"[{name} #{jid}](http://{lava_host}/scheduler/job/{jid})"
               for name, jid in jobs if jid
           )
+          imdt_version = os.environ.get('IMDT_VERSION', '')
 
           lines = [
               f"## {status} LAVA Test Results — `{image_name}` on `{board_tag}`",
               "",
               job_links,
+              "",
+              f"**meta-imdt-qcom-oss:** `{imdt_version or 'unknown'}`",
               "",
               f"**{passed} passed** &nbsp;·&nbsp; **{failed} failed** &nbsp;·&nbsp; {skipped} skipped",
               "",

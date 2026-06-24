@@ -140,6 +140,7 @@ jobs:
       wg-slot: ${{ needs.setup.outputs.wg-slot-8gb }}
       is-pr: ${{ github.event_name == 'pull_request' }}
       pr-number: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || 0 }}
+      expected-version: ${{ needs.build.outputs.version }}
     secrets: inherit
 
   lava-12gb:
