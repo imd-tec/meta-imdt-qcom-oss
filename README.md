@@ -166,22 +166,27 @@ make
 sudo make install
 ```
 
-#### QDL alias
+#### QDL bash function 
 
-Append the below alias to your `.bashrc` file:
+Append the below bash function to your `.bashrc` file:
 
 ```bash
-alias flash_qcs8550_sbc='qdl -i qcom-minimal-image-imdt-8550-sbc.rootfs.qcomflash/ xbl_s_devprg_ns.melf qcom-minimal-image-imdt-8550-sbc.rootfs.qcomflash/rawprogram*.xml qcom-minimal-image-imdt-8550-sbc.rootfs.qcomflash/patch*.xml'
+flash_qcs8550_sbc() {
+    local image="${1:?Usage: flash_qcs8550_sbc <image-name>}"
+    local dir="${image}-imdt-8550-sbc.rootfs.qcomflash"
+    qdl -i "${dir}/" xbl_s_devprg_ns.melf "${dir}/rawprogram"*.xml "${dir}/patch"*.xml
+}
 ```
 
 #### Flashing an image
 
 Please make sure that the board is powered and in EDL as per [these instructions](#boot-sbc-into-emergency-download-edl-mode).
 
-After unzipping a prebuilt image or an image you have built yourself:
+After unzipping a prebuilt image or an image you have built yourself, pass the image name as the argument:
 
 ```bash
-flash_qcs8550_sbc
+# Flash the minimal image
+flash_qcs8550_sbc qcom-minimal-image
 ```
 
 ## Working with the board
