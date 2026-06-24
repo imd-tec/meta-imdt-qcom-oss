@@ -72,7 +72,7 @@ jobs:
           echo "SWUDEPLOY_JOB_ID=$JOB_ID" >> "$GITHUB_ENV"
 
       - name: Wait for swu-deploy
-        run: lavacli --identity lava-ci jobs wait "$SWUDEPLOY_JOB_ID"
+        run: bash lava/wait-job.sh "$SWUDEPLOY_JOB_ID"
 
       # ── Job 2: ssh-tests (SSH DUT) ──────────────────────────────────────
       - name: Submit ssh-tests LAVA job
@@ -82,7 +82,7 @@ jobs:
           echo "SSHTESTS_JOB_ID=$JOB_ID" >> "$GITHUB_ENV"
 
       - name: Wait for ssh-tests
-        run: lavacli --identity lava-ci jobs wait "$SSHTESTS_JOB_ID"
+        run: bash lava/wait-job.sh "$SSHTESTS_JOB_ID"
 
       # ── Job 3: ar1335 frame capture (ADB) ──────────────────────────────
       - name: Submit ar1335-capture LAVA job
@@ -92,7 +92,7 @@ jobs:
           echo "CAPTURE_JOB_ID=$JOB_ID" >> "$GITHUB_ENV"
 
       - name: Wait for ar1335-capture
-        run: lavacli --identity lava-ci jobs wait "$CAPTURE_JOB_ID"
+        run: bash lava/wait-job.sh "$CAPTURE_JOB_ID"
 
       # ── Job 4: PCIe Key-B switch (enable) ───────────────────────────────
       - name: Submit pcie-keyb-switch (enable) LAVA job
@@ -140,7 +140,7 @@ jobs:
 
       - name: Wait for multimedia-tests
         if: inputs.run-multimedia-tests
-        run: lavacli --identity lava-ci jobs wait "$MULTIMEDIA_JOB_ID"
+        run: bash lava/wait-job.sh "$MULTIMEDIA_JOB_ID"
 
       # ── Results ─────────────────────────────────────────────────────────
       - name: Show all LAVA job results
