@@ -20,7 +20,7 @@ jobs:
   build:
     uses: imd-tec/kas-gh-ci/.github/workflows/kas-build.yml@master
     with:
-      kas-config: 'kas/default.yml'
+      kas-config: 'kas/imdt-8550-minimal.yml'
       machine: 'imdt-8550-sbc'
       artifact-name: 'qcom-minimal-image'
       rsync-enabled: true

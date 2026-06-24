@@ -116,7 +116,7 @@ Once this has been completed, you can then restore the python environment using:
 To build a bleeding edge image which tracks the master branch of all meta layers:
 
 ```bash
-kas-container build --update meta-imdt-qcom-oss/kas/default.yml
+kas-container build --update meta-imdt-qcom-oss/kas/imdt-8550-minimal.yml
 ```
 
 Bleeding edge builds can fail from time-to-time. If you wish to build a known working Kas configuration you can use the below command:
