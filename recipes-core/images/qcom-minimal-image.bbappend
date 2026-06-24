@@ -1,7 +1,7 @@
 # IMDT customizations layered onto meta-qcom-distro's qcom-minimal-image.
 #
-# Adds ADB, the IMDT tool/camera package set and SWUpdate (A/B rootfs)
-# support.
+# Adds ADB, an SSH server, the IMDT tool/camera package set and SWUpdate
+# (A/B rootfs) support.
 
 # Allocate an extra 2G of spare space in the rootfs for .swu files to be
 # stored and used. (value is in KiB)
@@ -12,7 +12,8 @@ IMAGE_ROOTFS_EXTRA_SPACE = "2097152"
 # the class install the adbd packages and touch /etc/usb-debugging-enabled
 # so the daemon comes up at boot. The LAVA swu-deploy job (and manual
 # debugging) reach the board over adb.
-IMAGE_FEATURES += "enable-adbd"
+# We also need ssh-server for running some of the LAVA tests.
+IMAGE_FEATURES += "enable-adbd ssh-server-openssh"
 
 # Install imdt bsp support package so that README instructions can be
 # followed and LAVA QA tests can run.
