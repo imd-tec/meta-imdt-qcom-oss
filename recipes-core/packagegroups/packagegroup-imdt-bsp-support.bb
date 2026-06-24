@@ -3,6 +3,11 @@ DESCRIPTION = "Debugging, tooling, camera, SWUpdate and CI/test helper \
 packages as used by the README.md and LAVA testing server."
 LICENSE = "MIT"
 
+# Some members (e.g. libgpiod -> libgpiod3) are dynamically renamed on the
+# library ABI version, which an allarch package may not depend on. Make this
+# packagegroup machine-specific so the QA 'packagegroup' check passes.
+PACKAGE_ARCH = "${MACHINE_ARCH}"
+
 inherit packagegroup
 
 RDEPENDS:${PN} = " \
