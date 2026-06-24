@@ -18,6 +18,7 @@ The role of this meta layer is the following:
 
 - [QCS8550-SBC Feature Support](#qcs8550-sbc-feature-support)
 - [Upstreaming Status](#upstreaming-status)
+- [Boot Chain](#boot-chain)
 - [References](#references)
 - [Prerequisites](#prerequisites)
 - [Building release images](#building-release-images)
@@ -62,6 +63,17 @@ An effort is being made into upstreaming our board and patches into Linux.
 | Team Source TST070WSBE-196C display panel | ✅ Accepted | [v2 on lore.kernel.org](https://lore.kernel.org/all/20260428-imdt-dsi-display-v2-0-cf7294b5d7d6@imd-tec.com/T/#t) |
 | SDHC4 (Wi-Fi SDIO) support | Pending | [v2 on lore.kernel.org](https://lore.kernel.org/all/20260427-sm8550-sdhc4-support-v2-1-a4241f43ecd5@imd-tec.com/T/#u) |
 | QCS8550 SBC device tree | Pending | [v4 on lore.kernel.org](https://lore.kernel.org/linux-arm-msm/20260610-imdt-qcs8550-sbc-rfc-v4-0-358e71d606bc@imd-tec.com/T/#u) |
+
+## Boot Chain
+
+The boot chain used to boot into Linux is shown below.
+![QCS8550 SBC boot chain](docs/OSS-boot-chain_drawio.svg)
+
+1. **PBL** (Primary Boot Loader) — BootROM that loads the next stage (XBL) from UFS.
+2. **XBL** (eXtensible Boot Loader) — Qualcomm firmware that initialises DDR, the PMIC and clocks, and sets up the early boot environment. The XBL is also responsible for implementing UEFI.
+3. **abl2esp** — our open source stand-in for Qualcomm's ABL (Application Boot Loader). It's a signed binary that transitions from bare metal into a UEFI app located within the EFI partition.
+4. **U-Boot** — built as an ARM64 **UEFI application** (`BOOTAA64.EFI`) on the EFI System Partition (ESP), which is what `abl2esp` finds and starts. Running U-Boot here lets us apply device tree fixups/overlays and select the A/B rootfs slot (with automatic rollback) before booting Linux.
+5. **Linux** — U-Boot loads the kernel and matching device tree and boots into the Yocto userspace.
 
 ## Hardware Testing
 
