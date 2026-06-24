@@ -2,7 +2,7 @@
 -- IMDT QCS8550 SBC: A/B rootfs image handler for SWUpdate.
 --
 -- Registered as 'rootfs_ab' and referenced by the sw-description in the
--- qcom-console-image.swu bundle. Reads the U-Boot 'rootfs_part' env var
+-- qcom-minimal-image.swu bundle. Reads the U-Boot 'rootfs_part' env var
 -- (3 -> /dev/sda3 active, 4 -> /dev/sda4 active), delegates the write of
 -- the bundled rootfs image to the built-in 'raw' handler pointed at the
 -- inactive slot, then flips 'rootfs_part' (and resets bootcount / sets

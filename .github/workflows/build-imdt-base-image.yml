@@ -22,7 +22,7 @@ jobs:
     with:
       kas-config: 'kas/default.yml'
       machine: 'imdt-8550-sbc'
-      artifact-name: 'qcom-console-image'
+      artifact-name: 'qcom-minimal-image'
       rsync-enabled: true
       rsync-host: ${{ vars.LAVA_HOST }}
       rsync-user: pi

@@ -1,4 +1,4 @@
-# IMDT customizations layered onto meta-qcom-distro's qcom-console-image.
+# IMDT customizations layered onto meta-qcom-distro's qcom-minimal-image.
 #
 # Adds the IMDT, tool/camera package set and SWUpdate (A/B rootfs)
 # support. 
@@ -13,5 +13,5 @@ IMAGE_INSTALL:append = " \
     packagegroup-imdt-bsp-support \
 "
 # .swu bundles require a raw rootfs image to bundle. The .swu recipe
-# (qcom-console-image.swu.bb) declares SWUPDATE_IMAGES_FSTYPES[...] = ".rootfs.ext4.gz".
+# (qcom-minimal-image.swu.bb) declares SWUPDATE_IMAGES_FSTYPES[...] = ".rootfs.ext4.gz".
 IMAGE_FSTYPES:append = " ext4.gz"

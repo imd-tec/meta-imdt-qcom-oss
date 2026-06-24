@@ -1,6 +1,6 @@
-SUMMARY = "SWUpdate .swu bundle for qcom-console-image (A/B rootfs)"
+SUMMARY = "SWUpdate .swu bundle for qcom-minimal-image (A/B rootfs)"
 DESCRIPTION = "Builds a .swu cpio archive that ships an ext4.gz of \
-qcom-console-image together with a sw-description manifest. The image entry \
+qcom-minimal-image together with a sw-description manifest. The image entry \
 uses the on-target 'rootfs_ab' Lua handler (swupdate-imdt-handlers), \
 which writes the image to the inactive slot and swaps rootfs_part on \
 success."
@@ -16,12 +16,12 @@ COMPATIBLE_MACHINE = "qcs8550"
 # the .swu and substitutes @@FILENAME@@ tokens in sw-description. The
 # fstype string is appended to the image basename verbatim, so include
 # the '.rootfs' infix that modern Yocto's IMAGE_NAME_SUFFIX adds — the
-# actual file on disk is e.g. qcom-console-image-imdt-8550-sbc.rootfs.ext4.gz.
-SWUPDATE_IMAGES = "qcom-console-image"
-SWUPDATE_IMAGES_FSTYPES[qcom-console-image] = ".rootfs.ext4.gz"
+# actual file on disk is e.g. qcom-minimal-image-imdt-8550-sbc.rootfs.ext4.gz.
+SWUPDATE_IMAGES = "qcom-minimal-image"
+SWUPDATE_IMAGES_FSTYPES[qcom-minimal-image] = ".rootfs.ext4.gz"
 
 # Ensure the rootfs is built before do_swuimage assembles the cpio.
-do_swuimage[depends] += "qcom-console-image:do_image_complete"
+do_swuimage[depends] += "qcom-minimal-image:do_image_complete"
 
 SRC_URI = "file://sw-description"
 

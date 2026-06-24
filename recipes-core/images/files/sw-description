@@ -19,7 +19,7 @@
 software =
 {
     version = "@@SWUPDATE_VERSION@@";
-    description = "qcom-console-image A/B rootfs update";
+    description = "qcom-minimal-image A/B rootfs update";
 
     hardware-compatibility: [ "1.0" ];
 
@@ -28,7 +28,7 @@ software =
             /* The file copied into the .swu cpio is the basename of the
              * source artifact in DEPLOY_DIR_IMAGE — i.e. it carries the
              * machine + .rootfs infix that modern Yocto attaches. */
-            filename   = "qcom-console-image-@@MACHINE@@.rootfs.ext4.gz";
+            filename   = "qcom-minimal-image-@@MACHINE@@.rootfs.ext4.gz";
             type       = "rootfs_ab";
             compressed = "zlib";
         }

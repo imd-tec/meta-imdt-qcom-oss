@@ -122,8 +122,8 @@ kas-container build --update meta-imdt-qcom-oss/kas/default.yml
 Bleeding edge builds can fail from time-to-time. If you wish to build a known working Kas configuration you can use the below command:
 
 ```bash
-wget https://github.com/imd-tec/meta-imdt-qcom-oss/releases/latest/download/qcom-console-image-kas-dump.yml
-kas-container build qcom-console-image-kas-dump.yml
+wget https://github.com/imd-tec/meta-imdt-qcom-oss/releases/latest/download/qcom-minimal-image-kas-dump.yml
+kas-container build qcom-minimal-image-kas-dump.yml
 ```
 
 ### Disabling Modem Manager
@@ -171,7 +171,7 @@ sudo make install
 Append the below alias to your `.bashrc` file:
 
 ```bash
-alias flash_qcs8550_sbc='qdl -i qcom-console-image-imdt-8550-sbc.rootfs.qcomflash/ xbl_s_devprg_ns.melf qcom-console-image-imdt-8550-sbc.rootfs.qcomflash/rawprogram*.xml qcom-console-image-imdt-8550-sbc.rootfs.qcomflash/patch*.xml'
+alias flash_qcs8550_sbc='qdl -i qcom-minimal-image-imdt-8550-sbc.rootfs.qcomflash/ xbl_s_devprg_ns.melf qcom-minimal-image-imdt-8550-sbc.rootfs.qcomflash/rawprogram*.xml qcom-minimal-image-imdt-8550-sbc.rootfs.qcomflash/patch*.xml'
 ```
 
 #### Flashing an image
@@ -377,13 +377,13 @@ Online state: online
 From your host, you will need to push the `.swu` file to the target using ADB:
 
 ```bash
-adb push qcom-console-image.swu-imdt-8550-sbc.rootfs.swu /root/
+adb push qcom-minimal-image.swu-imdt-8550-sbc.rootfs.swu /root/
 ```
 
 And then you can perform a SWUpdate using the following commands on your host:
 
 ```bash
-adb shell "cd /root/ && swupdate -i qcom-console-image.swu-imdt-8550-sbc.rootfs.swu"
+adb shell "cd /root/ && swupdate -i qcom-minimal-image.swu-imdt-8550-sbc.rootfs.swu"
 adb reboot
 ```
 
