@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/siemens/kas/master/kas/schema-kas.json
+# Copyright IMDT 2026
+#
+# Builds every IMDT image in a single bitbake invocation (used by CI) so the
+# large common package set is built once and shared, rather than rebuilt per
+# image. For a single image, use the per-image configs directly:
+# imdt-8550-minimal.yml / imdt-8550-multimedia.yml.
+header:
+  version: 14
+  includes:
+    - kas/imdt-8550-minimal.yml
+    - kas/imdt-8550-multimedia.yml
+
+# kas merges `target` by override — including the two per-image configs would
+# otherwise leave only the last one's target. Enumerate the full set here so a
+# single build produces every image (and its .swu bundle).
+target:
+  - qcom-minimal-image
+  - qcom-minimal-image.swu
+  - qcom-multimedia-image
+  - qcom-multimedia-image.swu

@@ -15,24 +15,25 @@ permissions:
   checks: write
   pull-requests: write
 
+# Only one build per ref needs to run on the single self-hosted builder;
+# cancel any superseded in-progress run so a new push doesn't queue behind it.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - kas-config: 'kas/imdt-8550-minimal.yml'
-            artifact-name: 'qcom-minimal-image'
-          - kas-config: 'kas/imdt-8550-multimedia.yml'
-            artifact-name: 'qcom-multimedia-image'
+    # Build every image in a single bitbake invocation. The self-hosted builder
+    # runs one job at a time, so a per-image matrix would build sequentially and
+    # rebuild the shared package set twice; one combined build shares it.
     uses: imd-tec/kas-gh-ci/.github/workflows/kas-build.yml@master
     with:
-      kas-config: ${{ matrix.kas-config }}
+      kas-config: 'kas/imdt-8550-all.yml'
       machine: 'imdt-8550-sbc'
-      artifact-name: ${{ matrix.artifact-name }}
+      artifact-name: 'qcom-imdt-images'
       rsync-enabled: true
       rsync-host: ${{ vars.LAVA_HOST }}
       rsync-user: pi

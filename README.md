@@ -137,6 +137,9 @@ kas-container build --update meta-imdt-qcom-oss/kas/imdt-8550-minimal.yml
 
 # Multimedia image (adds Weston + GStreamer media stack)
 kas-container build --update meta-imdt-qcom-oss/kas/imdt-8550-multimedia.yml
+
+# Both images in a single build (shares the common package set; used by CI)
+kas-container build --update meta-imdt-qcom-oss/kas/imdt-8550-all.yml
 ```
 
 Bleeding edge builds can fail from time-to-time. If you wish to build a known working Kas configuration you can use the below command:
