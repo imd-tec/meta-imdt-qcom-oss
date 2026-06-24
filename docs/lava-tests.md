@@ -2,7 +2,14 @@
 
 These tests run automatically on real hardware (IMDT 8550 SBC) via [LAVA](https://lava.readthedocs.io/) on every commit to `master` and on every pull request.
 
-The three LAVA jobs run sequentially: the SWUpdate deploy must succeed before SSH tests begin, and camera capture runs last.
+Each built image (`qcom-minimal-image` and `qcom-multimedia-image`) is deployed
+and tested in turn. Both images run the three common jobs below; the
+`qcom-multimedia-image` run adds a fourth [multimedia job](#job-4--multimedia-gstreamerweston-multimedia-tests).
+Because there is a single board, the per-image runs serialise.
+
+Within a run the LAVA jobs execute sequentially: the SWUpdate deploy must
+succeed (and flashes the image under test onto the inactive A/B slot) before the
+SSH/camera/multimedia jobs run against the freshly-deployed rootfs.
 
 ## Job 1 — SWUpdate Deploy (`swu-deploy`)
 
@@ -106,6 +113,30 @@ Captures a raw frame from the AR1335 camera over ADB and de-mosaics it to a 1080
 | `pipeline-setup` | CSI0 pipeline script exits 0 (run via ADB) |
 | `capture-raw-frame` | `v4l2-ctl --stream-to` captures one raw frame to `/tmp/ar1335_frame.raw` |
 | `demosaic` | `demosaic.py` converts the raw frame to `/images/ar1335_1080p.png` |
+
+## Job 4 — Multimedia (GStreamer/Weston) (`multimedia-tests.yaml`)
+
+Runs over SSH, **only for `qcom-multimedia-image`**, on the deployed rootfs. It
+validates that the multimedia stack (GStreamer + the Weston Wayland compositor)
+is present and functional.
+
+### `gstreamer` — GStreamer framework and camera pipeline
+
+| Test Case | Description |
+|-----------|-------------|
+| `gst-version` | `gst-inspect-1.0 --version` succeeds |
+| `v4l2-plugin` | `gst-inspect-1.0 v4l2src` reports the Video4Linux2 source element |
+| `test-pipeline` | `gst-launch-1.0 videotestsrc num-buffers=30 ! fakesink` runs to EOS |
+| `pipeline-setup` | `/opt/imdt/camss/qcs8550-csi0-ar1335.sh` exits 0 |
+| `camera-pipeline` | `gst-launch-1.0 v4l2src ! fakesink` pulls 10 frames from the AR1335 |
+
+### `weston` — Wayland compositor and GPU display
+
+| Test Case | Description |
+|-----------|-------------|
+| `weston-installed` | `weston` binary is present on the rootfs |
+| `drm-card` | `/dev/dri/card0` modeset node exists |
+| `wayland-socket` | A `wayland-*` socket is present under `$XDG_RUNTIME_DIR` / `/run/user/*` |
 
 ## Optional — PCIe Key-B Overlay (`pcie-keyb-test`)
 

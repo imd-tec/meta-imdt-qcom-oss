@@ -3,7 +3,8 @@
 # meta-imdt-qcom-oss - Getting Started Guide 
 
 [![Build Status](https://github.com/imd-tec/meta-imdt-qcom-oss-dev/actions/workflows/build-imdt-base-image.yml/badge.svg)](https://github.com/imd-tec/meta-imdt-qcom-oss-dev/actions/workflows/build-imdt-base-image.yml)
-[![QCS8550-SBC QA Tests](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/WilliamBright-IMD/1a72a27d66a7fdf5017e0f435d8f283d/raw/hardware-tests.json&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0NCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjM2VjNmEwIiBzdHJva2Utd2lkdGg9IjUiLz48dGV4dCB4PSI1MCIgeT0iNjEiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjI4IiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPmltZHQ8L3RleHQ+PC9zdmc+)](https://github.com/imd-tec/meta-imdt-qcom-oss-dev/actions/workflows/build-imdt-base-image.yml)
+[![qcom-minimal-image QA Tests](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/WilliamBright-IMD/1a72a27d66a7fdf5017e0f435d8f283d/raw/hardware-tests-qcom-minimal-image.json&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0NCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjM2VjNmEwIiBzdHJva2Utd2lkdGg9IjUiLz48dGV4dCB4PSI1MCIgeT0iNjEiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjI4IiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPmltZHQ8L3RleHQ+PC9zdmc+)](https://github.com/imd-tec/meta-imdt-qcom-oss-dev/actions/workflows/build-imdt-base-image.yml)
+[![qcom-multimedia-image QA Tests](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/WilliamBright-IMD/1a72a27d66a7fdf5017e0f435d8f283d/raw/hardware-tests-qcom-multimedia-image.json&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0NCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjM2VjNmEwIiBzdHJva2Utd2lkdGg9IjUiLz48dGV4dCB4PSI1MCIgeT0iNjEiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjI4IiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPmltZHQ8L3RleHQ+PC9zdmc+)](https://github.com/imd-tec/meta-imdt-qcom-oss-dev/actions/workflows/build-imdt-base-image.yml)
 
 ![IMDT 8550 SBC](docs/imdt-8550-sbc.png)
 
@@ -79,11 +80,12 @@ The boot chain used to boot into Linux is shown below.
 
 ## Hardware Testing
 
-Every commit is automatically tested on a physical IMDT 8550 SBC via [LAVA](https://lava.readthedocs.io/). Three jobs run in sequence:
+Every commit is automatically tested on a physical IMDT 8550 SBC via [LAVA](https://lava.readthedocs.io/). Both the `qcom-minimal-image` and `qcom-multimedia-image` builds are deployed and tested in turn. Each run executes these jobs in sequence:
 
-1. **SWUpdate deploy** — flashes the new image over ADB and verifies the A/B rootfs slot switches
+1. **SWUpdate deploy** — flashes the image under test over ADB and verifies the A/B rootfs slot switches
 2. **System tests** — checks kernel health, systemd state, hardware subsystems (GPU, BT, RTC, IOMMU, I2C, hwrng), Wi-Fi, camera streaming, and SD card over SSH
 3. **AR1335 frame capture** — captures a raw frame from the CSI0 camera and de-mosaics it to a 1080p PNG
+4. **Multimedia tests** (`qcom-multimedia-image` only) — verifies the GStreamer stack (incl. a live AR1335 pipeline) and the Weston/Wayland compositor
 
 See [docs/lava-tests.md](docs/lava-tests.md) for the full list of test cases.
 
@@ -130,7 +132,11 @@ Once this has been completed, you can then restore the python environment using:
 To build a bleeding edge image which tracks the master branch of all meta layers:
 
 ```bash
+# Minimal image
 kas-container build --update meta-imdt-qcom-oss/kas/imdt-8550-minimal.yml
+
+# Multimedia image (adds Weston + GStreamer media stack)
+kas-container build --update meta-imdt-qcom-oss/kas/imdt-8550-multimedia.yml
 ```
 
 Bleeding edge builds can fail from time-to-time. If you wish to build a known working Kas configuration you can use the below command:

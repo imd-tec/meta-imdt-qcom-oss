@@ -20,11 +20,19 @@ env:
 
 jobs:
   build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - kas-config: 'kas/imdt-8550-minimal.yml'
+            artifact-name: 'qcom-minimal-image'
+          - kas-config: 'kas/imdt-8550-multimedia.yml'
+            artifact-name: 'qcom-multimedia-image'
     uses: imd-tec/kas-gh-ci/.github/workflows/kas-build.yml@master
     with:
-      kas-config: 'kas/imdt-8550-minimal.yml'
+      kas-config: ${{ matrix.kas-config }}
       machine: 'imdt-8550-sbc'
-      artifact-name: 'qcom-minimal-image'
+      artifact-name: ${{ matrix.artifact-name }}
       rsync-enabled: true
       rsync-host: ${{ vars.LAVA_HOST }}
       rsync-user: pi
@@ -36,8 +44,18 @@ jobs:
   lava:
     needs: build
     if: needs.build.result == 'success'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image-name: 'qcom-minimal-image'
+            multimedia: false
+          - image-name: 'qcom-multimedia-image'
+            multimedia: true
     uses: ./.github/workflows/lava-tests.yml
     with:
+      image-name: ${{ matrix.image-name }}
+      run-multimedia-tests: ${{ matrix.multimedia }}
       is-pr: ${{ github.event_name == 'pull_request' }}
       pr-number: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || 0 }}
     secrets: inherit

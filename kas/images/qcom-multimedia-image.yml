@@ -1,0 +1,9 @@
+header:
+  version: 14
+  # qcom-multimedia-image and its ADB support come from qcom-distro.
+  includes:
+    - kas/distro/qcom-distro.yml
+
+target:
+  - qcom-multimedia-image
+  - qcom-multimedia-image.swu

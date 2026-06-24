@@ -1,0 +1,74 @@
+device_type: ssh
+job_name: multimedia (gstreamer/weston) tests on imdt-8550-sbc
+tags:
+- dut-ssh
+
+timeouts:
+  job:
+    minutes: 30
+  action:
+    minutes: 20
+  connection:
+    minutes: 5
+priority: medium
+visibility: public
+
+actions:
+- deploy:
+    to: ssh
+    os: oe
+    timeout:
+      minutes: 5
+
+- boot:
+    method: ssh
+    prompts:
+    - 'root@'
+    timeout:
+      minutes: 5
+
+- test:
+    timeout:
+      minutes: 20
+    definitions:
+    - from: inline
+      name: gstreamer
+      path: inline/gstreamer.yaml
+      repository:
+        metadata:
+          format: Lava-Test Test Definition 1.0
+          name: gstreamer
+          description: GStreamer framework, V4L2 plugin and a test/camera pipeline
+        run:
+          steps:
+          - lava-test-case gst-version --shell gst-inspect-1.0 --version
+          - lava-test-case v4l2-plugin --shell gst-inspect-1.0 v4l2src
+          - lava-test-case test-pipeline --shell /usr/bin/timeout 60 gst-launch-1.0 -e videotestsrc num-buffers=30 ! fakesink
+          # Bring the AR1335 CSI0 pipeline up, then push a few frames through
+          # GStreamer's v4l2src to prove the camera works end-to-end.
+          - SETUP_OUT=$(sh /opt/imdt/camss/qcs8550-csi0-ar1335.sh 2>&1); SETUP_RC=$?
+          - 'echo "$SETUP_OUT"'
+          - if [ "$SETUP_RC" = "0" ]; then lava-test-case pipeline-setup --result pass; else lava-test-case pipeline-setup --result fail; fi
+          - VIDEO_DEV=$(echo "$SETUP_OUT" | grep -o '/dev/video[0-9]*' | head -n1)
+          - VIDEO_DEV=${VIDEO_DEV:-/dev/video0}
+          - 'echo "Using video device: $VIDEO_DEV"'
+          - lava-test-case camera-pipeline --shell /usr/bin/timeout 60 gst-launch-1.0 -e v4l2src device="$VIDEO_DEV" num-buffers=10 ! fakesink
+
+    - from: inline
+      name: weston
+      path: inline/weston.yaml
+      repository:
+        metadata:
+          format: Lava-Test Test Definition 1.0
+          name: weston
+          description: Weston compositor, Wayland socket and DRM/KMS modeset node
+        run:
+          steps:
+          - lava-test-case weston-installed --shell sh -c "command -v weston"
+          - lava-test-case drm-card --shell test -e /dev/dri/card0
+          # Weston may be launched lazily (seat/socket activation) so report its
+          # service/process state informationally rather than failing the suite.
+          - systemctl status weston --no-pager || true
+          - WL_SOCK=$(ls /run/user/*/wayland-* "$XDG_RUNTIME_DIR"/wayland-* 2>/dev/null | head -n1)
+          - 'echo "Wayland socket: ${WL_SOCK:-none}"'
+          - if [ -n "$WL_SOCK" ]; then lava-test-case wayland-socket --result pass; else lava-test-case wayland-socket --result fail; fi
