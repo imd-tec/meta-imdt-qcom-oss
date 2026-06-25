@@ -1,0 +1,32 @@
+From 7104588763c1563fe555864032449533705a9da8 Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Thu, 25 Jun 2026 08:46:42 +0100
+Subject: [PATCH 11/11] arm64: dts: qcom: qcs8550-imdt-sbc: enable zap shader
+
+With the SoM DRAM banks now described correctly, the GPU has the memory
+it needs and the zap shader loads, so enable it. It was previously
+disabled because the broken 512MB memory assignment prevented it (and
+the aDSP/cDSP) from loading.
+
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+---
+ arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc.dts | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc.dts b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc.dts
+index bd3ef3567874..92d39ee45100 100644
+--- a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc.dts
++++ b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc.dts
+@@ -290,8 +290,7 @@ &gpu {
+ 
+ &gpu_zap_shader {
+ 	firmware-name = "qcom/sm8550/a740_zap.mbn";
+-	/* Zap shader doesn't load so is disabled */
+-	status = "disabled";
++	status = "okay";
+ };
+ 
+ &i2c_master_hub_0 {
+-- 
+2.43.0
+

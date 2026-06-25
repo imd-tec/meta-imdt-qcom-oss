@@ -1,0 +1,39 @@
+From 3497b8cb9067b4dfe4a1389d637f84f275802624 Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Thu, 25 Jun 2026 08:46:27 +0100
+Subject: [PATCH 10/11] arm64: dts: qcom: qcs8550-imdt-som: set DRAM banks on
+ the SoM
+
+Without this override u-boot assigns only 512MB instead of the >10GB
+actually fitted.
+
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+---
+ arch/arm64/boot/dts/qcom/qcs8550-imdt-som.dtsi | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/qcs8550-imdt-som.dtsi b/arch/arm64/boot/dts/qcom/qcs8550-imdt-som.dtsi
+index 816cbd254dea..caee2fe00716 100644
+--- a/arch/arm64/boot/dts/qcom/qcs8550-imdt-som.dtsi
++++ b/arch/arm64/boot/dts/qcom/qcs8550-imdt-som.dtsi
+@@ -11,6 +11,17 @@
+ #include "pm8550vs.dtsi"
+ #include "pmk8550.dtsi"
+ 
++/*
++ * The DRAM is populated on the SoM, so describe its banks here. If you
++ * let u-boot update the memory assignment instead, you will only end up
++ * with 512MB of memory whereas we actually have over 10GB available.
++ */
++&{/memory@a0000000} {
++	reg = <0x0 0xbab00000 0x0 0x0d1b8000>,	/* 210 MiB, < 4 GiB (DMA) */
++	      <0x8 0x80000000 0x0 0x39a00000>,	/* 922 MiB */
++	      <0x8 0xc0000000 0x2 0x40000000>;	/* 9 GiB (kernel load region) */
++};
++
+ &apps_rsc {
+ 	regulators-0 {
+ 		compatible = "qcom,pm8550-rpmh-regulators";
+-- 
+2.43.0
+
