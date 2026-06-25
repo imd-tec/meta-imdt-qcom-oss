@@ -32,19 +32,19 @@ The role of this meta layer is the following:
 | Feature | Hardware | Interface | Kernel Driver | Status |
 |---|---|---|---|---|
 | A/B Rootfs Updates | — | — | — | ✅ |
-| ADSP | Hexagon v73 DSP | — | remoteproc |  ❌ |
+| ADSP | Hexagon v73 DSP | — | remoteproc | ✅  |
 | Android Debug Bridge (ADB) | — | USB | — | ✅ |
 | Audio (LPASS) | — | — | — | ❌ |
 | Bluetooth | NXP IW416 | UART14 | btnxpuart | ✅ |
 | Camera (AR1335 - 13MP) | ON Semiconductor AR1335 | CSI0 | ar1335 | ✅ |
-| CDSP | Hexagon v73 DSP | — | remoteproc |  ❌ |
+| CDSP | Hexagon v73 DSP | — | remoteproc | ✅ |
 | Debug Serial Console (J19)| — | UART7 (115200 baud) | qcom-geni-serial | ✅ |
 | Gigabit Ethernet | Microchip LAN7430 | PCIe1 (default) | lan743x | ✅ |
-| PCIe Expansion (M.2 Key-B) | PCIe switch downstream Key-B port | PCIe1 (overlay) | qcom-pcie | ⚠️ Requires Key-B DTBO overlay |
+| PCIe Expansion (M.2 Key-B) | PCIe switch downstream Key-B port | PCIe1 (overlay) | qcom-pcie | ✅ Requires Key-B DTBO overlay |
 | GPIO | PM8550 GPIO bank | SPMI | qcom-spmi-gpio | ✅ |
-| GPU (Adreno 740) | Adreno 740 | — | msm drm | ⚠️ Partial (no zap shader) |
+| GPU (Adreno 740) | Adreno 740 | — | msm drm | ✅ |
 | I2C | QupV3 I2C hub | I2C | geni-i2c | ✅ |
-| IPA | Qualcomm IP Accelerator | — | ipa | ❌ |
+| IPA | Qualcomm IP Accelerator | — | ipa | ✅ |
 | ISP (CAMX) | Qualcomm proprietary camera framework | — | — | ❌ |
 | microSD Card | — | SDHC2 | sdhci | ✅ |
 | MIPI DSI Display | Team Source TST070WSBE-196C 7" | DSI0 | drm/msm | ✅ |
