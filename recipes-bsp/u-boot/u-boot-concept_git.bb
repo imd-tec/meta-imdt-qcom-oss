@@ -65,14 +65,19 @@ do_install:append:qcs8550() {
 }
 # Deploy the u-boot EFI binary to the deploy directory
 uboot_deploy_config:append:qcs8550() {
-    # Deploy the built EFI binary to the deploy directory for use in the image recipe
-    install ${B}/${builddir}/u-boot-app.efi ${DEPLOY_DIR_IMAGE}/
+    # Install into ${DEPLOYDIR} (not ${DEPLOY_DIR_IMAGE}): the deploy bbclass
+    # copies ${DEPLOYDIR} into ${DEPLOY_DIR_IMAGE} and, crucially, captures it
+    # in the do_deploy sstate archive. Writing straight to ${DEPLOY_DIR_IMAGE}
+    # is lost on any sstate-restore (setscene) build, since the function body
+    # does not run then — leaving BOOTAA64.EFI absent from the deploy dir.
+    # Deploy the built EFI binary for use in the image recipe
+    install ${B}/${builddir}/u-boot-app.efi ${DEPLOYDIR}/
     # Create a copy of the EFI binary with the required name for the image recipe
-    install ${B}/${builddir}/u-boot-app.efi ${DEPLOY_DIR_IMAGE}/BOOTAA64.EFI
+    install ${B}/${builddir}/u-boot-app.efi ${DEPLOYDIR}/BOOTAA64.EFI
     if [ "${UBOOT_INITIAL_ENV_BINARY}" = "1" ]; then
         # Wrap the binary env (u-boot-initial-env-${type}.bin) in a FAT32 partition
         # image so a board with CONFIG_ENV_IS_IN_FAT can boot with a pre-seeded env.
-        env_img="${DEPLOY_DIR_IMAGE}/${UBOOT_ENV_IMG_NAME}"
+        env_img="${DEPLOYDIR}/${UBOOT_ENV_IMG_NAME}"
         truncate -s ${UBOOT_ENV_IMG_SIZE_BYTES} $env_img
         mkfs.vfat -F 32 -S "${UBOOT_FAT32_LOGICAL_SIZE}" -n "${UBOOT_ENV_IMG_LABEL}" $env_img
         mcopy -i $env_img ${B}/${builddir}/u-boot-initial-env-${type}.bin ::/${UBOOT_ENV_FILENAME}
