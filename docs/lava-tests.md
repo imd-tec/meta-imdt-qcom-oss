@@ -6,7 +6,12 @@ The three LAVA jobs run sequentially: the SWUpdate deploy must succeed before SS
 
 ## Job 1 — SWUpdate Deploy (`swu-deploy`)
 
-Pushes a `.swu` image over ADB and verifies that the A/B rootfs slot switches on reboot.
+Pushes a `.swu` image over ADB and verifies that the A/B rootfs slot switches on
+reboot. In the same job it also updates the u-boot UEFI binary: the new
+`BOOTAA64.EFI` is pushed over ADB and written over the copy on the EFI System
+Partition (`/efi/EFI/BOOT/BOOTAA64.EFI`) that the SoC firmware boots from. The
+update takes effect on the reboot below, so the board coming back online
+confirms the new u-boot booted successfully.
 
 | Test Case | Description |
 |-----------|-------------|
@@ -14,8 +19,13 @@ Pushes a `.swu` image over ADB and verifies that the A/B rootfs slot switches on
 | `fetch-swu` / `copy-swu` | `.swu` file is fetched from URL or copied from local storage |
 | `push-swu` | `.swu` file is pushed to the device via ADB |
 | `swupdate` | `swupdate` runs without error and prints `SWUPDATE_OK` |
+| `fetch-uboot` / `copy-uboot` | new `BOOTAA64.EFI` is fetched from URL or copied from local storage |
+| `push-uboot` | `BOOTAA64.EFI` is pushed to the device via ADB |
+| `install-uboot` | `BOOTAA64.EFI` is written to the ESP and prints `UBOOT_INSTALL_OK` |
+| `uboot-verify` | Installed `BOOTAA64.EFI` md5 matches the pushed binary |
 | `reboot` | Device reboots cleanly via ADB |
-| `wait-reboot` | Device comes back online after reboot |
+| `wait-reboot` | Device comes back online after reboot (new u-boot booted) |
+| `uboot-booted` | `BOOTAA64.EFI` on the ESP persisted unchanged across the reboot |
 | `slot-switched` | Active rootfs partition changes (A→B or B→A) after update |
 | `post-boot-shell` | Post-update shell is accessible; `/etc/hwrevision` readable |
 

@@ -40,11 +40,14 @@ actions:
       parameters:
         SWU_FILE: 'qcom-minimal-image.swu-imdt-8550-sbc.rootfs.swu'
         SWU_URL: ''
+        UBOOT_FILE: 'BOOTAA64.EFI'
+        UBOOT_URL: ''
+        UBOOT_TARGET: '/efi/EFI/BOOT/BOOTAA64.EFI'
       repository:
         metadata:
           format: Lava-Test Test Definition 1.0
           name: swu-deploy
-          description: Push .swu over adb and run swupdate (A/B rootfs)
+          description: Push .swu over adb, run swupdate (A/B rootfs) and update the u-boot UEFI binary
         run:
           steps:
           - adb wait-for-device
@@ -57,10 +60,27 @@ actions:
           - lava-test-case push-swu --shell adb push /tmp/update.swu /home/swu/update.swu
           - lava-test-case swupdate --shell adb shell "TMPDIR=/home/swu swupdate -i /home/swu/update.swu && echo SWUPDATE_OK"
           - adb shell rm -rf /home/swu
+          # ── u-boot (UEFI) update ─────────────────────────────────────────
+          # Overwrite the BOOTAA64.EFI the SoC firmware boots from on the EFI
+          # System Partition. Takes effect on the reboot below; the board
+          # coming back on adb confirms the new u-boot booted successfully.
+          - 'echo "Using u-boot: ${UBOOT_URL:-/images/$UBOOT_FILE} -> $UBOOT_TARGET"'
+          - if [ -n "$UBOOT_URL" ]; then lava-test-case fetch-uboot --shell curl -fsSL "$UBOOT_URL" -o /tmp/BOOTAA64.EFI; else lava-test-case copy-uboot --shell cp "/images/$UBOOT_FILE" /tmp/BOOTAA64.EFI; fi
+          - lava-test-case push-uboot --shell adb push /tmp/BOOTAA64.EFI /home/BOOTAA64.EFI
+          - lava-test-case install-uboot --shell adb shell "cp /home/BOOTAA64.EFI '$UBOOT_TARGET' && sync && echo UBOOT_INSTALL_OK"
+          - UBOOT_SRC_MD5=$(adb shell md5sum /home/BOOTAA64.EFI | cut -d' ' -f1)
+          - UBOOT_DST_MD5=$(adb shell md5sum "$UBOOT_TARGET" | cut -d' ' -f1)
+          - 'echo "u-boot md5 src=$UBOOT_SRC_MD5 dst=$UBOOT_DST_MD5"'
+          - if [ -n "$UBOOT_SRC_MD5" ] && [ "$UBOOT_SRC_MD5" = "$UBOOT_DST_MD5" ]; then lava-test-case uboot-verify --result pass; else lava-test-case uboot-verify --result fail; fi
+          - adb shell rm -f /home/BOOTAA64.EFI
           - lava-test-case reboot --shell adb reboot
           - sleep 5
           - lava-test-case wait-reboot --shell adb wait-for-device
           - sleep 5
+          # The board booted under the freshly-written u-boot; confirm the
+          # binary persisted unchanged across the reboot.
+          - UBOOT_BOOTED_MD5=$(adb shell md5sum "$UBOOT_TARGET" | cut -d' ' -f1)
+          - if [ -n "$UBOOT_SRC_MD5" ] && [ "$UBOOT_SRC_MD5" = "$UBOOT_BOOTED_MD5" ]; then lava-test-case uboot-booted --result pass; else lava-test-case uboot-booted --result fail; fi
           - ROOT_AFTER=$(adb shell cat /proc/cmdline | tr ' ' '\n' | grep ^root=)
           - 'echo "Active rootfs after update: $ROOT_AFTER"'
           - if [ "$ROOT_BEFORE" != "$ROOT_AFTER" ]; then lava-test-case slot-switched --result pass; else lava-test-case slot-switched --result fail; fi

@@ -29,7 +29,7 @@ jobs:
       rsync-host: ${{ vars.LAVA_HOST }}
       rsync-user: pi
       rsync-dest: /home/pi/qcom-oss/
-      rsync-pattern: '*.swu'
+      rsync-pattern: '*.swu BOOTAA64.EFI'
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
