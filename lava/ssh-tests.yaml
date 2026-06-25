@@ -160,3 +160,46 @@ actions:
           - lava-test-case lan7430-present --shell sh -c "lspci -n | grep -q '1055:7430'"
           - LAN743X_BOUND=$(ls /sys/bus/pci/drivers/lan743x/ 2>/dev/null | grep -v 'bind\|unbind\|new_id\|remove_id\|uevent\|module' || true)
           - if [ -n "$LAN743X_BOUND" ]; then lava-test-case lan743x-driver-bound --result pass; else lava-test-case lan743x-driver-bound --result fail; fi
+
+    - from: inline
+      name: dsp-ipa
+      path: inline/dsp-ipa.yaml
+      repository:
+        metadata:
+          format: Lava-Test Test Definition 1.0
+          name: dsp-ipa
+          description: ADSP, CDSP remoteproc bring-up and IPA driver init checks
+        run:
+          steps:
+          - MEM_TOTAL_MB=$(free -m | awk '/Mem:/ {print $2}')
+          - if [ "$MEM_TOTAL_MB" -ge 9000 ]; then lava-test-case mem-gt-9gb --result pass; else echo "Total memory: ${MEM_TOTAL_MB:-<unknown>}MB"; lava-test-case mem-gt-9gb --result fail; fi
+          - ADSP_RP=$(for r in /sys/class/remoteproc/remoteproc*; do [ "$(cat "$r/name" 2>/dev/null)" = adsp ] && echo "$r" && break; done)
+          - 'echo "ADSP remoteproc node: ${ADSP_RP:-<not found>} (fw: $(cat "$ADSP_RP/firmware" 2>/dev/null))"'
+          - ADSP_STATE=$(cat "$ADSP_RP/state" 2>/dev/null)
+          - 'echo "ADSP state: $ADSP_STATE"'
+          - if [ "$ADSP_STATE" = "running" ]; then lava-test-case adsp-running --result pass; else lava-test-case adsp-running --result fail; fi
+          - CDSP_RP=$(for r in /sys/class/remoteproc/remoteproc*; do [ "$(cat "$r/name" 2>/dev/null)" = cdsp ] && echo "$r" && break; done)
+          - 'echo "CDSP remoteproc node: ${CDSP_RP:-<not found>} (fw: $(cat "$CDSP_RP/firmware" 2>/dev/null))"'
+          - CDSP_STATE=$(cat "$CDSP_RP/state" 2>/dev/null)
+          - 'echo "CDSP state: $CDSP_STATE"'
+          - if [ "$CDSP_STATE" = "running" ]; then lava-test-case cdsp-running --result pass; else lava-test-case cdsp-running --result fail; fi
+          - if dmesg | grep -q "remote processor adsp is now up"; then lava-test-case adsp-booted --result pass; else lava-test-case adsp-booted --result fail; fi
+          - if dmesg | grep -q "remote processor cdsp is now up"; then lava-test-case cdsp-booted --result pass; else lava-test-case cdsp-booted --result fail; fi
+          - IPA_DEV=$(ls -d /sys/bus/platform/drivers/ipa/*.ipa 2>/dev/null | head -n1)
+          - 'echo "IPA device bound: ${IPA_DEV:-<not found>}"'
+          - if [ -n "$IPA_DEV" ]; then lava-test-case ipa-driver-bound --result pass; else lava-test-case ipa-driver-bound --result fail; fi
+          - if dmesg | grep -q "IPA driver setup completed successfully"; then lava-test-case ipa-setup-complete --result pass; else lava-test-case ipa-setup-complete --result fail; fi
+
+    - from: inline
+      name: gpu-dmesg
+      path: inline/gpu-dmesg.yaml
+      repository:
+        metadata:
+          format: Lava-Test Test Definition 1.0
+          name: gpu-dmesg
+          description: GPU/zap-shader bring-up check via kernel log (no faults or hangs)
+        run:
+          steps:
+          - dmesg | grep -iE 'adreno|gmu|gpu' || true
+          - GPU_FAULTS=$(dmesg | grep -iE 'gpu fault|gpu recovery|gpu hang|hangcheck|\*\*\* gpu|adreno.*fail|zap.*fail' || true)
+          - if [ -z "$GPU_FAULTS" ]; then lava-test-case gpu-no-faults --result pass; else echo "$GPU_FAULTS"; lava-test-case gpu-no-faults --result fail; fi
