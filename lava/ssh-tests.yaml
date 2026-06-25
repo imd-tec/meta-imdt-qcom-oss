@@ -78,6 +78,11 @@ actions:
           steps:
           - lava-test-case disk-free --shell df -h /
           - lava-test-case mem-free --shell free -m
+          - MEM_TOTAL_MB=$(free -m | awk '/Mem:/ {print $2}')
+          - 'echo "Total memory: ${MEM_TOTAL_MB:-<unknown>}MB"'
+          - MEM_AVAIL_MB=$(free -m | awk '/Mem:/ {print $7}')
+          - 'echo "Available memory: ${MEM_AVAIL_MB:-<unknown>}MB"'
+          - if [ -n "$MEM_AVAIL_MB" ] && [ "$MEM_AVAIL_MB" -ge 9000 ]; then lava-test-case mem-avail-9gb --result pass; else lava-test-case mem-avail-9gb --result fail; fi
 
     - from: inline
       name: wifi
@@ -171,8 +176,6 @@ actions:
           description: ADSP, CDSP remoteproc bring-up and IPA driver init checks
         run:
           steps:
-          - MEM_TOTAL_MB=$(free -m | awk '/Mem:/ {print $2}')
-          - if [ "$MEM_TOTAL_MB" -ge 9000 ]; then lava-test-case mem-gt-9gb --result pass; else echo "Total memory: ${MEM_TOTAL_MB:-<unknown>}MB"; lava-test-case mem-gt-9gb --result fail; fi
           - ADSP_RP=$(for r in /sys/class/remoteproc/remoteproc*; do [ "$(cat "$r/name" 2>/dev/null)" = adsp ] && echo "$r" && break; done)
           - 'echo "ADSP remoteproc node: ${ADSP_RP:-<not found>} (fw: $(cat "$ADSP_RP/firmware" 2>/dev/null))"'
           - ADSP_STATE=$(cat "$ADSP_RP/state" 2>/dev/null)

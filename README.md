@@ -39,6 +39,7 @@ The role of this meta layer is the following:
 | Camera (AR1335 - 13MP) | ON Semiconductor AR1335 | CSI0 | ar1335 | ✅ |
 | CDSP | Hexagon v73 DSP | — | remoteproc | ✅ |
 | Debug Serial Console (J19)| — | UART7 (115200 baud) | qcom-geni-serial | ✅ |
+| DDR Memory | 12GB LPDDR5 | — | — | ✅ 12GB supported (for 8GB boards, contact IMDT) |
 | Gigabit Ethernet | Microchip LAN7430 | PCIe1 (default) | lan743x | ✅ |
 | PCIe Expansion (M.2 Key-B) | PCIe switch downstream Key-B port | PCIe1 (overlay) | qcom-pcie | ✅ Requires Key-B DTBO overlay |
 | GPIO | PM8550 GPIO bank | SPMI | qcom-spmi-gpio | ✅ |

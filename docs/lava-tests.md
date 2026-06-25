@@ -44,6 +44,7 @@ Runs over SSH on the updated rootfs. Groups of tests are submitted as independen
 |-----------|-------------|
 | `disk-free` | `df -h /` succeeds (rootfs is mounted and readable) |
 | `mem-free` | `free -m` succeeds (memory stats available) |
+| `mem-avail-9gb` | More than 9 GB (≥9000 MB) of memory is available (`free -m` available column) |
 
 ### `wifi` — Wireless interface
 
