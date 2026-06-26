@@ -1,8 +1,8 @@
 From 80ea4fb1452dff75117bd3227114de32a95d657c Mon Sep 17 00:00:00 2001
 From: William Bright <William.Bright@imd-tec.com>
 Date: Wed, 8 Apr 2026 10:43:05 +0100
-Subject: [PATCH 6/8] media: i2c: ar1335: Add ON Semiconductor AR1335 camera
- sensor driver
+Subject: [PATCH] media: i2c: ar1335: Add ON Semiconductor AR1335 camera sensor
+ driver
 
 Add a V4L2 subdevice driver for the ON Semiconductor AR1335 13MP CMOS
 image sensor. The driver supports up to 4K video capture over MIPI CSI-2

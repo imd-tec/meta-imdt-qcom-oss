@@ -1,7 +1,7 @@
 From 9a53b7f9a9683c4dfe1a9377cec1131e4a23b034 Mon Sep 17 00:00:00 2001
 From: William Bright <william.bright@imd-tec.com>
 Date: Wed, 18 Mar 2026 12:02:16 +0000
-Subject: [PATCH 2/8] dt-bindings: qcom: Document IMDT QCS8550 SBC and SoM
+Subject: [PATCH] dt-bindings: qcom: Document IMDT QCS8550 SBC and SoM
 
 Document the IMDT QCS8550 SBC which consists of an IMDT QCS8550 SoM
 soldered onto an IMDT QCS8550 carrier board.

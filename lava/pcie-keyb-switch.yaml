@@ -41,6 +41,12 @@ actions:
         PCIE_KEYB_ENABLE: 'yes'
         DEFAULT_OVERLAYS: 'qcs8550-imdt-sbc-display.dtbo qcs8550-imdt-sbc-ar1335-csi0.dtbo'
         KEYB_OVERLAYS: 'qcs8550-imdt-sbc-display.dtbo qcs8550-imdt-sbc-ar1335-csi0.dtbo qcs8550-imdt-sbc-pcie-keyb.dtbo'
+        # DUT address reachable from the dispatcher/container over the LAN
+        # (GbE/Wi-Fi). Auth is key-based: the lava-adb image ships the private
+        # key matching lava-dut-key.pub in root's authorized_keys on the DUT.
+        SSH_HOST: '192.168.51.3'
+        SSH_PORT: '2222'
+        SSH_USER: 'root'
       repository:
         metadata:
           format: Lava-Test Test Definition 1.0
@@ -48,18 +54,32 @@ actions:
           description: Enable or disable the PCIe Key-B overlay via fw_setenv, then reboot
         run:
           steps:
-          - adb wait-for-device
-          - lava-test-case adb-detect --shell adb get-serialno
+          # All DUT access is over ssh. UserKnownHostsFile=/dev/null +
+          # StrictHostKeyChecking=no avoid host-key prompts/mismatches (the key
+          # can differ per rootfs slot); ConnectTimeout keeps the reboot
+          # wait-loops responsive. We ssh in as root directly, so no `adb root`.
+          - SSH="ssh -p $SSH_PORT -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 $SSH_USER@$SSH_HOST"
+          - 'echo "DUT: $SSH_USER@$SSH_HOST:$SSH_PORT"'
+          # Wait for the board to be reachable over ssh (it may still be booting
+          # when the job starts).
+          - i=0; SSH_OK=0; while [ $i -lt 60 ]; do if $SSH true >/dev/null 2>&1; then SSH_OK=1; break; fi; i=$((i+1)); sleep 2; done
+          - if [ "$SSH_OK" = 1 ]; then lava-test-case ssh-detect --result pass; else lava-test-case ssh-detect --result fail; fi
           - if [ "${PCIE_KEYB_ENABLE}" = "yes" ]; then TARGET_OVERLAYS="${KEYB_OVERLAYS}"; else TARGET_OVERLAYS="${DEFAULT_OVERLAYS}"; fi
           - 'echo "Setting u-boot overlays env to: ${TARGET_OVERLAYS}"'
-          - lava-test-case fw-setenv --shell adb shell "fw_setenv overlays '${TARGET_OVERLAYS}'"
-          - lava-test-case fw-printenv --shell adb shell "fw_printenv overlays"
-          - lava-test-case reboot --shell adb reboot
-          - sleep 5
-          - lava-test-case wait-reboot --shell adb wait-for-device
-          - sleep 5
+          - lava-test-case fw-setenv --shell $SSH "fw_setenv overlays '${TARGET_OVERLAYS}'"
+          - lava-test-case fw-printenv --shell $SSH "fw_printenv overlays"
+          # Issue the reboot in the background and detach: `reboot` tears down
+          # the ssh connection, so the command would otherwise return 255.
+          - $SSH 'nohup sh -c "sleep 1; reboot" >/dev/null 2>&1 &' || true
+          - lava-test-case reboot --result pass
+          # Wait for the box to drop off the network, then for ssh to come back.
+          - 'echo "Waiting for DUT to go offline..."'
+          - i=0; while [ $i -lt 30 ] && $SSH true >/dev/null 2>&1; do i=$((i+1)); sleep 2; done
+          - 'echo "Waiting for DUT ssh to come back..."'
+          - i=0; SSH_OK=0; while [ $i -lt 120 ]; do if $SSH true >/dev/null 2>&1; then SSH_OK=1; break; fi; i=$((i+1)); sleep 2; done
+          - if [ "$SSH_OK" = 1 ]; then lava-test-case wait-reboot --result pass; else lava-test-case wait-reboot --result fail; fi
           # Verify the env survived the reboot
-          - ACTUAL=$(adb shell fw_printenv overlays 2>/dev/null | sed 's/overlays=//')
+          - ACTUAL=$($SSH fw_printenv overlays 2>/dev/null | sed 's/overlays=//')
           - 'echo "overlays after reboot: ${ACTUAL}"'
           - LAST_OVERLAY=$(echo "${TARGET_OVERLAYS}" | awk '{print $NF}')
           - if echo "${ACTUAL}" | grep -qF "${LAST_OVERLAY}"; then lava-test-case env-verified --result pass; else lava-test-case env-verified --result fail; fi

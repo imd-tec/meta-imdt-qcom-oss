@@ -1,7 +1,7 @@
 From 5c77087c2561e837df7a7ee43150571417fd71a2 Mon Sep 17 00:00:00 2001
 From: William Bright <william.bright@imd-tec.com>
 Date: Wed, 29 Apr 2026 20:49:12 +0100
-Subject: [PATCH 3/8] arm64: dts: qcom: Add IMDT QCS8550 SBC
+Subject: [PATCH] arm64: dts: qcom: Add IMDT QCS8550 SBC
 
 The IMDT QCS8550 SBC is a two-board design from IMD Technologies Ltd
 built around the Qualcomm QCS8550 SoC. An IMDT QCS8550 SoM is soldered

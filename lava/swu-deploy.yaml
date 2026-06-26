@@ -1,5 +1,5 @@
 device_type: docker
-job_name: deploy qcom-minimal-image swu to imdt-8550-sbc via adb
+job_name: deploy qcom-minimal-image swu to imdt-8550-sbc via ssh
 tags:
 - dut
 
@@ -43,45 +43,67 @@ actions:
         UBOOT_FILE: 'BOOTAA64.EFI'
         UBOOT_URL: ''
         UBOOT_TARGET: '/efi/EFI/BOOT/BOOTAA64.EFI'
+        # DUT address reachable from the dispatcher/container over the LAN
+        # (GbE/Wi-Fi). Auth is key-based: the lava-adb image ships the private
+        # key matching lava-dut-key.pub in root's authorized_keys on the DUT.
+        SSH_HOST: '192.168.51.3'
+        SSH_PORT: '2222'
+        SSH_USER: 'root'
       repository:
         metadata:
           format: Lava-Test Test Definition 1.0
           name: swu-deploy
-          description: Push .swu over adb, run swupdate (A/B rootfs) and update the u-boot UEFI binary
+          description: Push .swu over ssh/scp, run swupdate (A/B rootfs) and update the u-boot UEFI binary
         run:
           steps:
-          - adb wait-for-device
-          - lava-test-case adb-detect --shell adb get-serialno
+          # All DUT access is over ssh/scp. UserKnownHostsFile=/dev/null +
+          # StrictHostKeyChecking=no are required because each A/B rootfs slot
+          # carries its own host keys, so the key changes after the slot switch
+          # below; ConnectTimeout keeps the reboot wait-loops responsive.
+          - SSH="ssh -p $SSH_PORT -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 $SSH_USER@$SSH_HOST"
+          - SCP="scp -P $SSH_PORT -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10"
+          - 'echo "DUT: $SSH_USER@$SSH_HOST:$SSH_PORT"'
+          # Wait for the board to be reachable over ssh (it may still be booting
+          # when the job starts).
+          - i=0; SSH_OK=0; while [ $i -lt 60 ]; do if $SSH true >/dev/null 2>&1; then SSH_OK=1; break; fi; i=$((i+1)); sleep 2; done
+          - if [ "$SSH_OK" = 1 ]; then lava-test-case ssh-detect --result pass; else lava-test-case ssh-detect --result fail; fi
           - 'echo "Using .swu: ${SWU_URL:-/images/$SWU_FILE}"'
           - if [ -n "$SWU_URL" ]; then lava-test-case fetch-swu --shell curl -fsSL "$SWU_URL" -o /tmp/update.swu; else lava-test-case copy-swu --shell cp "/images/$SWU_FILE" /tmp/update.swu; fi
-          - ROOT_BEFORE=$(adb shell cat /proc/cmdline | tr ' ' '\n' | grep ^root=)
+          - ROOT_BEFORE=$($SSH cat /proc/cmdline | tr ' ' '\n' | grep ^root=)
           - 'echo "Active rootfs before update: $ROOT_BEFORE"'
-          - adb shell mkdir -p /home/swu
-          - lava-test-case push-swu --shell adb push /tmp/update.swu /home/swu/update.swu
-          - lava-test-case swupdate --shell adb shell "TMPDIR=/home/swu swupdate -i /home/swu/update.swu && echo SWUPDATE_OK"
-          - adb shell rm -rf /home/swu
+          - $SSH mkdir -p /home/swu
+          - lava-test-case push-swu --shell $SCP /tmp/update.swu "$SSH_USER@$SSH_HOST:/home/swu/update.swu"
+          - lava-test-case swupdate --shell $SSH "TMPDIR=/home/swu swupdate -i /home/swu/update.swu && echo SWUPDATE_OK"
+          - $SSH rm -rf /home/swu
           # ── u-boot (UEFI) update ─────────────────────────────────────────
           # Overwrite the BOOTAA64.EFI the SoC firmware boots from on the EFI
           # System Partition. Takes effect on the reboot below; the board
-          # coming back on adb confirms the new u-boot booted successfully.
+          # coming back on ssh confirms the new u-boot booted successfully.
           - 'echo "Using u-boot: ${UBOOT_URL:-/images/$UBOOT_FILE} -> $UBOOT_TARGET"'
           - if [ -n "$UBOOT_URL" ]; then lava-test-case fetch-uboot --shell curl -fsSL "$UBOOT_URL" -o /tmp/BOOTAA64.EFI; else lava-test-case copy-uboot --shell cp "/images/$UBOOT_FILE" /tmp/BOOTAA64.EFI; fi
-          - lava-test-case push-uboot --shell adb push /tmp/BOOTAA64.EFI /home/BOOTAA64.EFI
-          - lava-test-case install-uboot --shell adb shell "cp /home/BOOTAA64.EFI '$UBOOT_TARGET' && sync && echo UBOOT_INSTALL_OK"
-          - UBOOT_SRC_MD5=$(adb shell md5sum /home/BOOTAA64.EFI | cut -d' ' -f1)
-          - UBOOT_DST_MD5=$(adb shell md5sum "$UBOOT_TARGET" | cut -d' ' -f1)
+          - lava-test-case push-uboot --shell $SCP /tmp/BOOTAA64.EFI "$SSH_USER@$SSH_HOST:/home/BOOTAA64.EFI"
+          - lava-test-case install-uboot --shell $SSH "cp /home/BOOTAA64.EFI '$UBOOT_TARGET' && sync && echo UBOOT_INSTALL_OK"
+          - UBOOT_SRC_MD5=$($SSH md5sum /home/BOOTAA64.EFI | cut -d' ' -f1)
+          - UBOOT_DST_MD5=$($SSH md5sum "$UBOOT_TARGET" | cut -d' ' -f1)
           - 'echo "u-boot md5 src=$UBOOT_SRC_MD5 dst=$UBOOT_DST_MD5"'
           - if [ -n "$UBOOT_SRC_MD5" ] && [ "$UBOOT_SRC_MD5" = "$UBOOT_DST_MD5" ]; then lava-test-case uboot-verify --result pass; else lava-test-case uboot-verify --result fail; fi
-          - adb shell rm -f /home/BOOTAA64.EFI
-          - lava-test-case reboot --shell adb reboot
-          - sleep 5
-          - lava-test-case wait-reboot --shell adb wait-for-device
-          - sleep 5
+          - $SSH rm -f /home/BOOTAA64.EFI
+          # Issue the reboot in the background and detach: `reboot` tears down
+          # the ssh connection, so the command would otherwise return 255.
+          - $SSH 'nohup sh -c "sleep 1; reboot" >/dev/null 2>&1 &' || true
+          - lava-test-case reboot --result pass
+          # Wait for the box to drop off the network, then for ssh to come back
+          # under the freshly-written u-boot / switched rootfs slot.
+          - 'echo "Waiting for DUT to go offline..."'
+          - i=0; while [ $i -lt 30 ] && $SSH true >/dev/null 2>&1; do i=$((i+1)); sleep 2; done
+          - 'echo "Waiting for DUT ssh to come back..."'
+          - i=0; SSH_OK=0; while [ $i -lt 120 ]; do if $SSH true >/dev/null 2>&1; then SSH_OK=1; break; fi; i=$((i+1)); sleep 2; done
+          - if [ "$SSH_OK" = 1 ]; then lava-test-case wait-reboot --result pass; else lava-test-case wait-reboot --result fail; fi
           # The board booted under the freshly-written u-boot; confirm the
           # binary persisted unchanged across the reboot.
-          - UBOOT_BOOTED_MD5=$(adb shell md5sum "$UBOOT_TARGET" | cut -d' ' -f1)
+          - UBOOT_BOOTED_MD5=$($SSH md5sum "$UBOOT_TARGET" | cut -d' ' -f1)
           - if [ -n "$UBOOT_SRC_MD5" ] && [ "$UBOOT_SRC_MD5" = "$UBOOT_BOOTED_MD5" ]; then lava-test-case uboot-booted --result pass; else lava-test-case uboot-booted --result fail; fi
-          - ROOT_AFTER=$(adb shell cat /proc/cmdline | tr ' ' '\n' | grep ^root=)
+          - ROOT_AFTER=$($SSH cat /proc/cmdline | tr ' ' '\n' | grep ^root=)
           - 'echo "Active rootfs after update: $ROOT_AFTER"'
           - if [ "$ROOT_BEFORE" != "$ROOT_AFTER" ]; then lava-test-case slot-switched --result pass; else lava-test-case slot-switched --result fail; fi
-          - lava-test-case post-boot-shell --shell adb shell "cat /etc/hwrevision"
+          - lava-test-case post-boot-shell --shell $SSH "cat /etc/hwrevision"

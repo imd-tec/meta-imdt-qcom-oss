@@ -21,8 +21,7 @@ COMPATIBLE_MACHINE = "(qcs8550)"
 PV = "2026.02+git"
 
 SRC_URI = "git://github.com/imd-tec/qcom-u-boot.git;branch=master;protocol=https"
-SRCREV = "f6c6aa37943b3069dfc74ca1b92731bebd3882e5"
-
+SRCREV = "1afe05b16b9f87d3cea88ef97f2a9075604883d4"
 # Set the default overlay list to be blank
 UBOOT_DEFAULT_FDT_OVERLAYS ?= ""
 

@@ -1,8 +1,8 @@
 From 79fd1ad916cd514cf296f9d3f0f2494512383d8e Mon Sep 17 00:00:00 2001
 From: William Bright <William.Bright@imd-tec.com>
 Date: Tue, 14 Apr 2026 15:17:45 +0100
-Subject: [PATCH 8/8] arm64: dts: qcom: qcs8550-imdt-sbc: Split AR1335 CSI0
- into separate dtsi
+Subject: [PATCH] arm64: dts: qcom: qcs8550-imdt-sbc: Split AR1335 CSI0 into
+ separate dtsi
 
 Move the AR1335 camera sensor on CSI0 (camss port@0, cci0, and
 associated pinctrl) from the main board dts into a dedicated overlay

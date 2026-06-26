@@ -1,8 +1,7 @@
 From 3b841fd1ee737dc43384c6262b00daf118558afe Mon Sep 17 00:00:00 2001
 From: William Bright <william.bright@imd-tec.com>
 Date: Fri, 1 May 2026 13:16:49 +0100
-Subject: [PATCH 4/8] arm64: dts: qcom: qcs8550-imdt-sbc: Add DSI display
- overlay
+Subject: [PATCH] arm64: dts: qcom: qcs8550-imdt-sbc: Add DSI display overlay
 
 Add a board-level overlay that brings up the MIPI-DSI display path on
 the IMDT QCS8550 SBC with a Team Source Display TST070WSBE-196C panel.

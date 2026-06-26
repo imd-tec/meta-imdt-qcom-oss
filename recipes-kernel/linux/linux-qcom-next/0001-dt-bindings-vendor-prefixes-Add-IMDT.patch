@@ -1,7 +1,7 @@
 From 5d5ac0524363ceb460b859fb44844d98bf3d16fb Mon Sep 17 00:00:00 2001
 From: William Bright <william.bright@imd-tec.com>
 Date: Wed, 18 Mar 2026 11:48:20 +0000
-Subject: [PATCH 1/8] dt-bindings: vendor-prefixes: Add IMDT
+Subject: [PATCH] dt-bindings: vendor-prefixes: Add IMDT
 
 Add IMDT (IMD Technologies Ltd) to the vendor prefixes
 list.

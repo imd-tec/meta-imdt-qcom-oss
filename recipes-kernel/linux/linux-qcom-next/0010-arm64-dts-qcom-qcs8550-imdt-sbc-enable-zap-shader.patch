@@ -1,7 +1,7 @@
-From 7104588763c1563fe555864032449533705a9da8 Mon Sep 17 00:00:00 2001
+From 9c16720df7868d0cb3cb6d0dd378c912423c2b4b Mon Sep 17 00:00:00 2001
 From: William Bright <william.bright@imd-tec.com>
 Date: Thu, 25 Jun 2026 08:46:42 +0100
-Subject: [PATCH 11/11] arm64: dts: qcom: qcs8550-imdt-sbc: enable zap shader
+Subject: [PATCH] arm64: dts: qcom: qcs8550-imdt-sbc: enable zap shader
 
 With the SoM DRAM banks now described correctly, the GPU has the memory
 it needs and the zap shader loads, so enable it. It was previously
