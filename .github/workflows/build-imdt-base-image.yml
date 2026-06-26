@@ -25,13 +25,33 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  # The multimedia image is only built and tested on tag releases. On master
+  # pushes and PRs we build/test the minimal image alone, keeping CI fast.
+  # This job selects the kas-config and LAVA matrix for the rest of the run.
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      kas-config: ${{ steps.cfg.outputs.kas-config }}
+      lava-matrix: ${{ steps.cfg.outputs.lava-matrix }}
+    steps:
+      - id: cfg
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "kas-config=kas/imdt-8550-all.yml" >> "$GITHUB_OUTPUT"
+            echo 'lava-matrix={"include":[{"image-name":"qcom-minimal-image","multimedia":false},{"image-name":"qcom-multimedia-image","multimedia":true}]}' >> "$GITHUB_OUTPUT"
+          else
+            echo "kas-config=kas/imdt-8550-minimal.yml" >> "$GITHUB_OUTPUT"
+            echo 'lava-matrix={"include":[{"image-name":"qcom-minimal-image","multimedia":false}]}' >> "$GITHUB_OUTPUT"
+          fi
+
   build:
     # Build every image in a single bitbake invocation. The self-hosted builder
     # runs one job at a time, so a per-image matrix would build sequentially and
     # rebuild the shared package set twice; one combined build shares it.
+    needs: setup
     uses: imd-tec/kas-gh-ci/.github/workflows/kas-build.yml@master
     with:
-      kas-config: 'kas/imdt-8550-all.yml'
+      kas-config: ${{ needs.setup.outputs.kas-config }}
       machine: 'imdt-8550-sbc'
       artifact-name: 'qcom-imdt-images'
       rsync-enabled: true
@@ -43,16 +63,11 @@ jobs:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
   lava:
-    needs: build
+    needs: [setup, build]
     if: needs.build.result == 'success'
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - image-name: 'qcom-minimal-image'
-            multimedia: false
-          - image-name: 'qcom-multimedia-image'
-            multimedia: true
+      matrix: ${{ fromJSON(needs.setup.outputs.lava-matrix) }}
     uses: ./.github/workflows/lava-tests.yml
     with:
       image-name: ${{ matrix.image-name }}
