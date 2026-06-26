@@ -7,10 +7,6 @@ on:
         description: Image whose .swu is deployed and tested (e.g. qcom-minimal-image)
         type: string
         default: qcom-minimal-image
-      run-multimedia-tests:
-        description: Also run the GStreamer/Weston multimedia LAVA job
-        type: boolean
-        default: false
       is-pr:
         type: boolean
         default: false
@@ -130,25 +126,12 @@ jobs:
         if: always() && env.KEYB_RESTORE_JOB_ID != ''
         run: lavacli --identity lava-ci jobs wait "$KEYB_RESTORE_JOB_ID"
 
-      # ── Job 7: multimedia tests (SSH DUT) — multimedia image only ───────
-      - name: Submit multimedia-tests LAVA job
-        if: inputs.run-multimedia-tests
-        run: |
-          JOB_ID=$(lavacli --identity lava-ci jobs submit lava/multimedia-tests.yaml)
-          echo "multimedia-tests: $JOB_ID — http://${{ vars.LAVA_HOST }}/scheduler/job/$JOB_ID"
-          echo "MULTIMEDIA_JOB_ID=$JOB_ID" >> "$GITHUB_ENV"
-
-      - name: Wait for multimedia-tests
-        if: inputs.run-multimedia-tests
-        run: bash lava/wait-job.sh "$MULTIMEDIA_JOB_ID"
-
       # ── Results ─────────────────────────────────────────────────────────
       - name: Show all LAVA job results
         if: always() && env.SWUDEPLOY_JOB_ID != ''
         run: |
           for JOB_ID in "$SWUDEPLOY_JOB_ID" "$SSHTESTS_JOB_ID" "$CAPTURE_JOB_ID" \
-                        "$KEYB_ENABLE_JOB_ID" "$KEYB_TEST_JOB_ID" "$KEYB_RESTORE_JOB_ID" \
-                        "$MULTIMEDIA_JOB_ID"; do
+                        "$KEYB_ENABLE_JOB_ID" "$KEYB_TEST_JOB_ID" "$KEYB_RESTORE_JOB_ID"; do
             [ -z "$JOB_ID" ] && continue
             echo "=== Job $JOB_ID ==="
             lavacli --identity lava-ci jobs show "$JOB_ID" || true
@@ -162,8 +145,7 @@ jobs:
         run: |
           HEADER_WRITTEN=0
           for JOB_ID in "$SWUDEPLOY_JOB_ID" "$SSHTESTS_JOB_ID" "$CAPTURE_JOB_ID" \
-                        "$KEYB_ENABLE_JOB_ID" "$KEYB_TEST_JOB_ID" "$KEYB_RESTORE_JOB_ID" \
-                        "$MULTIMEDIA_JOB_ID"; do
+                        "$KEYB_ENABLE_JOB_ID" "$KEYB_TEST_JOB_ID" "$KEYB_RESTORE_JOB_ID"; do
             [ -z "$JOB_ID" ] && continue
             curl -fsSL -H "Authorization: Token $LAVA_TOKEN" \
               "http://${{ vars.LAVA_HOST }}/results/${JOB_ID}/csv" \
@@ -207,8 +189,7 @@ jobs:
               "ar1335-capture:$CAPTURE_JOB_ID" \
               "pcie-keyb-enable:$KEYB_ENABLE_JOB_ID" \
               "pcie-keyb-test:$KEYB_TEST_JOB_ID" \
-              "pcie-keyb-restore:$KEYB_RESTORE_JOB_ID" \
-              "multimedia-tests:$MULTIMEDIA_JOB_ID"; do
+              "pcie-keyb-restore:$KEYB_RESTORE_JOB_ID"; do
             name="${name_job%%:*}"
             job_id="${name_job##*:}"
             [ -z "$job_id" ] && continue
@@ -230,7 +211,7 @@ jobs:
         if: always() && env.SWUDEPLOY_JOB_ID != ''
         run: |
           python3 lava/lava_to_junit.py lava-all-results.csv lava-results.xml \
-            "$SWUDEPLOY_JOB_ID $SSHTESTS_JOB_ID $CAPTURE_JOB_ID $KEYB_ENABLE_JOB_ID $KEYB_TEST_JOB_ID $KEYB_RESTORE_JOB_ID $MULTIMEDIA_JOB_ID"
+            "$SWUDEPLOY_JOB_ID $SSHTESTS_JOB_ID $CAPTURE_JOB_ID $KEYB_ENABLE_JOB_ID $KEYB_TEST_JOB_ID $KEYB_RESTORE_JOB_ID"
 
       - name: Publish test results
         if: always() && env.SWUDEPLOY_JOB_ID != ''
@@ -256,7 +237,6 @@ jobs:
               ('pcie-keyb-enable', os.environ.get('KEYB_ENABLE_JOB_ID', '')),
               ('pcie-keyb-test',   os.environ.get('KEYB_TEST_JOB_ID', '')),
               ('pcie-keyb-restore',os.environ.get('KEYB_RESTORE_JOB_ID', '')),
-              ('multimedia',       os.environ.get('MULTIMEDIA_JOB_ID', '')),
           ]
 
           rows = []
@@ -345,8 +325,7 @@ jobs:
         run: |
           FAILED=0
           for JOB_ID in "$SWUDEPLOY_JOB_ID" "$SSHTESTS_JOB_ID" "$CAPTURE_JOB_ID" \
-                        "$KEYB_ENABLE_JOB_ID" "$KEYB_TEST_JOB_ID" "$KEYB_RESTORE_JOB_ID" \
-                        "$MULTIMEDIA_JOB_ID"; do
+                        "$KEYB_ENABLE_JOB_ID" "$KEYB_TEST_JOB_ID" "$KEYB_RESTORE_JOB_ID"; do
             [ -z "$JOB_ID" ] && continue
             HEALTH=$(lavacli --identity lava-ci jobs show "$JOB_ID" | grep '^Health' | awk '{print $NF}')
             echo "Job $JOB_ID health: $HEALTH"

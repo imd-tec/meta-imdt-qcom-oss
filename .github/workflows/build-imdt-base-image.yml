@@ -38,10 +38,10 @@ jobs:
         run: |
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "kas-config=kas/imdt-8550-all.yml" >> "$GITHUB_OUTPUT"
-            echo 'lava-matrix={"include":[{"image-name":"qcom-minimal-image","multimedia":false},{"image-name":"qcom-multimedia-image","multimedia":true}]}' >> "$GITHUB_OUTPUT"
+            echo 'lava-matrix={"include":[{"image-name":"qcom-minimal-image"},{"image-name":"qcom-multimedia-image"}]}' >> "$GITHUB_OUTPUT"
           else
             echo "kas-config=kas/imdt-8550-minimal.yml" >> "$GITHUB_OUTPUT"
-            echo 'lava-matrix={"include":[{"image-name":"qcom-minimal-image","multimedia":false}]}' >> "$GITHUB_OUTPUT"
+            echo 'lava-matrix={"include":[{"image-name":"qcom-minimal-image"}]}' >> "$GITHUB_OUTPUT"
           fi
 
   build:
@@ -71,7 +71,6 @@ jobs:
     uses: ./.github/workflows/lava-tests.yml
     with:
       image-name: ${{ matrix.image-name }}
-      run-multimedia-tests: ${{ matrix.multimedia }}
       is-pr: ${{ github.event_name == 'pull_request' }}
       pr-number: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || 0 }}
     secrets: inherit

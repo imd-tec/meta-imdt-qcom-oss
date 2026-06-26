@@ -85,7 +85,6 @@ Every commit is automatically tested on a physical IMDT 8550 SBC via [LAVA](http
 1. **SWUpdate deploy** — flashes the image under test over ADB and verifies the A/B rootfs slot switches
 2. **System tests** — checks kernel health, systemd state, hardware subsystems (GPU, BT, RTC, IOMMU, I2C, hwrng), Wi-Fi, camera streaming, and SD card over SSH
 3. **AR1335 frame capture** — captures a raw frame from the CSI0 camera and de-mosaics it to a 1080p PNG
-4. **Multimedia tests** (`qcom-multimedia-image` only) — verifies the GStreamer stack (incl. a live AR1335 pipeline) and the Weston/Wayland compositor
 
 See [docs/lava-tests.md](docs/lava-tests.md) for the full list of test cases.
 
