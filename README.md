@@ -532,6 +532,12 @@ over SSH, then restores the default overlay list. See
 
 ### Performing a SWUpdate
 
+The ADB daemon runs unprivileged by default, so first restart it as root to allow writing to `/root/` and running `swupdate`:
+
+```bash
+adb root
+```
+
 From your host, you will need to push the `.swu` file to the target using ADB:
 
 ```bash
