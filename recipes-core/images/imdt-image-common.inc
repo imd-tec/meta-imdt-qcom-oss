@@ -5,10 +5,6 @@
 # (A/B rootfs) support. Required so that README instructions can be followed
 # and the LAVA QA tests can deploy over adb and run over ssh.
 
-# Allocate an extra 2G of spare space in the rootfs for .swu files to be
-# stored and used. (value is in KiB)
-IMAGE_ROOTFS_EXTRA_SPACE = "2097152"
-
 # Enable ADB. The base images already inherit image-adbd but do not request
 # the 'enable-adbd' feature, so adbd stays off. Setting it makes the class
 # install the adbd packages and touch /etc/usb-debugging-enabled so the daemon
