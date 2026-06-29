@@ -11,9 +11,11 @@
 The role of this meta layer is the following:
   - Provide an open source friendly BSP for IMDT Qualcomm boards
   - No qualcomm login needed
-  - Track master branch Yocto/OpenEmbedded and meta-qcom
+  - Track master branch Yocto/OpenEmbedded and [meta-qcom](https://github.com/qualcomm-linux/meta-qcom)
   - Track upstream Linux and U-Boot
   - Easy-to-use kas based build process 
+
+The images are built on top of the [meta-qcom-distro](https://github.com/qualcomm-linux/meta-qcom-distro) distribution.
 
 ## Table of Contents
 
@@ -21,6 +23,7 @@ The role of this meta layer is the following:
 - [Upstreaming Status](#upstreaming-status)
 - [Boot Chain](#boot-chain)
 - [References](#references)
+- [Downloading prebuilt release images](#downloading-prebuilt-release-images)
 - [Prerequisites](#prerequisites)
 - [Building release images](#building-release-images)
 - [Deploying images](#deploying-images)
@@ -65,7 +68,7 @@ An effort is being made into upstreaming our board and patches into Linux.
 |---|---|---|
 | Team Source TST070WSBE-196C display panel | ✅ Accepted | [v2 on lore.kernel.org](https://lore.kernel.org/all/20260428-imdt-dsi-display-v2-0-cf7294b5d7d6@imd-tec.com/T/#t) |
 | SDHC4 (Wi-Fi SDIO) support | Pending | [v2 on lore.kernel.org](https://lore.kernel.org/all/20260427-sm8550-sdhc4-support-v2-1-a4241f43ecd5@imd-tec.com/T/#u) |
-| QCS8550 SBC device tree | Pending | [v4 on lore.kernel.org](https://lore.kernel.org/linux-arm-msm/20260610-imdt-qcs8550-sbc-rfc-v4-0-358e71d606bc@imd-tec.com/T/#u) |
+| QCS8550 SBC device tree | WiP | [v4 on lore.kernel.org](https://lore.kernel.org/linux-arm-msm/20260610-imdt-qcs8550-sbc-rfc-v4-0-358e71d606bc@imd-tec.com/T/#u) |
 
 ## Boot Chain
 
@@ -91,6 +94,41 @@ See [docs/lava-tests.md](docs/lava-tests.md) for the full list of test cases.
 ## References
 
 [1] [IMDT - QCS8550 SBC Datasheet rev 1.2](https://132746293-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FZvb1NVc2NQ09Xi4V8tb6%2Fuploads%2F4MwJ4jR2lujBBEVCaqCn%2FIMDT%20-%20QCS8550%20SBC%20Datasheet%20ver%201.2.pdf?alt=media&token=5371ed60-a7dd-4a76-92ca-22f02fe01d8b)
+
+## Downloading prebuilt release images
+
+If you don't need to build from source, every tagged release publishes the full
+set of deploy images as a single compressed tarball on the
+[GitHub Releases page](https://github.com/imd-tec/meta-imdt-qcom-oss-dev/releases).
+
+Because the tarball is larger than GitHub's 2 GiB per-file limit, it is split
+into numbered parts (`qcom-imdt-images.tar.zst.part00`, `.part01`, …). 
+The snippet below pulls the latest release, stitches
+the parts back together, verifies the checksum and extracts everything into
+`./images`:
+
+```bash
+base="https://github.com/imd-tec/meta-imdt-qcom-oss/releases/latest/download"
+name="qcom-imdt-images.tar.zst"
+
+# Download the parts (this release has three) plus the checksum.
+wget "$base/$name.part00" "$base/$name.part01" "$base/$name.part02" "$base/$name.sha256"
+
+# Reassemble, verify and extract into ./images (needs zstd installed).
+cat "$name".part* > "$name"
+sha256sum -c "$name.sha256"
+mkdir -p images
+tar --zstd -xf "$name" -C images
+```
+
+> The release notes list how many parts a given release has — add or remove
+> `.partNN` arguments to match if it isn't three.
+
+To grab a specific release instead of the latest, replace `latest/download`
+with `download/<tag>` (e.g. `download/v1.2.3`).
+
+You can then flash the extracted images with [QDL](#qdl) or push the `.swu`
+package with [SWUpdate](#swupdate).
 
 ## Prerequisites
 
@@ -144,8 +182,8 @@ kas-container build --update meta-imdt-qcom-oss/kas/imdt-8550-all.yml
 Bleeding edge builds can fail from time-to-time. If you wish to build a known working Kas configuration you can use the below command:
 
 ```bash
-wget https://github.com/imd-tec/meta-imdt-qcom-oss/releases/latest/download/qcom-minimal-image-kas-dump.yml
-kas-container build qcom-minimal-image-kas-dump.yml
+wget https://github.com/imd-tec/meta-imdt-qcom-oss/releases/latest/download/qcom-imdt-images-kas-dump.yml
+kas-container build qcom-imdt-images-kas-dump.yml
 ```
 
 ### Disabling Modem Manager
@@ -223,7 +261,7 @@ For access to the serial console, the USB to Serial adapter must be connected to
 imdt-qcs8550-sbc login:
 ```
 
-The username is `root`, there's no password.
+As the images use the [meta-qcom-distro](https://github.com/qualcomm-linux/meta-qcom-distro) distribution, log in over the serial console with the username `root` and the password `oelinux123`.
 
 ### Connecting to the Debug Serial Consoles
 
@@ -255,6 +293,12 @@ Check connected devices with ADB:
 
 ```bash
 adb devices
+```
+
+Because the images use the [meta-qcom-distro](https://github.com/qualcomm-linux/meta-qcom-distro) distribution, the ADB daemon runs unprivileged by default. To gain a root shell, restart the daemon as root first:
+
+```bash
+adb root
 ```
 
 #### Development Workflow using ADB
