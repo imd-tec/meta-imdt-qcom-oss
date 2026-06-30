@@ -327,6 +327,22 @@ To use the IMDT display (PN:IM-MSC-0006), IMDT's IM-PCA-0029 DSI adapter must be
 
 Once the board is powered, the display will then boot up with the Yocto Project splash screen. The touchscreen will also be working.
 
+#### Adjusting the backlight brightness
+
+The panel backlight is exposed through the standard Linux backlight sysfs interface. The current brightness can be changed at runtime by writing a value to `/sys/class/backlight/backlight/brightness`:
+
+```bash
+echo value > /sys/class/backlight/backlight/brightness
+```
+
+For example, to set a low brightness level:
+
+```bash
+echo 20 > /sys/class/backlight/backlight/brightness
+```
+
+The maximum supported value can be read from `/sys/class/backlight/backlight/max_brightness`. Note that the panel draws a significant amount of power at high brightness levels, so it is recommended to keep the brightness low (under 30) unless higher brightness is required.
+
 ### Streaming from MIPI Cameras
 
 #### Streaming from AR1335

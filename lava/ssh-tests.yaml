@@ -206,3 +206,28 @@ actions:
           - dmesg | grep -iE 'adreno|gmu|gpu' || true
           - GPU_FAULTS=$(dmesg | grep -iE 'gpu fault|gpu recovery|gpu hang|hangcheck|\*\*\* gpu|adreno.*fail|zap.*fail' || true)
           - if [ -z "$GPU_FAULTS" ]; then lava-test-case gpu-no-faults --result pass; else echo "$GPU_FAULTS"; lava-test-case gpu-no-faults --result fail; fi
+
+    - from: inline
+      name: backlight
+      path: inline/backlight.yaml
+      repository:
+        metadata:
+          format: Lava-Test Test Definition 1.0
+          name: backlight
+          description: Panel backlight brightness set/get via sysfs (kept under 30)
+        run:
+          steps:
+          - BL=/sys/class/backlight/backlight
+          - if [ -d "$BL" ]; then lava-test-case backlight-present --result pass; else lava-test-case backlight-present --result fail; fi
+          - MAX_BRIGHTNESS=$(cat "$BL/max_brightness" 2>/dev/null)
+          - 'echo "max_brightness: ${MAX_BRIGHTNESS:-<unknown>}"'
+          - ORIG_BRIGHTNESS=$(cat "$BL/brightness" 2>/dev/null)
+          - 'echo "original brightness: ${ORIG_BRIGHTNESS:-<unknown>}"'
+          # Keep the test brightness low (under 30) to limit backlight power draw
+          - TEST_BRIGHTNESS=20
+          - lava-test-case set-brightness --shell sh -c "echo $TEST_BRIGHTNESS > $BL/brightness"
+          - READBACK=$(cat "$BL/brightness" 2>/dev/null)
+          - 'echo "brightness after write: ${READBACK:-<unknown>} (expected $TEST_BRIGHTNESS)"'
+          - if [ "$READBACK" = "$TEST_BRIGHTNESS" ]; then lava-test-case get-brightness --result pass; else lava-test-case get-brightness --result fail; fi
+          # Restore the original brightness so we leave the panel as we found it
+          - if [ -n "$ORIG_BRIGHTNESS" ]; then echo "$ORIG_BRIGHTNESS" > "$BL/brightness" || true; fi

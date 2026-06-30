@@ -1,4 +1,4 @@
-From 9c16720df7868d0cb3cb6d0dd378c912423c2b4b Mon Sep 17 00:00:00 2001
+From 19673f606926310b804c3a530a0b9c2a699b43bc Mon Sep 17 00:00:00 2001
 From: William Bright <william.bright@imd-tec.com>
 Date: Thu, 25 Jun 2026 08:46:42 +0100
 Subject: [PATCH] arm64: dts: qcom: qcs8550-imdt-sbc: enable zap shader

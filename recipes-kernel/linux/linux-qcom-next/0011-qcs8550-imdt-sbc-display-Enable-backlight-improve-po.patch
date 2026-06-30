@@ -1,0 +1,101 @@
+From 7fd4e9a3ecc5a086feb2ee679799e6b50576d27d Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Tue, 30 Jun 2026 09:43:06 +0100
+Subject: [PATCH] qcs8550-imdt-sbc-display: Enable backlight & improve power-up
+
+Enable the PWM backlight driver and improve the reliability of the
+display coming up by using open-drain with pull-up instead of push-pull.
+
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+---
+ .../dts/qcom/qcs8550-imdt-sbc-display.dtso    |  4 +-
+ arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc.dts | 38 ++++++++++++++++---
+ 2 files changed, 35 insertions(+), 7 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-display.dtso b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-display.dtso
+index 0b7f7e594e2c..664947c2f282 100644
+--- a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-display.dtso
++++ b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-display.dtso
+@@ -54,6 +54,6 @@ &mdss_dsi0_phy {
+ };
+ 
+ &display_panel_pwr_en {
+-	/* The panel power takes 300ms to come up */
+-	startup-delay-us = <300000>;
++	/* Allow the panel power rail to settle before releasing reset */
++	startup-delay-us = <30000>;
+ };
+diff --git a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc.dts b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc.dts
+index 92d39ee45100..35ff340cb389 100644
+--- a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc.dts
++++ b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc.dts
+@@ -23,9 +23,14 @@ chosen {
+ 	};
+ 
+ 	backlight: backlight {
+-		compatible = "gpio-backlight";
+-		gpios = <&pm8550_gpios 6 GPIO_ACTIVE_HIGH>;
+-		default-on;
++		compatible = "pwm-backlight";
++		/* PM8550 LPG channel 1, muxed out of pm8550 gpio6 */
++		pwms = <&pm8550_pwm 1 100000>;
++
++		brightness-levels = <0 255>;
++		num-interpolated-steps = <255>;
++		/* Default to ~10% to limit backlight power draw */
++		default-brightness-level = <26>;
+ 	};
+ 
+ 	cam_1v2_reg: regulator-cam-1v2 {
+@@ -402,6 +407,15 @@ &pcie1_phy {
+ };
+ 
+ &pm8550_gpios {
++	bl_pwm_default: bl-pwm-default-state {
++		pins = "gpio6";
++		function = "func1"; /* LPG/PWM output */
++		bias-disable;
++		output-low;
++		qcom,drive-strength = <3>;
++		power-source = <1>; /* 1.8 V */
++	};
++
+ 	sd_card_detect_default: sd-card-detect-default-state {
+ 		pins = "gpio12";
+ 		function = "normal";
+@@ -412,6 +426,12 @@ sd_card_detect_default: sd-card-detect-default-state {
+ 	};
+ };
+ 
++&pm8550_pwm {
++	pinctrl-0 = <&bl_pwm_default>;
++	pinctrl-names = "default";
++	status = "okay";
++};
++
+ &pm8550vs_d_gpios {
+ 	eusb2_repeater_reset_default: eusb2-repeater-reset-default-state {
+ 		pins = "gpio4";
+@@ -610,9 +630,17 @@ panel_en_default: panel-en-default-state {
+ 	panel_reset_default: panel-reset-default-state {
+ 		pins = "gpio133";
+ 		function = "gpio";
+-		drive-strength = <8>;
+-		bias-disable;
++		/*
++		 * Open-drain with an internal pull-up: the panel driver
++		 * actively pulls the reset/enable line low to assert reset
++		 * and releases it to the pull-up to deassert. This lets the
++		 * stock panel-simple driver bring the panel up (its single
++		 * "enable high" gets a real rising edge) without an explicit
++		 * reset pulse in the driver.
++		 */
+ 		drive-open-drain;
++		bias-pull-up;
++		drive-strength = <12>;
+ 	};
+ 
+ 	pwr_per_en_default: pwr-per-en-default-state {
+-- 
+2.43.0
+
