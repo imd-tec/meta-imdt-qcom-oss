@@ -22,6 +22,7 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 - [QCS8550-SBC Feature Support](#qcs8550-sbc-feature-support)
 - [Upstreaming Status](#upstreaming-status)
 - [Boot Chain](#boot-chain)
+- [UFS Layout](#ufs-layout)
 - [References](#references)
 - [Downloading prebuilt release images](#downloading-prebuilt-release-images)
 - [Prerequisites](#prerequisites)
@@ -32,22 +33,28 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 - [Appendix](#appendix)
 
 ## QCS8550-SBC Feature Support
+> [!NOTE]
+> ADSP, CDSP and IPA have only been proven to probe successfully in
+> Linux. There hasn't been any runtime testing to prove they are fully
+> functional.
 
 | Feature | Hardware | Interface | Kernel Driver | Status |
 |---|---|---|---|---|
 | A/B Rootfs Updates | — | — | — | ✅ |
 | ADSP | Hexagon v73 DSP | — | remoteproc | ✅  |
 | Android Debug Bridge (ADB) | — | USB | — | ✅ |
-| Audio (LPASS) | — | — | — | ❌ |
+| Audio (LPASS) | — | — | — | 🚧 Planned |
 | Bluetooth | NXP IW416 | UART14 | btnxpuart | ✅ |
 | Camera (AR1335 - 13MP) | ON Semiconductor AR1335 | CSI0 | ar1335 | ✅ |
 | CDSP | Hexagon v73 DSP | — | remoteproc | ✅ |
 | Debug Serial Console (J19)| — | UART7 (115200 baud) | qcom-geni-serial | ✅ |
 | DDR Memory | 8GB / 12GB LPDDR5 | — | — | ✅ 8GB and 12GB boards supported |
+| DisplayPort over USB Type-C | — | DWC3 (QCOM) / USB-C DP Alt Mode | — | 🚧 Planned |
 | Gigabit Ethernet | Microchip LAN7430 | PCIe1 (default) | lan743x | ✅ |
 | PCIe Expansion (M.2 Key-B) | PCIe switch downstream Key-B port | PCIe1 (overlay) | qcom-pcie | ✅ Requires Key-B DTBO overlay |
 | GPIO | PM8550 GPIO bank | SPMI | qcom-spmi-gpio | ✅ |
 | GPU (Adreno 740) | Adreno 740 | — | msm drm | ✅ |
+| HDMI Display | DSI-to-HDMI adapter | DSI0 | drm/msm | ❌ |
 | I2C | QupV3 I2C hub | I2C | geni-i2c | ✅ |
 | IPA | Qualcomm IP Accelerator | — | ipa | ✅ |
 | ISP (CAMX) | Qualcomm proprietary camera framework | — | — | ❌ |
@@ -83,6 +90,30 @@ The boot chain used to boot into Linux is shown below.
 3. **abl2esp** — our open source stand-in for Qualcomm's ABL (Application Boot Loader). It's a signed binary that transitions from bare metal into a UEFI app located within the EFI partition.
 4. **U-Boot** — built as an ARM64 **UEFI application** (`BOOTAA64.EFI`) on the EFI System Partition (ESP), which is what `abl2esp` finds and starts. Running U-Boot here lets us apply device tree fixups/overlays and select the A/B rootfs slot (with automatic rollback) before booting Linux.
 5. **Linux** — U-Boot loads the kernel and matching device tree and boots into the Yocto userspace.
+
+## UFS Layout
+
+Everything lives on a single onboard UFS device, partitioned across
+six **LUNs** per the Qualcomm convention. The GPT layout is generated from
+[`partitions.conf`](https://github.com/imd-tec/imdt-qcom-ptool/blob/master/platforms/qcs8550-hdk/ufs/partitions.conf)
+in [`imdt-qcom-ptool`](https://github.com/imd-tec/imdt-qcom-ptool) and flashed by [QDL](#qdl).
+
+| LUN | Responsible for |
+|---|---|
+| 0 | EFI System Partition and the A/B rootfs (see below). |
+| 1 / 2 | XBL  |
+| 3 | Configuration Data Table (`cdt`) and DDR training (`ddr`). |
+| 4 | The bulk of the boot firmware — `abl` (our `abl2esp`), `uboot_env`, TrustZone, hypervisor, AOP, CPU subsystem, DSP and device config. |
+| 5 | Modem (Unused) |
+
+### LUN 0
+
+| Partition | Size | Contents |
+|---|---|---|
+| `efi` | 512 MiB | EFI System Partition — U-Boot (`BOOTAA64.EFI`), kernel, device trees and overlays. |
+| `rootfs_a` | ~22 GiB | A/B rootfs slot A (active by default). |
+| `rootfs_b` | ~22 GiB | A/B rootfs slot B — [SWUpdate](#swupdate) writes the inactive slot and U-Boot switches over with rollback. |
+| `misc` | 1 MiB | Boot-control metadata (active/pending slot). |
 
 ## Hardware Testing
 
@@ -321,14 +352,15 @@ adb shell
 ```
 
 ### Using the Display
+> [!WARNING]
+> On some SBCs the panel will flicker, this is
+> being investigated.
 
 The following section describes how to connect IMDT's display to the QCS8550 SBC. At the moment, only the IMDT DSI display is supported. However, work is in progress to add support for HDMI displays as well via a DSI to HDMI adapter. For more information about display connection see the [datasheet](#references).
 
 To use the IMDT display (PN:IM-MSC-0006), IMDT's IM-PCA-0029 DSI adapter must be connected to the display using the display flex cables. Once connected, the adapter can then be connected to the SBC display connector as shown in the following image:
 
 ![Display connection](docs/display-connection.jpg)
-
-Once the board is powered, the display will then boot up with the Yocto Project splash screen. The touchscreen will also be working.
 
 #### Adjusting the backlight brightness
 
