@@ -1,0 +1,88 @@
+From 68ef38c1cdb3782ec362ddc80e4a2d37634ecfd9 Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Tue, 30 Jun 2026 22:07:21 +0100
+Subject: [PATCH] libcamera: Add support for the onsemi AR1335 sensor
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Add the AR1335 (13 MP, 1.1 µm pixel) to the camera sensor properties
+database and add a camera sensor helper so the software ISP can drive
+auto exposure/gain on platforms that expose the sensor through a raw
+pipeline (e.g. Qualcomm CAMSS ).
+
+The AR1335 analogue gain is programmed through ANA_GAIN_CODE_GLOBAL
+(V4L2_CID_ANALOGUE_GAIN, range [0, 63]) using the same coarse/fine
+encoding as the AR0521, so the gain helper reuses that implementation.
+
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+Upstream-Status: Pending
+---
+ Documentation/sensor-support.rst                  |  2 +-
+ src/ipa/libipa/camera_sensor_helper.cpp           | 10 ++++++++++
+ src/libcamera/sensor/camera_sensor_properties.cpp | 15 +++++++++++++++
+ 3 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/Documentation/sensor-support.rst b/Documentation/sensor-support.rst
+index 9d71f3db..e3231d79 100644
+--- a/Documentation/sensor-support.rst
++++ b/Documentation/sensor-support.rst
+@@ -25,7 +25,7 @@ Existing support includes the following camera sensors:
+      - OV2685, OV2740, OV4689, OV5640, OV5647, OV5670, OV5675, OV5693, OV7251,
+        OV8858, OV8865, OV9281, OV13858, OV64A40
+    * - On-Semi
+-     - AR0144, AR0521
++     - AR0144, AR0521, AR1335
+    * - ST-Microelectronics
+      - VD56G3
+    * - Galaxy Core
+diff --git a/src/ipa/libipa/camera_sensor_helper.cpp b/src/ipa/libipa/camera_sensor_helper.cpp
+index 9ab7a52f..27e76d08 100644
+--- a/src/ipa/libipa/camera_sensor_helper.cpp
++++ b/src/ipa/libipa/camera_sensor_helper.cpp
+@@ -496,6 +496,16 @@ private:
+ };
+ REGISTER_CAMERA_SENSOR_HELPER("ar0521", CameraSensorHelperAr0521)
+ 
++/*
++ * The AR1335 analogue gain is programmed through the ANA_GAIN_CODE_GLOBAL
++ * register (exposed as V4L2_CID_ANALOGUE_GAIN, range [0, 63]) using the same
++ * coarse/fine encoding as the AR0521.
++ */
++class CameraSensorHelperAr1335 : public CameraSensorHelperAr0521
++{
++};
++REGISTER_CAMERA_SENSOR_HELPER("ar1335", CameraSensorHelperAr1335)
++
+ class CameraSensorHelperGc05a2 : public CameraSensorHelper
+ {
+ public:
+diff --git a/src/libcamera/sensor/camera_sensor_properties.cpp b/src/libcamera/sensor/camera_sensor_properties.cpp
+index 28043150..112412c0 100644
+--- a/src/libcamera/sensor/camera_sensor_properties.cpp
++++ b/src/libcamera/sensor/camera_sensor_properties.cpp
+@@ -106,6 +106,21 @@ const CameraSensorProperties *CameraSensorProperties::get(const std::string &sen
+ 			},
+ 			.sensorDelays = { },
+ 		} },
++		{ "ar1335", {
++			.unitCellSize = { 1100, 1100 },
++			.testPatternModes = {
++				{ controls::draft::TestPatternModeOff, 0 },
++				{ controls::draft::TestPatternModeSolidColor, 1 },
++				{ controls::draft::TestPatternModeColorBars, 2 },
++				{ controls::draft::TestPatternModeColorBarsFadeToGray, 3 },
++			},
++			.sensorDelays = {
++				.exposureDelay = 2,
++				.gainDelay = 2,
++				.vblankDelay = 2,
++				.hblankDelay = 2
++			},
++		} },
+ 		{ "gc05a2", {
+ 			.unitCellSize = { 1120, 1120 },
+ 			.testPatternModes = {
+-- 
+2.43.0
+
