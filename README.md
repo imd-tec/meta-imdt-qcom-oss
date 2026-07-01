@@ -51,6 +51,8 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 | I2C | QupV3 I2C hub | I2C | geni-i2c | ✅ |
 | IPA | Qualcomm IP Accelerator | — | ipa | ✅ |
 | ISP (CAMX) | Qualcomm proprietary camera framework | — | — | ❌ |
+| libcamera (AR1335) | ON Semiconductor AR1335 | CSI0 | ar1335 | ✅ |
+| libcamera tuning (AR1335) | ON Semiconductor AR1335 | CSI0 | ar1335 | 🚧 WiP |
 | microSD Card | — | SDHC2 | sdhci | ✅ |
 | MIPI DSI Display | Team Source TST070WSBE-196C 7" | DSI0 | drm/msm | ✅ |
 | OTA Rootfs Updates | — | — | — | ✅ |
@@ -69,6 +71,7 @@ An effort is being made into upstreaming our board and patches into Linux.
 | Team Source TST070WSBE-196C display panel | ✅ Accepted | [v2 on lore.kernel.org](https://lore.kernel.org/all/20260428-imdt-dsi-display-v2-0-cf7294b5d7d6@imd-tec.com/T/#t) |
 | SDHC4 (Wi-Fi SDIO) support | Pending | [v2 on lore.kernel.org](https://lore.kernel.org/all/20260427-sm8550-sdhc4-support-v2-1-a4241f43ecd5@imd-tec.com/T/#u) |
 | QCS8550 SBC device tree | WiP | [v4 on lore.kernel.org](https://lore.kernel.org/linux-arm-msm/20260610-imdt-qcs8550-sbc-rfc-v4-0-358e71d606bc@imd-tec.com/T/#u) |
+| AR1335 camera sensor | Planned | — |
 
 ## Boot Chain
 
