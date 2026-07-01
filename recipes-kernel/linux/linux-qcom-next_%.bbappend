@@ -12,11 +12,10 @@ SRC_URI:append = " \
     file://0004-arm64-dts-qcom-qcs8550-imdt-sbc-Add-DSI-display-over.patch \
     file://0005-dt-bindings-media-i2c-Add-ON-Semiconductor-AR1335-se.patch \
     file://0006-media-i2c-ar1335-Add-ON-Semiconductor-AR1335-camera-.patch \
-    file://0007-media-i2c-ar1335-Convert-to-V4L2-CCI-and-fix-streami.patch \
-    file://0008-arm64-dts-qcom-qcs8550-imdt-sbc-Split-AR1335-CSI0-in.patch \
-    file://0009-arm64-dts-qcom-qcs8550-imdt-sbc-Add-PCIe-switch-Key-.patch \
-    file://0010-arm64-dts-qcom-qcs8550-imdt-sbc-enable-zap-shader.patch \
-    file://0011-qcs8550-imdt-sbc-display-Enable-backlight-improve-po.patch \
+    file://0007-arm64-dts-qcom-qcs8550-imdt-sbc-Split-AR1335-CSI0-in.patch \
+    file://0008-arm64-dts-qcom-qcs8550-imdt-sbc-Add-PCIe-switch-Key-.patch \
+    file://0009-arm64-dts-qcom-qcs8550-imdt-sbc-enable-zap-shader.patch \
+    file://0010-qcs8550-imdt-sbc-display-Enable-backlight-improve-po.patch \
     file://configs/imdt.cfg \
 "
 

@@ -1,4 +1,4 @@
-From 79fd1ad916cd514cf296f9d3f0f2494512383d8e Mon Sep 17 00:00:00 2001
+From 91fc855eadde27d338519ed85cbde6563395e192 Mon Sep 17 00:00:00 2001
 From: William Bright <William.Bright@imd-tec.com>
 Date: Tue, 14 Apr 2026 15:17:45 +0100
 Subject: [PATCH] arm64: dts: qcom: qcs8550-imdt-sbc: Split AR1335 CSI0 into
@@ -14,8 +14,8 @@ Upstream-Status: Inappropriate [Needs checking with the
 v4l2-compliance tool]
 ---
  arch/arm64/boot/dts/qcom/Makefile             |  5 +-
- .../qcom/qcs8550-imdt-sbc-ar1335-csi0.dtso    | 81 +++++++++++++++++++
- 2 files changed, 83 insertions(+), 3 deletions(-)
+ .../qcom/qcs8550-imdt-sbc-ar1335-csi0.dtso    | 84 +++++++++++++++++++
+ 2 files changed, 86 insertions(+), 3 deletions(-)
  create mode 100644 arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi0.dtso
 
 diff --git a/arch/arm64/boot/dts/qcom/Makefile b/arch/arm64/boot/dts/qcom/Makefile
@@ -37,10 +37,10 @@ index a0da749f749c..79fd05a32e00 100644
  
 diff --git a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi0.dtso b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi0.dtso
 new file mode 100644
-index 000000000000..4d3f9842a0df
+index 000000000000..d4043d5a2d75
 --- /dev/null
 +++ b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi0.dtso
-@@ -0,0 +1,81 @@
+@@ -0,0 +1,84 @@
 +// SPDX-License-Identifier: BSD-3-Clause
 +/*
 + * QCS8550 IMDT SBC AR1335 CSI0 camera overlay
@@ -113,6 +113,9 @@ index 000000000000..4d3f9842a0df
 +		vdd_io-supply = <&cam_1v8_reg>;
 +		vdd-supply = <&cam_1v2_reg>;
 +		vaa-supply = <&hr_cam_pwr>;
++
++		orientation = <0>;	/* Front */
++		rotation = <0>;
 +
 +		port {
 +			ar1335_ep: endpoint {

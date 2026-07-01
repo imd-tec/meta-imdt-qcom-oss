@@ -394,27 +394,63 @@ Currently only CSI0 has been tested on the open source release.
 
 #### Streaming with V4L2 for CSI0
 
-Run the following commands on the target board:
+The CSI0 media pipeline is configured automatically at boot by the
+`qcs8550-csi0-ar1335.service` systemd service, which runs the
+`/opt/imdt/camss/qcs8550-csi0-ar1335.sh` `media-ctl` setup script once the
+camss media device is available. No manual setup step is required.
+
+You can check that the pipeline came up with:
 
 ```bash
-cd /opt/imdt/camss
-./qcs8550-csi0-ar1335.sh
+systemctl status qcs8550-csi0-ar1335.service
 ```
 
-You will then see the name of the video device printed out:
-
-```
-Pipeline created for CSI0
-Video device: /dev/video0
-```
-
-The setup script configures the pipeline at the sensor's full native resolution (4208 × 3120, raw Bayer `SGRBG10P`). You can then run the below command to stream frames into memory:
+The service configures the pipeline at the sensor's full native resolution
+(4208 × 3120, raw Bayer `SGRBG10P`). You can then stream frames into memory
+directly:
 
 ```bash
 v4l2-ctl -d /dev/video0 --stream-mmap
 ```
 
-You may need to change the name of the video device as sometimes it can be `/dev/video1`.
+You may need to change the name of the video device as sometimes it can be
+`/dev/video1`.
+
+#### Streaming with GStreamer over the network
+
+You can also pull a live preview from the AR1335 over the network using
+GStreamer and libcamera. This path uses `libcamerasrc`, which configures the
+camss media pipeline itself, so it works independently of the
+`qcs8550-csi0-ar1335.service` V4L2 setup above — no `media-ctl` step is needed.
+The board encodes MJPEG frames and streams them over stdout to a decoder
+running on your host machine.
+
+> **Note:** libcamera and GStreamer are only included in the
+> `qcom-multimedia-image`. This method is not available on the
+> `qcom-minimal-image` — use the V4L2 path above there instead.
+
+The board's IP address will vary depending on your network — replace
+`192.168.1.207` in the commands below with the address of your board.
+
+Over SSH:
+
+```bash
+ssh root@192.168.1.207 \
+  "gst-launch-1.0 -q libcamerasrc ! video/x-raw,format=RGBx ! videoconvert ! videoscale ! video/x-raw,width=1280,height=720 ! jpegenc quality=70 ! multipartmux ! fdsink fd=1" \
+| gst-launch-1.0 -q fdsrc ! multipartdemux ! jpegdec ! videoconvert ! autovideosink sync=false
+```
+
+Or over ADB (see [Android Debug Bridge (ADB)](#android-debug-bridge-adb) for setup):
+
+```bash
+adb exec-out \
+  "gst-launch-1.0 -q libcamerasrc ! video/x-raw,format=RGBx ! videoconvert ! videoscale ! video/x-raw,width=1280,height=720 ! jpegenc quality=70 ! multipartmux ! fdsink fd=1" \
+| gst-launch-1.0 -q fdsrc ! multipartdemux ! jpegdec ! videoconvert ! autovideosink sync=false
+```
+
+The `libcamerasrc` pipeline runs on the board, encoding 1280×720 MJPEG frames
+and writing them to stdout; the second `gst-launch-1.0` runs on your host,
+decoding the stream and displaying it in a window.
 
 #### AR1335 capture format
 

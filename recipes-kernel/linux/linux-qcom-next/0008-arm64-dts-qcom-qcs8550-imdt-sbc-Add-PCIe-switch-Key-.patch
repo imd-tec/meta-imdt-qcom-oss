@@ -1,4 +1,4 @@
-From 59159218d4c07d142235e67365dc604e045e225e Mon Sep 17 00:00:00 2001
+From 87f9a90784c10aa4dd07869380b85596ff20976d Mon Sep 17 00:00:00 2001
 From: William Bright <William.Bright@imd-tec.com>
 Date: Wed, 15 Apr 2026 11:57:54 +0100
 Subject: [PATCH] arm64: dts: qcom: qcs8550-imdt-sbc: Add PCIe switch Key B

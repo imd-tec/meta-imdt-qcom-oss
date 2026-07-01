@@ -1,0 +1,13 @@
+[Unit]
+Description=Configure the CSI0 AR1335 camera media pipeline
+# The camss media device is created by the kernel once the AR1335 CSI0
+# overlay is applied; skip silently if no camera/overlay is present.
+ConditionPathExists=/dev/media0
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/opt/imdt/camss/qcs8550-csi0-ar1335.sh
+
+[Install]
+WantedBy=multi-user.target

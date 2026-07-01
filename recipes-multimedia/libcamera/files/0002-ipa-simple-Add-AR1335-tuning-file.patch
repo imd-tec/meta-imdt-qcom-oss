@@ -1,0 +1,57 @@
+From 3e23de048c24815c7d248d1970b9fca136c558a3 Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Wed, 1 Jul 2026 14:49:45 +0100
+Subject: [PATCH] ipa: simple: Add AR1335 tuning file
+
+Add a tuning file for the onsemi AR1335 for use with the software ISP.
+The colour correction matrix was derived from a printed Macbeth chart
+shot under uncontrolled indoor lighting (~4000K) using a custom python
+script internal to IMDT.
+
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+Upstream-Status: Pending
+---
+ src/ipa/simple/data/ar1335.yaml | 18 ++++++++++++++++++
+ src/ipa/simple/data/meson.build |  1 +
+ 2 files changed, 19 insertions(+)
+ create mode 100644 src/ipa/simple/data/ar1335.yaml
+
+diff --git a/src/ipa/simple/data/ar1335.yaml b/src/ipa/simple/data/ar1335.yaml
+new file mode 100644
+index 00000000..56ff8863
+--- /dev/null
++++ b/src/ipa/simple/data/ar1335.yaml
+@@ -0,0 +1,18 @@
++# SPDX-License-Identifier: CC0-1.0
++%YAML 1.1
++---
++version: 1
++algorithms:
++  - BlackLevel:
++      blackLevel: 2688
++  - Awb:
++  - Ccm:
++      ccms:
++        # Calibrated indoors with uncontrolled lighting
++        - ct: 4000
++          ccm:  [0.818284, 0.064232, 0.119806,
++            -0.348832, 1.27547, 0.139729,
++            -0.284895, -0.27456, 1.85881]
++  - Adjust:
++  - Agc:
++...
+diff --git a/src/ipa/simple/data/meson.build b/src/ipa/simple/data/meson.build
+index 92795ee4..6b0565b2 100644
+--- a/src/ipa/simple/data/meson.build
++++ b/src/ipa/simple/data/meson.build
+@@ -1,6 +1,7 @@
+ # SPDX-License-Identifier: CC0-1.0
+ 
+ conf_files = files([
++    'ar1335.yaml',
+     'uncalibrated.yaml',
+ ])
+ 
+-- 
+2.43.0
+
