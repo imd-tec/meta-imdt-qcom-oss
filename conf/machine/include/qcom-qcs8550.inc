@@ -24,7 +24,8 @@ MACHINE_EXTRA_RRECOMMENDS += " \
     packagegroup-qcom-boot-additional \
     u-boot-fw-utils \
 "
-
+# Allow firmware-nxp-wifi to be used on our board
+MACHINEOVERRIDES:append = ":imx-generic-bsp"
 
 UBOOT_CONFIG_DEFAULT = "qcs8550-hdk"
 UBOOT_CONFIG = "sm8550"
