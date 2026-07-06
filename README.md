@@ -38,37 +38,37 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 > Linux. There hasn't been any runtime testing to prove they are fully
 > functional.
 
-| Feature | Hardware | Interface | Kernel Driver | Status |
-|---|---|---|---|---|
-| A/B Rootfs Updates | — | — | — | ✅ |
-| ADSP | Hexagon v73 DSP | — | remoteproc | ✅  |
-| Android Debug Bridge (ADB) | — | USB | — | ✅ |
-| Audio (LPASS) | — | — | — | 🚧 Planned |
-| Bluetooth | NXP IW416 | UART14 | btnxpuart | ✅ |
-| Camera (AR1335 - 13MP) | ON Semiconductor AR1335 | CSI0 | ar1335 | ✅ |
-| CDSP | Hexagon v73 DSP | — | remoteproc | ✅ |
-| Debug Serial Console (J19)| — | UART7 (115200 baud) | qcom-geni-serial | ✅ |
-| DDR Memory | 8GB / 12GB LPDDR5 | — | — | ✅ 8GB and 12GB boards supported |
-| DisplayPort over USB Type-C | — | DWC3 (QCOM) / USB-C DP Alt Mode | — | 🚧 Planned |
-| Gigabit Ethernet | Microchip LAN7430 | PCIe1 (default) | lan743x | ✅ |
-| PCIe Expansion (M.2 Key-B) | PCIe switch downstream Key-B port | PCIe1 (overlay) | qcom-pcie | ✅ Requires Key-B DTBO overlay |
-| GPIO | PM8550 GPIO bank | SPMI | qcom-spmi-gpio | ✅ |
-| GPU (Adreno 740) | Adreno 740 | — | msm drm | ✅ |
-| HDMI Display | DSI-to-HDMI adapter | DSI0 | drm/msm | ❌ |
-| I2C | QupV3 I2C hub | I2C | geni-i2c | ✅ |
-| IPA | Qualcomm IP Accelerator | — | ipa | ✅ |
-| ISP (CAMX) | Qualcomm proprietary camera framework | — | — | ❌ |
-| libcamera (AR1335) | ON Semiconductor AR1335 | CSI0 | ar1335 | ✅ |
-| libcamera tuning (AR1335) | ON Semiconductor AR1335 | CSI0 | ar1335 | 🚧 WiP |
-| microSD Card | — | SDHC2 | sdhci | ✅ |
-| MIPI DSI Display | Team Source TST070WSBE-196C 7" | DSI0 | drm/msm | ✅ |
-| OTA Rootfs Updates | — | — | — | ✅ |
-| PCIe Expansion (M.2 Key-E) | M.2 Key-E slot | PCIe0 | qcom-pcie | ✅ |
-| U-Boot as ARM64 UEFI App| — | — | — | ✅ |
-| UFS Storage | — | UFS | ufshcd | ✅ |
-| USB 3.0 Type-C | NXP PTN3222 eUSB2 redriver | DWC3 (QCOM) | dwc3-qcom | ✅ Peripheral mode |
-| Wi-Fi 802.11a/b/g/n/ac | NXP IW416 | SDIO (SDHC4) | mwifiex_sdio | ✅ |
-| Yocto / OpenEmbedded Master branch | — | — | — | ✅ |
+| Feature | Hardware | Interface | Kernel Driver | Rev 2 (12GB) Status | Rev 5 (8GB) Status |
+|---|---|---|---|---|---|
+| A/B Rootfs Updates | — | — | — | ✅ | ✅ |
+| ADSP | Hexagon v73 DSP | — | remoteproc | ✅ | ✅ |
+| Android Debug Bridge (ADB) | — | USB | — | ✅ | ✅ |
+| Audio (LPASS) | — | — | — | 🚧 Planned | 🚧 Planned |
+| Bluetooth | NXP IW416 | UART14 | btnxpuart | ✅ | ✅ |
+| Camera (AR1335 - 13MP) | ON Semiconductor AR1335 | CSI0 | ar1335 | ✅ | ✅ |
+| CDSP | Hexagon v73 DSP | — | remoteproc | ✅ | ✅ |
+| Debug Serial Console (J19)| — | UART7 (115200 baud) | qcom-geni-serial | ✅ | ✅ |
+| DDR Memory | 8GB / 12GB LPDDR5 | — | — | ✅ 12GB | ✅ 8GB |
+| DisplayPort over USB Type-C | — | DWC3 (QCOM) / USB-C DP Alt Mode | — | ❌ | 🚧 Planned |
+| Gigabit Ethernet | Microchip LAN7430 | PCIe1 (default) | lan743x | ✅ | ✅ |
+| PCIe Expansion (M.2 Key-B) | PCIe switch downstream Key-B port | PCIe1 (overlay) | qcom-pcie | ✅ Requires Key-B DTBO overlay | ✅ Requires Key-B DTBO overlay |
+| GPIO | PM8550 GPIO bank | SPMI | qcom-spmi-gpio | ✅ | ✅ |
+| GPU (Adreno 740) | Adreno 740 | — | msm drm | ✅ | ✅ |
+| HDMI Display | DSI-to-HDMI adapter | DSI0 | drm/msm | ❌ | ❌ |
+| I2C | QupV3 I2C hub | I2C | geni-i2c | ✅ | ✅ |
+| IPA | Qualcomm IP Accelerator | — | ipa | ✅ | ✅ |
+| ISP (CAMX) | Qualcomm proprietary camera framework | — | — | ❌ | ❌ |
+| libcamera (AR1335) | ON Semiconductor AR1335 | CSI0 | ar1335 | ✅ | ✅ |
+| libcamera tuning (AR1335) | ON Semiconductor AR1335 | CSI0 | ar1335 | 🚧 WiP | 🚧 WiP |
+| microSD Card | — | SDHC2 | sdhci | ✅ | ✅ |
+| MIPI DSI Display | Team Source TST070WSBE-196C 7" | DSI0 | drm/msm | ✅ | 🚧 Not supported yet |
+| OTA Rootfs Updates | — | — | — | ✅ | ✅ |
+| PCIe Expansion (M.2 Key-E) | M.2 Key-E slot | PCIe0 | qcom-pcie | ✅ | ✅ |
+| U-Boot as ARM64 UEFI App| — | — | — | ✅ | ✅ |
+| UFS Storage | — | UFS | ufshcd | ✅ | ✅ |
+| USB 3.0 Type-C | NXP PTN3222 eUSB2 redriver | DWC3 (QCOM) | dwc3-qcom | ✅ Peripheral mode | ✅ Peripheral mode |
+| Wi-Fi 802.11a/b/g/n/ac | NXP IW416 | SDIO (SDHC4) | mwifiex_sdio | ✅ | ✅ |
+| Yocto / OpenEmbedded Master branch | — | — | — | ✅ | ✅ |
 
 
 ## Upstreaming Status
