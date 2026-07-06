@@ -38,7 +38,7 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 > Linux. There hasn't been any runtime testing to prove they are fully
 > functional.
 
-| Feature | Hardware | Interface | Kernel Driver | Rev 2 (12GB) Status | Rev 5 (8GB) Status |
+| Feature | Hardware | Interface | Kernel Driver | QCS8550 SBC Rev 2 (12GB) Status | QCS8550 SBC Rev 5 (8GB) Status |
 |---|---|---|---|---|---|
 | A/B Rootfs Updates | — | — | — | ✅ | ✅ |
 | ADSP | Hexagon v73 DSP | — | remoteproc | ✅ | ✅ |
@@ -67,7 +67,7 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 | U-Boot as ARM64 UEFI App| — | — | — | ✅ | ✅ |
 | UFS Storage | — | UFS | ufshcd | ✅ | ✅ |
 | USB 3.0 Type-C | NXP PTN3222 eUSB2 redriver | DWC3 (QCOM) | dwc3-qcom | ✅ Peripheral mode | ✅ Peripheral mode |
-| Wi-Fi 802.11a/b/g/n/ac | NXP IW416 | SDIO (SDHC4) | mwifiex_sdio | ✅ | ✅ |
+| Wi-Fi 802.11a/b/g/n/ac | NXP IW416 | SDIO (SDHC4) | mwifiex_sdio | ✅ | 🚧 Planned |
 | Yocto / OpenEmbedded Master branch | — | — | — | ✅ | ✅ |
 
 
