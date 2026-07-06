@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/siemens/kas/master/kas/schema-kas.json
+# Copyright IMDT 2026
+header:
+  version: 14
+  includes:
+    - kas/includes/base.yml
+    - kas/includes/imdt.yml
+    - kas/machine/imdt-6490-sbc.yml
+    - kas/images/qcom-minimal-image.yml
+
+# The included image config also targets qcom-minimal-image.swu, but the .swu
+# recipes are COMPATIBLE_MACHINE = "qcs8550" only. Override the target here
+# (kas merges `target` by override) until SWUpdate support lands for the 6490.
+target:
+  - qcom-minimal-image

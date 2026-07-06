@@ -71,11 +71,28 @@ jobs:
             echo >> "$GITHUB_OUTPUT"
           fi
 
+  # The 6490 SBC build runs first: it has no `needs`, so the single
+  # self-hosted builder picks it up while `setup` runs on a hosted runner,
+  # and the 8550 build below waits on it. No LAVA tests exist for this board
+  # yet, so nothing is rsynced to the LAVA host and no test job follows.
+  build-6490:
+    uses: imd-tec/kas-gh-ci/.github/workflows/kas-build.yml@master
+    with:
+      kas-config: kas/imdt-6490-minimal.yml
+      machine: 'imdt-6490-sbc'
+      artifact-name: 'qcom-imdt-6490-images'
+    secrets:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
   build:
     # Build every image in a single bitbake invocation. The self-hosted builder
     # runs one job at a time, so a per-image matrix would build sequentially and
     # rebuild the shared package set twice; one combined build shares it.
-    needs: setup
+    needs: [setup, build-6490]
+    # Run even when the 6490 build fails — the boards are independent and the
+    # 8550 build feeds the LAVA tests, so it shouldn't be blocked by a 6490
+    # breakage; the `needs` edge exists only to order the two builds.
+    if: ${{ !cancelled() && needs.setup.result == 'success' }}
     uses: imd-tec/kas-gh-ci/.github/workflows/kas-build.yml@master
     with:
       kas-config: ${{ needs.setup.outputs.kas-config }}

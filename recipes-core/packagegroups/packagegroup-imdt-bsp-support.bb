@@ -21,10 +21,17 @@ RDEPENDS:${PN} = " \
     pciutils \
     usbutils \
     imdt-camss \
+    coreutils \
+    lava-ssh-keys \
+"
+
+# The SWUpdate A/B update stack (handlers, U-Boot rollback confirmation and
+# the swupdate daemon it serves) only exists for the QCS8550 SBC — the
+# handler and rollback recipes are COMPATIBLE_MACHINE = "qcs8550", so pulling
+# them in unconditionally breaks other machines (e.g. imdt-6490-sbc).
+RDEPENDS:${PN}:append:qcs8550 = " \
     swupdate \
     swupdate-www \
     swupdate-imdt-handlers \
     uboot-mark-boot-successful \
-    coreutils \
-    lava-ssh-keys \
 "
