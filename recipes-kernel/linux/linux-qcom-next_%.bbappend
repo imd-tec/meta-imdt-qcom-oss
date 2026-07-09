@@ -30,3 +30,17 @@ ERROR_QA:remove = "patch-status"
 # Compile DTBs with -@ so __symbols__ are emitted and overlays
 # can be applied at runtime (fdt apply / fdtoverlay / configfs).
 EXTRA_OEMAKE:append = " DTC_FLAGS=-@"
+
+# FIT /configurations entries for qclinuxfitImage (multi-dtb boot flow).
+# meta-qcom commit 330717eb inverted the FIT_DTB_COMPATIBLE syntax: the flag
+# key is now the compatible string (commas encoded as underscores) and the
+# value is the DTB stem plus optional overlay stems:
+#   FIT_DTB_COMPATIBLE[<vendor_board-compat>] = "<dtb-stem> [<overlay-stem>...]"
+# These entries live here rather than in the machine .conf because
+# dtb-fit-image.bbclass requires fit-dtb-compatible*.inc at recipe parse time,
+# which clobbers any machine-conf assignment to a key the inc also defines
+# (qcom_qcs6490-iot is mapped to qcs6490-rb3gen2 there). The class skips
+# entries whose DTBs are not in KERNEL_DEVICETREE, so keeping both boards'
+# entries in this shared bbappend is safe.
+FIT_DTB_COMPATIBLE[qcom_qcs6490-iot] = "qcs6490-imdt-sbc"
+FIT_DTB_COMPATIBLE[imdt_qcs8550-sbc] = "qcs8550-imdt-sbc"
