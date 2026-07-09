@@ -32,15 +32,9 @@ ERROR_QA:remove = "patch-status"
 EXTRA_OEMAKE:append = " DTC_FLAGS=-@"
 
 # FIT /configurations entries for qclinuxfitImage (multi-dtb boot flow).
-# meta-qcom commit 330717eb inverted the FIT_DTB_COMPATIBLE syntax: the flag
-# key is now the compatible string (commas encoded as underscores) and the
-# value is the DTB stem plus optional overlay stems:
-#   FIT_DTB_COMPATIBLE[<vendor_board-compat>] = "<dtb-stem> [<overlay-stem>...]"
-# These entries live here rather than in the machine .conf because
-# dtb-fit-image.bbclass requires fit-dtb-compatible*.inc at recipe parse time,
-# which clobbers any machine-conf assignment to a key the inc also defines
-# (qcom_qcs6490-iot is mapped to qcs6490-rb3gen2 there). The class skips
-# entries whose DTBs are not in KERNEL_DEVICETREE, so keeping both boards'
-# entries in this shared bbappend is safe.
-FIT_DTB_COMPATIBLE[qcom_qcs6490-iot] = "qcs6490-imdt-sbc"
-FIT_DTB_COMPATIBLE[imdt_qcs8550-sbc] = "qcs8550-imdt-sbc"
+# dtb-fit-image.bbclass is pulled in via inherit_defer, so it (and the
+# fit-dtb-compatible*.inc it requires) parses after this bbappend — setting
+# FIT_DTB_COMPATIBLE flags directly here gets clobbered for keys meta-qcom's
+# inc also defines. Instead point the class at our own inc, which requires
+# meta-qcom's and then overrides on top.
+LINUX_QCOM_FIT_DTB_COMPATIBLE = "conf/machine/include/imdt-fit-dtb-compatible.inc"
