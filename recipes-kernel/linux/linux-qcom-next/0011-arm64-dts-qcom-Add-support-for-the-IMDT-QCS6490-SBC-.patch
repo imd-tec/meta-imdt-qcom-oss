@@ -1,0 +1,1221 @@
+From eeaf7d63e37de13d6165df33fe397fdd44611b6d Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Tue, 7 Jul 2026 15:33:43 +0100
+Subject: [PATCH] arm64/dts/qcom: Add support for the IMDT QCS6490 SBC and SoM
+
+---
+ .../devicetree/bindings/arm/qcom.yaml         |   6 +
+ arch/arm64/boot/dts/qcom/Makefile             |   2 +
+ .../dts/qcom/qcs6490-imdt-sbc-pcie-keyb.dtso  |  18 +
+ arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts | 845 ++++++++++++++++++
+ .../arm64/boot/dts/qcom/qcs6490-imdt-som.dtsi | 291 ++++++
+ 5 files changed, 1162 insertions(+)
+ create mode 100644 arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc-pcie-keyb.dtso
+ create mode 100644 arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
+ create mode 100644 arch/arm64/boot/dts/qcom/qcs6490-imdt-som.dtsi
+
+diff --git a/Documentation/devicetree/bindings/arm/qcom.yaml b/Documentation/devicetree/bindings/arm/qcom.yaml
+index 51109871cb09..9ab02a571f37 100644
+--- a/Documentation/devicetree/bindings/arm/qcom.yaml
++++ b/Documentation/devicetree/bindings/arm/qcom.yaml
+@@ -397,6 +397,12 @@ properties:
+               - thundercomm,rubikpi3
+           - const: qcom,qcm6490
+ 
++      - items:
++          - enum:
++              - imdt,qcs6490-sbc
++          - const: imdt,qcs6490-som
++          - const: qcom,qcm6490
++
+       - description: Qualcomm Technologies, Inc. Distributed Unit 1000 platform
+         items:
+           - enum:
+diff --git a/arch/arm64/boot/dts/qcom/Makefile b/arch/arm64/boot/dts/qcom/Makefile
+index a9a57392b4c9..c5c501c00021 100644
+--- a/arch/arm64/boot/dts/qcom/Makefile
++++ b/arch/arm64/boot/dts/qcom/Makefile
+@@ -197,6 +197,8 @@ qcs615-ride-el2-dtbs := qcs615-ride.dtb talos-el2.dtbo
+ 
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs615-ride-el2.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= talos-el2.dtbo
++dtb-$(CONFIG_ARCH_QCOM)	+= qcs6490-imdt-sbc.dtb
++dtb-$(CONFIG_ARCH_QCOM)	+= qcs6490-imdt-sbc-pcie-keyb.dtbo
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs6490-radxa-dragon-q6a.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs6490-rb3gen2.dtb
+ qcs6490-rb3gen2-el2-dtbs := qcs6490-rb3gen2.dtb kodiak-el2.dtbo
+diff --git a/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc-pcie-keyb.dtso b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc-pcie-keyb.dtso
+new file mode 100644
+index 000000000000..a126bedbeaf1
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc-pcie-keyb.dtso
+@@ -0,0 +1,18 @@
++// SPDX-License-Identifier: BSD-3-Clause
++/*
++ * Copyright (c) 2026 IMD Technologies Ltd
++ *
++ * There are two options for PCIe routing on the IMDT QCS6490 SBC.
++ * By default, the CBTU02044 PCIe mux is configured to route to the GBE
++ * PHY, but this can be changed to route to the M.2 slot Key B by
++ * driving the mux select line (GPIO_115) low.
++ */
++/dts-v1/;
++/plugin/;
++
++&pcie1 {
++	pinctrl-0 = <&pcie1_clkreq_n>,
++		    <&pcie1_reset_n>,
++		    <&pcie1_wake_n>,
++		    <&pcie_switch_sel_keyb>;
++};
+diff --git a/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
+new file mode 100644
+index 000000000000..bf0201c5dac1
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
+@@ -0,0 +1,845 @@
++// SPDX-License-Identifier: BSD-3-Clause
++/*
++ * Copyright (c) 2026 IMD Technologies Ltd
++ */
++
++/dts-v1/;
++
++#include <dt-bindings/gpio/gpio.h>
++#include <dt-bindings/leds/common.h>
++#include "qcs6490-imdt-som.dtsi"
++
++/*
++ * kodiak.dtsi carve-outs don't match the memory map of the QCS6490
++ * Linux-Android (LA) boot firmware, so - like every QCM6490 board -
++ * drop them and describe the LA map in reserved-memory below. The
++ * WLAN/WPSS and modem nodes are deleted rather than redefined: WLAN
++ * is served by the SDIO-attached Murata module instead of the
++ * WPSS-hosted WCN6750, and cellular comes from the M.2 Key-B slot,
++ * so their firmware regions can be returned to the system.
++ */
++/delete-node/ &adsp_mem;
++/delete-node/ &cdsp_mem;
++/delete-node/ &ipa_fw_mem;
++/delete-node/ &mpss_mem;
++/delete-node/ &remoteproc_mpss;
++/delete-node/ &remoteproc_wpss;
++/delete-node/ &rmtfs_mem;
++/delete-node/ &video_mem;
++/delete-node/ &wifi;
++/delete-node/ &wlan_ce_mem;
++/delete-node/ &wlan_fw_mem;
++/delete-node/ &wpss_mem;
++/delete-node/ &xbl_mem;
++
++/ {
++	model = "IMDT QCS6490 SBC";
++	compatible = "imdt,qcs6490-sbc", "imdt,qcs6490-som", "qcom,qcm6490";
++	chassis-type = "embedded";
++
++	aliases {
++		serial0 = &uart5;
++		serial1 = &uart7;
++		serial2 = &uart4;
++	};
++
++	chosen {
++		stdout-path = "serial0:115200n8";
++	};
++
++	/*
++	 * 2-pin fan header J44, switched on/off by FAN_CONTROL (GPIO_133)
++	 * through a MOSFET. The nominal RPM is indicative only; there is
++	 * no tachometer feedback.
++	 */
++	fan: fan {
++		compatible = "gpio-fan";
++		gpios = <&tlmm 133 GPIO_ACTIVE_HIGH>;
++		gpio-fan,speed-map = <0 0>,
++				     <5000 1>;
++		#cooling-cells = <2>;
++
++		pinctrl-names = "default";
++		pinctrl-0 = <&fan_default>;
++	};
++
++	/*
++	 * AK09918 and SHT40 sit on a dedicated I2C wired to GPIO_163/164.
++	 * These pads have no QUP function (eGPIO only), so the bus is
++	 * bit-banged.
++	 */
++	sensors_i2c: i2c {
++		compatible = "i2c-gpio";
++		sda-gpios = <&tlmm 163 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
++		scl-gpios = <&tlmm 164 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
++		i2c-gpio,delay-us = <2>;
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		pinctrl-names = "default";
++		pinctrl-0 = <&sensors_i2c_default>;
++
++		magnetometer@c {
++			/* Register-compatible with the AK09912 */
++			compatible = "asahi-kasei,ak09918", "asahi-kasei,ak09912";
++			reg = <0x0c>;
++			vdd-supply = <&per_1v8_reg>;
++			vid-supply = <&per_1v8_reg>;
++		};
++
++		humidity-sensor@44 {
++			compatible = "sensirion,sht4x";
++			reg = <0x44>;
++		};
++	};
++
++	leds {
++		compatible = "gpio-leds";
++
++		pinctrl-names = "default";
++		pinctrl-0 = <&sys_led_default>;
++
++		led-sys {
++			color = <LED_COLOR_ID_GREEN>;
++			function = LED_FUNCTION_STATUS;
++			gpios = <&tlmm 40 GPIO_ACTIVE_HIGH>;
++		};
++	};
++
++	cam_1v2_reg: regulator-cam-1v2 {
++		compatible = "regulator-fixed";
++		regulator-name = "cam_1v2_reg";
++		regulator-min-microvolt = <1200000>;
++		regulator-max-microvolt = <1200000>;
++		vin-supply = <&hr_cam_pwr>;
++	};
++
++	cam_1v8_reg: regulator-cam-1v8 {
++		compatible = "regulator-fixed";
++		regulator-name = "cam_1v8_reg";
++		regulator-min-microvolt = <1800000>;
++		regulator-max-microvolt = <1800000>;
++		vin-supply = <&hr_cam_pwr>;
++	};
++
++	cam_2v8_reg: regulator-cam-2v8 {
++		compatible = "regulator-fixed";
++		regulator-name = "cam_2v8_reg";
++		regulator-min-microvolt = <2800000>;
++		regulator-max-microvolt = <2800000>;
++		vin-supply = <&hr_cam_pwr>;
++	};
++
++	cam_3v3_reg: regulator-cam-3v3 {
++		compatible = "regulator-fixed";
++		regulator-name = "cam_3v3_reg";
++		regulator-min-microvolt = <3300000>;
++		regulator-max-microvolt = <3300000>;
++		vin-supply = <&hr_cam_pwr>;
++	};
++
++	/*
++	 * 10_1PWR_EN on the DSI display connector (J41 pin 58): active-high
++	 * enable for the panel power rails generated on the display adapter
++	 * board, which runs from 3V3_PER (J41 pin 36).
++	 */
++	display_panel_pwr_en: regulator-display-panel-en {
++		compatible = "regulator-fixed";
++		regulator-name = "display_panel_pwr_en";
++		startup-delay-us = <10000>;
++
++		pinctrl-names = "default";
++		pinctrl-0 = <&panel_en_default>;
++
++		gpio = <&tlmm 43 GPIO_ACTIVE_HIGH>;
++		enable-active-high;
++
++		vin-supply = <&per_3v3_reg>;
++	};
++
++	/*
++	 * DSI_ENABLE (GPIO_35): enables the AP22653 load switch that gates
++	 * VSYS_5V onto the DSI_5V pins of the display connector.
++	 */
++	dsi_5v_en: regulator-dsi-5v-en {
++		compatible = "regulator-fixed";
++		regulator-name = "dsi_5v_en";
++		regulator-min-microvolt = <5000000>;
++		regulator-max-microvolt = <5000000>;
++		startup-delay-us = <50000>;
++
++		pinctrl-names = "default";
++		pinctrl-0 = <&dsi_5v_en_default>;
++
++		gpio = <&tlmm 35 GPIO_ACTIVE_HIGH>;
++		enable-active-high;
++
++		vin-supply = <&vsys_5v_reg>;
++	};
++
++	/* Enables 1V2, 1V8_CAM and 3V3_CAM */
++	hr_cam_pwr: regulator-hr-cam-pwr {
++		compatible = "regulator-fixed";
++		regulator-name = "hr_cam_pwr";
++		regulator-min-microvolt = <1800000>;
++		regulator-max-microvolt = <1800000>;
++
++		pinctrl-names = "default";
++		pinctrl-0 = <&hr_cam_en_default>;
++
++		gpio = <&tlmm 129 GPIO_ACTIVE_LOW>;
++
++		regulator-always-on;
++		regulator-boot-on;
++	};
++
++	/* Enables V2MB_3V8 and V2ME_3V3 for the M.2 Key-B and Key-E slots */
++	m2_pd_pwr: regulator-m2-pd-pwr {
++		compatible = "regulator-fixed";
++		regulator-name = "m2_pd_pwr";
++		regulator-min-microvolt = <1800000>;
++		regulator-max-microvolt = <1800000>;
++
++		pinctrl-names = "default";
++		pinctrl-0 = <&m2_pd_en_default>;
++
++		gpio = <&tlmm 119 GPIO_ACTIVE_LOW>;
++
++		regulator-always-on;
++		regulator-boot-on;
++
++		gpio-open-drain;
++	};
++
++	per_1v8_reg: regulator-per-1v8 {
++		compatible = "regulator-fixed";
++		regulator-name = "per_1v8_reg";
++		regulator-min-microvolt = <1800000>;
++		regulator-max-microvolt = <1800000>;
++		vin-supply = <&per_pwr>;
++	};
++
++	/*
++	 * Unlike 5V_PER/1V8_PER, the 3V3_PER rail has its own enable
++	 * (3V3_PER_EN, GPIO_125).
++	 */
++	per_3v3_reg: regulator-per-3v3 {
++		compatible = "regulator-fixed";
++		regulator-name = "per_3v3_reg";
++		regulator-min-microvolt = <3300000>;
++		regulator-max-microvolt = <3300000>;
++
++		pinctrl-names = "default";
++		pinctrl-0 = <&per_3v3_en_default>;
++
++		gpio = <&tlmm 125 GPIO_ACTIVE_HIGH>;
++		enable-active-high;
++
++		vin-supply = <&vsys_3v3_reg>;
++
++		regulator-always-on;
++		regulator-boot-on;
++	};
++
++	per_5v_reg: regulator-per-5v {
++		compatible = "regulator-fixed";
++		regulator-name = "per_5v_reg";
++		regulator-min-microvolt = <5000000>;
++		regulator-max-microvolt = <5000000>;
++		vin-supply = <&per_pwr>;
++	};
++
++	/* PWR_PER_EN (GPIO_117): enables 5V_PER and 1V8_PER */
++	per_pwr: regulator-per-pwr {
++		compatible = "regulator-fixed";
++		regulator-name = "per_pwr";
++		regulator-min-microvolt = <1800000>;
++		regulator-max-microvolt = <1800000>;
++
++		pinctrl-names = "default";
++		pinctrl-0 = <&pwr_per_en_default>;
++
++		gpio = <&tlmm 117 GPIO_ACTIVE_HIGH>;
++		enable-active-high;
++
++		vin-supply = <&vsys_5v_reg>;
++
++		regulator-always-on;
++		regulator-boot-on;
++	};
++
++	/* Always-on 1.8 V rail feeding the WiFi SDIO I/O domain */
++	sdhc_2_vqmmc: regulator-sdhc-2-vqmmc {
++		compatible = "regulator-fixed";
++		regulator-name = "sdhc_2_vqmmc";
++		regulator-min-microvolt = <1800000>;
++		regulator-max-microvolt = <1800000>;
++		regulator-always-on;
++		regulator-boot-on;
++	};
++
++	vph_pwr: regulator-vph-pwr {
++		compatible = "regulator-fixed";
++		regulator-name = "vph_pwr";
++		regulator-min-microvolt = <3700000>;
++		regulator-max-microvolt = <3700000>;
++		regulator-always-on;
++		regulator-boot-on;
++	};
++
++	vsys_3v3_reg: regulator-vsys-3v3 {
++		compatible = "regulator-fixed";
++		regulator-name = "vsys_3v3_reg";
++		regulator-min-microvolt = <3300000>;
++		regulator-max-microvolt = <3300000>;
++		regulator-always-on;
++		regulator-boot-on;
++	};
++
++	vsys_5v_reg: regulator-vsys-5v {
++		compatible = "regulator-fixed";
++		regulator-name = "vsys_5v_reg";
++		regulator-min-microvolt = <5000000>;
++		regulator-max-microvolt = <5000000>;
++		regulator-always-on;
++		regulator-boot-on;
++	};
++
++	/* AP61300 buck generating WIFI_3V3 for the Murata module */
++	wifi_3v3_reg: regulator-wifi-3v3 {
++		compatible = "regulator-fixed";
++		regulator-name = "wifi_3v3_reg";
++		regulator-min-microvolt = <3300000>;
++		regulator-max-microvolt = <3300000>;
++
++		vin-supply = <&vsys_5v_reg>;
++
++		regulator-always-on;
++		regulator-boot-on;
++	};
++
++	reserved-memory {
++		xbl_mem: xbl@80700000 {
++			reg = <0x0 0x80700000 0x0 0x100000>;
++			no-map;
++		};
++
++		cdsp_secure_heap_mem: cdsp-secure-heap@81800000 {
++			reg = <0x0 0x81800000 0x0 0x1e00000>;
++			no-map;
++		};
++
++		camera_mem: camera@84300000 {
++			reg = <0x0 0x84300000 0x0 0x500000>;
++			no-map;
++		};
++
++		adsp_mem: adsp@86100000 {
++			reg = <0x0 0x86100000 0x0 0x2800000>;
++			no-map;
++		};
++
++		cdsp_mem: cdsp@88900000 {
++			reg = <0x0 0x88900000 0x0 0x1e00000>;
++			no-map;
++		};
++
++		video_mem: video@8a700000 {
++			reg = <0x0 0x8a700000 0x0 0x700000>;
++			no-map;
++		};
++
++		cvp_mem: cvp@8ae00000 {
++			reg = <0x0 0x8ae00000 0x0 0x500000>;
++			no-map;
++		};
++
++		gpu_microcode_mem: gpu-microcode@8b31a000 {
++			reg = <0x0 0x8b31a000 0x0 0x2000>;
++			no-map;
++		};
++
++		tz_stat_mem: tz-stat@c0000000 {
++			reg = <0x0 0xc0000000 0x0 0x100000>;
++			no-map;
++		};
++
++		tags_mem: tags@c0100000 {
++			reg = <0x0 0xc0100000 0x0 0x1200000>;
++			no-map;
++		};
++
++		qtee_mem: qtee@c1300000 {
++			reg = <0x0 0xc1300000 0x0 0x500000>;
++			no-map;
++		};
++
++		trusted_apps_mem: trusted-apps@c1800000 {
++			reg = <0x0 0xc1800000 0x0 0x1c00000>;
++			no-map;
++		};
++
++		debug_vm_mem: debug-vm@d0600000 {
++			reg = <0x0 0xd0600000 0x0 0x100000>;
++			no-map;
++		};
++	};
++
++	wifi_pwrseq: wifi-pwrseq {
++		compatible = "mmc-pwrseq-simple";
++		/*
++		 * WL_BT_PMIC_EN (GPIO_93): master enable for the Murata
++		 * LBES0ZZ2LL (NXP IW612) module. Held asserted (low) before
++		 * SDHC2 powers up, then released once vmmc/vqmmc are stable.
++		 */
++		reset-gpios = <&tlmm 93 GPIO_ACTIVE_LOW>;
++		post-power-on-delay-ms = <50>;
++	};
++};
++
++&apps_rsc {
++	regulators-0 {
++		vdd-s1-supply = <&vph_pwr>;
++		vdd-s2-supply = <&vph_pwr>;
++		vdd-s3-supply = <&vph_pwr>;
++		vdd-s4-supply = <&vph_pwr>;
++		vdd-s5-supply = <&vph_pwr>;
++		vdd-s6-supply = <&vph_pwr>;
++		vdd-s7-supply = <&vph_pwr>;
++		vdd-s8-supply = <&vph_pwr>;
++	};
++
++	regulators-1 {
++		vdd-s1-supply = <&vph_pwr>;
++		vdd-s2-supply = <&vph_pwr>;
++		vdd-s3-supply = <&vph_pwr>;
++		vdd-s4-supply = <&vph_pwr>;
++		vdd-s5-supply = <&vph_pwr>;
++		vdd-s6-supply = <&vph_pwr>;
++		vdd-s7-supply = <&vph_pwr>;
++		vdd-s8-supply = <&vph_pwr>;
++		vdd-s9-supply = <&vph_pwr>;
++		vdd-s10-supply = <&vph_pwr>;
++		vdd-bob-supply = <&vph_pwr>;
++	};
++};
++
++&gpi_dma0 {
++	status = "okay";
++};
++
++&gpi_dma1 {
++	status = "okay";
++};
++
++&gpu {
++	status = "okay";
++};
++
++&gpu_zap_shader {
++	firmware-name = "qcom/qcs6490/a660_zap.mbn";
++};
++
++&i2c0 {
++	clock-frequency = <400000>;
++	status = "okay";
++
++	imu@6a {
++		compatible = "st,lsm6dsv";
++		reg = <0x6a>;
++
++		interrupts-extended = <&tlmm 103 IRQ_TYPE_LEVEL_HIGH>;
++
++		pinctrl-names = "default";
++		pinctrl-0 = <&lsm6dsv_int_default>;
++
++		vdd-supply = <&per_1v8_reg>;
++		vddio-supply = <&per_1v8_reg>;
++	};
++};
++
++/*
++ * APPS_I2C: also hosts the CYPD6125 USB-C port controller at 0x08
++ * (not described; usb_1 is hard-wired to peripheral mode), a
++ * TLV320AIC3101 audio codec at 0x18 (audio bring-up pending), an
++ * ECC204 authentication IC and an SLG47528 GreenPAK (no bindings).
++ */
++&i2c1 {
++	clock-frequency = <400000>;
++	status = "okay";
++};
++
++/* Expansion-header I2C (J1/J52, "CHARGER_I2C") */
++&i2c2 {
++	clock-frequency = <400000>;
++	status = "okay";
++};
++
++&pcie0 {
++	perst-gpios = <&tlmm 87 GPIO_ACTIVE_LOW>;
++	wake-gpios = <&tlmm 89 GPIO_ACTIVE_HIGH>;
++
++	/*
++	 * pcie0 hosts the M.2 Key-E slot. Apply the SDIO reset de-assert
++	 * here so any module's chip enable is settled before pcie0 trains
++	 * its link.
++	 */
++	pinctrl-0 = <&pcie0_clkreq_n>,
++		    <&pcie0_reset_n>,
++		    <&pcie0_wake_n>,
++		    <&m2e_sdio_resetn_default>;
++	pinctrl-names = "default";
++
++	status = "okay";
++};
++
++&pcie0_phy {
++	vdda-phy-supply = <&vreg_l10c_0p88>;
++	vdda-pll-supply = <&vreg_l6b_1p2>;
++
++	status = "okay";
++};
++
++&pcie1 {
++	perst-gpios = <&tlmm 2 GPIO_ACTIVE_LOW>;
++	wake-gpios = <&tlmm 3 GPIO_ACTIVE_HIGH>;
++
++	/*
++	 * pcie_switch_sel_default and gbe_reset_default are board-init
++	 * lines that must be stable before pcie1 trains its link: the
++	 * CBTU02044 PCIe mux needs its select line settled, and the
++	 * downstream LAN743x must be out of reset to enumerate.
++	 * Applying them via pcie1's pinctrl-0 fires them during
++	 * qcom-pcie probe, before bus enumeration.
++	 */
++	pinctrl-0 = <&pcie1_clkreq_n>,
++		    <&pcie1_reset_n>,
++		    <&pcie1_wake_n>,
++		    <&pcie_switch_sel_default>,
++		    <&gbe_reset_default>;
++	pinctrl-names = "default";
++
++	status = "okay";
++};
++
++&pcie1_phy {
++	vdda-phy-supply = <&vreg_l10c_0p88>;
++	vdda-pll-supply = <&vreg_l6b_1p2>;
++
++	status = "okay";
++};
++
++&pm8350c_pwm {
++	status = "okay";
++
++	/*
++	 * RGB LED on the PM7350C LPG outputs. The channel-to-colour
++	 * mapping follows the reference design; verify at bring-up.
++	 */
++	multi-led {
++		color = <LED_COLOR_ID_RGB>;
++		function = LED_FUNCTION_INDICATOR;
++
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		led@1 {
++			reg = <1>;
++			color = <LED_COLOR_ID_RED>;
++		};
++
++		led@2 {
++			reg = <2>;
++			color = <LED_COLOR_ID_GREEN>;
++		};
++
++		led@3 {
++			reg = <3>;
++			color = <LED_COLOR_ID_BLUE>;
++		};
++	};
++};
++
++&pon_pwrkey {
++	status = "okay";
++};
++
++&pon_resin {
++	linux,code = <KEY_VOLUMEDOWN>;
++
++	status = "okay";
++};
++
++&qupv3_id_0 {
++	firmware-name = "qcom/qcs6490/qupv3fw.elf";
++	status = "okay";
++};
++
++&qupv3_id_1 {
++	firmware-name = "qcom/qcs6490/qupv3fw.elf";
++	status = "okay";
++};
++
++&remoteproc_adsp {
++	firmware-name = "qcom/qcs6490/adsp.mbn";
++	status = "okay";
++};
++
++&remoteproc_cdsp {
++	firmware-name = "qcom/qcs6490/cdsp.mbn";
++	status = "okay";
++};
++
++/* On-SoM 32 GB eMMC */
++&sdhc_1 {
++	vmmc-supply = <&vreg_l7b_2p952>;
++	vqmmc-supply = <&vreg_l19b_1p8>;
++
++	non-removable;
++	no-sd;
++	no-sdio;
++
++	status = "okay";
++};
++
++/*
++ * SDC2 is routed to the Murata LBES0ZZ2LL (NXP IW612) WLAN interface;
++ * there is no microSD slot on this board.
++ */
++&sdhc_2 {
++	vmmc-supply = <&wifi_3v3_reg>;
++	vqmmc-supply = <&sdhc_2_vqmmc>;
++
++	mmc-pwrseq = <&wifi_pwrseq>;
++
++	keep-power-in-suspend;
++	non-removable;
++	no-mmc;
++	no-sd;
++
++	status = "okay";
++};
++
++&tlmm {
++	/* Reserved I/Os: 32-33 ADSP, 48-51 NFC (trustzone-protected) */
++	gpio-reserved-ranges = <32 2>, <48 4>;
++
++	dsi_5v_en_default: dsi-5v-en-default-state {
++		pins = "gpio35";
++		function = "gpio";
++		drive-strength = <8>;
++		bias-disable;
++	};
++
++	fan_default: fan-default-state {
++		pins = "gpio133";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-disable;
++	};
++
++	/*
++	 * Drive LAN743x reset high (de-asserted) when pcie1 probes, so
++	 * the GbE controller enumerates on the bus. Open-drain matches
++	 * the board's external pull-up on the reset line.
++	 */
++	gbe_reset_default: gbe-reset-default-state {
++		pins = "gpio6";
++		function = "gpio";
++		drive-strength = <2>;
++		drive-open-drain;
++		bias-disable;
++		output-high;
++	};
++
++	hr_cam_en_default: hr-cam-en-default-state {
++		pins = "gpio129";
++		function = "gpio";
++		drive-strength = <16>;
++	};
++
++	lsm6dsv_int_default: lsm6dsv-int-default-state {
++		pins = "gpio103";
++		function = "gpio";
++		bias-disable;
++	};
++
++	m2_pd_en_default: m2-pd-en-default-state {
++		pins = "gpio119";
++		function = "gpio";
++		drive-strength = <16>;
++		drive-open-drain;
++	};
++
++	/*
++	 * We drive this GPIO physically high on the M.2 Key-E connector
++	 * to make sure the module is enabled. An M.2 Key-E module could
++	 * be using this pin as a chip enable.
++	 */
++	m2e_sdio_resetn_default: m2e-sdio-resetn-default-state {
++		pins = "gpio153";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-disable;
++		output-high;
++	};
++
++	panel_en_default: panel-en-default-state {
++		pins = "gpio43";
++		function = "gpio";
++		drive-strength = <8>;
++		bias-disable;
++	};
++
++	pcie0_reset_n: pcie0-reset-n-state {
++		pins = "gpio87";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-disable;
++	};
++
++	pcie0_wake_n: pcie0-wake-n-state {
++		pins = "gpio89";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-pull-up;
++	};
++
++	pcie1_reset_n: pcie1-reset-n-state {
++		pins = "gpio2";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-disable;
++	};
++
++	pcie1_wake_n: pcie1-wake-n-state {
++		pins = "gpio3";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-pull-up;
++	};
++
++	/* Force the on-board PCIe mux to select the GbE upstream port. */
++	pcie_switch_sel_default: pcie-switch-sel-default-state {
++		pins = "gpio115";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-disable;
++		output-high;
++	};
++
++	/*
++	 * Alternative PCIe mux setting, routing pcie1 to the M.2 Key-B
++	 * slot instead of the GbE PHY. Referenced only by the
++	 * qcs6490-imdt-sbc-pcie-keyb overlay.
++	 */
++	pcie_switch_sel_keyb: pcie-switch-sel-keyb-state {
++		pins = "gpio115";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-disable;
++		output-low;
++	};
++
++	per_3v3_en_default: per-3v3-en-default-state {
++		pins = "gpio125";
++		function = "gpio";
++		drive-strength = <16>;
++	};
++
++	pwr_per_en_default: pwr-per-en-default-state {
++		pins = "gpio117";
++		function = "gpio";
++		drive-strength = <16>;
++	};
++
++	/*
++	 * Bit-banged sensor I2C. Internal pull-ups are enabled in case
++	 * the board-level pull-ups are not fitted.
++	 */
++	sensors_i2c_default: sensors-i2c-default-state {
++		pins = "gpio163", "gpio164";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-pull-up;
++	};
++
++	sys_led_default: sys-led-default-state {
++		pins = "gpio40";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-disable;
++	};
++};
++
++/*
++ * RS232 port (J9) through an ICL3221E transceiver. The transceiver's
++ * enable (RS232_DIS, GPIO_136) and invalid-detect (RS232_INV, GPIO_135)
++ * lines are left at their board defaults.
++ */
++&uart4 {
++	status = "okay";
++};
++
++&uart5 {
++	status = "okay";
++};
++
++&uart7 {
++	status = "okay";
++
++	/*
++	 * Murata LBES0ZZ2LL (NXP IW612 tri-radio), BT side over UART.
++	 * The btnxpuart driver detects the chip at runtime; the upstream
++	 * binding only enumerates 88w8987/8997 compatibles, so use the
++	 * closest match until an iw612-bt compatible is added.
++	 */
++	bluetooth {
++		compatible = "nxp,88w8987-bt";
++		fw-init-baudrate = <115200>;
++		max-speed = <3000000>;
++		firmware-name = "uartspi_n61x_v1.bin.se";
++	};
++};
++
++/*
++ * USB0 (HS + SS) is routed to the USB-C connector J53. The port is
++ * managed by a CYPD6125 PD controller that is not visible to Linux;
++ * the controller is hard-wired to peripheral/device operation.
++ */
++&usb_1 {
++	/delete-property/ usb-role-switch;
++	dr_mode = "peripheral";
++
++	status = "okay";
++};
++
++&usb_1_hsphy {
++	vdda-pll-supply = <&vreg_l10c_0p88>;
++	vdda33-supply = <&vreg_l2b_3p072>;
++	vdda18-supply = <&vreg_l1c_1p8>;
++
++	status = "okay";
++};
++
++&usb_1_qmpphy {
++	vdda-phy-supply = <&vreg_l6b_1p2>;
++	vdda-pll-supply = <&vreg_l1b_0p912>;
++
++	status = "okay";
++};
++
++/* USB1 (HS) feeds the M.2 Key-E slot */
++&usb_2 {
++	dr_mode = "host";
++
++	status = "okay";
++};
++
++&usb_2_hsphy {
++	vdda-pll-supply = <&vreg_l10c_0p88>;
++	vdda33-supply = <&vreg_l2b_3p072>;
++	vdda18-supply = <&vreg_l1c_1p8>;
++
++	status = "okay";
++};
+diff --git a/arch/arm64/boot/dts/qcom/qcs6490-imdt-som.dtsi b/arch/arm64/boot/dts/qcom/qcs6490-imdt-som.dtsi
+new file mode 100644
+index 000000000000..b6d6d0f6d371
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/qcs6490-imdt-som.dtsi
+@@ -0,0 +1,291 @@
++// SPDX-License-Identifier: BSD-3-Clause
++/*
++ * Copyright (c) 2026 IMD Technologies Ltd
++ */
++
++#include <dt-bindings/regulator/qcom,rpmh-regulator.h>
++#include "kodiak.dtsi"
++#include "pm7325.dtsi"
++#include "pm8350c.dtsi" /* PM7350C */
++#include "pmk8350.dtsi" /* PMK7325 */
++
++/*
++ * The IM-SOM-6490 carries PM7325, PM7350C and PMK7325 only; unlike the
++ * QCM6490 reference designs there is no PM7250B, so pm7250b.dtsi is
++ * deliberately not included.
++ */
++
++&apps_rsc {
++	regulators-0 {
++		compatible = "qcom,pm7325-rpmh-regulators";
++		qcom,pmic-id = "b";
++
++		vdd-l1-l4-l12-l15-supply = <&vreg_s7b_0p972>;
++		vdd-l2-l7-supply = <&vreg_bob_3p296>;
++		vdd-l6-l9-l10-supply = <&vreg_s8b_1p272>;
++		vdd-l8-supply = <&vreg_s7b_0p972>;
++		vdd-l11-l17-l18-l19-supply = <&vreg_s1b_1p872>;
++		vdd-l13-supply = <&vreg_s7b_0p972>;
++		vdd-l14-l16-supply = <&vreg_s8b_1p272>;
++
++		vreg_s1b_1p872: smps1 {
++			regulator-name = "vreg_s1b_1p872";
++			regulator-min-microvolt = <1840000>;
++			regulator-max-microvolt = <2040000>;
++		};
++
++		vreg_s7b_0p972: smps7 {
++			regulator-name = "vreg_s7b_0p972";
++			regulator-min-microvolt = <535000>;
++			regulator-max-microvolt = <1120000>;
++		};
++
++		vreg_s8b_1p272: smps8 {
++			regulator-name = "vreg_s8b_1p272";
++			regulator-min-microvolt = <1200000>;
++			regulator-max-microvolt = <1500000>;
++			regulator-initial-mode = <RPMH_REGULATOR_MODE_RET>;
++		};
++
++		vreg_l1b_0p912: ldo1 {
++			regulator-name = "vreg_l1b_0p912";
++			regulator-min-microvolt = <825000>;
++			regulator-max-microvolt = <925000>;
++			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
++		};
++
++		vreg_l2b_3p072: ldo2 {
++			regulator-name = "vreg_l2b_3p072";
++			regulator-min-microvolt = <2700000>;
++			regulator-max-microvolt = <3544000>;
++			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
++		};
++
++		vreg_l3b_0p504: ldo3 {
++			regulator-name = "vreg_l3b_0p504";
++			regulator-min-microvolt = <312000>;
++			regulator-max-microvolt = <650000>;
++			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
++		};
++
++		vreg_l6b_1p2: ldo6 {
++			regulator-name = "vreg_l6b_1p2";
++			regulator-min-microvolt = <1200000>;
++			regulator-max-microvolt = <1260000>;
++			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
++		};
++
++		/*
++		 * eMMC VCC. The SoM net is labelled VREG_L7B_2P5 but the
++		 * rail is programmed to the standard 2.952 V used by all
++		 * QCM6490 platforms.
++		 */
++		vreg_l7b_2p952: ldo7 {
++			regulator-name = "vreg_l7b_2p952";
++			regulator-min-microvolt = <2952000>;
++			regulator-max-microvolt = <2952000>;
++			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
++		};
++
++		vreg_l8b_0p904: ldo8 {
++			regulator-name = "vreg_l8b_0p904";
++			regulator-min-microvolt = <870000>;
++			regulator-max-microvolt = <970000>;
++			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
++		};
++
++		vreg_l9b_1p2: ldo9 {
++			regulator-name = "vreg_l9b_1p2";
++			regulator-min-microvolt = <1200000>;
++			regulator-max-microvolt = <1200000>;
++			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
++			regulator-allow-set-load;
++			regulator-allowed-modes = <RPMH_REGULATOR_MODE_LPM
++						   RPMH_REGULATOR_MODE_HPM>;
++		};
++
++		vreg_l11b_1p504: ldo11 {
++			regulator-name = "vreg_l11b_1p504";
++			regulator-min-microvolt = <1776000>;
++			regulator-max-microvolt = <2000000>;
++			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
++		};
++
++		vreg_l12b_0p751: ldo12 {
++			regulator-name = "vreg_l12b_0p751";
++			regulator-min-microvolt = <751000>;
++			regulator-max-microvolt = <824000>;
++			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
++		};
++
++		vreg_l13b_0p53: ldo13 {
++			regulator-name = "vreg_l13b_0p53";
++			regulator-min-microvolt = <530000>;
++			regulator-max-microvolt = <824000>;
++			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
++		};
++
++		vreg_l14b_1p08: ldo14 {
++			regulator-name = "vreg_l14b_1p08";
++			regulator-min-microvolt = <1200000>;
++			regulator-max-microvolt = <1304000>;
++			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
++		};
++
++		vreg_l15b_0p765: ldo15 {
++			regulator-name = "vreg_l15b_0p765";
++			regulator-min-microvolt = <765000>;
++			regulator-max-microvolt = <1020000>;
++			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
++		};
++
++		vreg_l16b_1p1: ldo16 {
++			regulator-name = "vreg_l16b_1p1";
++			regulator-min-microvolt = <1100000>;
++			regulator-max-microvolt = <1300000>;
++			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
++		};
++
++		vreg_l17b_1p7: ldo17 {
++			regulator-name = "vreg_l17b_1p7";
++			regulator-min-microvolt = <1700000>;
++			regulator-max-microvolt = <1900000>;
++			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
++		};
++
++		vreg_l18b_1p8: ldo18 {
++			regulator-name = "vreg_l18b_1p8";
++			regulator-min-microvolt = <1800000>;
++			regulator-max-microvolt = <2000000>;
++			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
++		};
++
++		/* eMMC VCCQ */
++		vreg_l19b_1p8: ldo19 {
++			regulator-name = "vreg_l19b_1p8";
++			regulator-min-microvolt = <1800000>;
++			regulator-max-microvolt = <2000000>;
++			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
++		};
++	};
++
++	regulators-1 {
++		compatible = "qcom,pm8350c-rpmh-regulators";
++		qcom,pmic-id = "c";
++
++		vdd-l1-l12-supply = <&vreg_s1b_1p872>;
++		vdd-l2-l8-supply = <&vreg_s1b_1p872>;
++		vdd-l3-l4-l5-l7-l13-supply = <&vreg_bob_3p296>;
++		vdd-l6-l9-l11-supply = <&vreg_bob_3p296>;
++		vdd-l10-supply = <&vreg_s7b_0p972>;
++
++		vreg_s1c_2p19: smps1 {
++			regulator-name = "vreg_s1c_2p19";
++			regulator-min-microvolt = <2200000>;
++			regulator-max-microvolt = <2208000>;
++		};
++
++		vreg_s9c_1p084: smps9 {
++			regulator-name = "vreg_s9c_1p084";
++			regulator-min-microvolt = <1010000>;
++			regulator-max-microvolt = <1170000>;
++		};
++
++		vreg_l1c_1p8: ldo1 {
++			regulator-name = "vreg_l1c_1p8";
++			regulator-min-microvolt = <1800000>;
++			regulator-max-microvolt = <1980000>;
++			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
++		};
++
++		vreg_l2c_1p62: ldo2 {
++			regulator-name = "vreg_l2c_1p62";
++			regulator-min-microvolt = <1620000>;
++			regulator-max-microvolt = <1980000>;
++			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
++		};
++
++		vreg_l3c_2p8: ldo3 {
++			regulator-name = "vreg_l3c_2p8";
++			regulator-min-microvolt = <2800000>;
++			regulator-max-microvolt = <3540000>;
++			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
++		};
++
++		vreg_l4c_1p62: ldo4 {
++			regulator-name = "vreg_l4c_1p62";
++			regulator-min-microvolt = <1620000>;
++			regulator-max-microvolt = <3300000>;
++			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
++		};
++
++		vreg_l5c_1p62: ldo5 {
++			regulator-name = "vreg_l5c_1p62";
++			regulator-min-microvolt = <1620000>;
++			regulator-max-microvolt = <3300000>;
++			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
++		};
++
++		vreg_l6c_2p96: ldo6 {
++			regulator-name = "vreg_l6c_2p96";
++			regulator-min-microvolt = <1650000>;
++			regulator-max-microvolt = <3544000>;
++			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
++		};
++
++		vreg_l7c_3p0: ldo7 {
++			regulator-name = "vreg_l7c_3p0";
++			regulator-min-microvolt = <3000000>;
++			regulator-max-microvolt = <3544000>;
++			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
++		};
++
++		vreg_l8c_1p62: ldo8 {
++			regulator-name = "vreg_l8c_1p62";
++			regulator-min-microvolt = <1800000>;
++			regulator-max-microvolt = <2000000>;
++			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
++		};
++
++		vreg_l9c_2p96: ldo9 {
++			regulator-name = "vreg_l9c_2p96";
++			regulator-min-microvolt = <2700000>;
++			regulator-max-microvolt = <3544000>;
++			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
++		};
++
++		vreg_l10c_0p88: ldo10 {
++			regulator-name = "vreg_l10c_0p88";
++			regulator-min-microvolt = <720000>;
++			regulator-max-microvolt = <1050000>;
++			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
++		};
++
++		vreg_l11c_2p8: ldo11 {
++			regulator-name = "vreg_l11c_2p8";
++			regulator-min-microvolt = <2800000>;
++			regulator-max-microvolt = <3544000>;
++			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
++		};
++
++		vreg_l12c_1p65: ldo12 {
++			regulator-name = "vreg_l12c_1p65";
++			regulator-min-microvolt = <1800000>;
++			regulator-max-microvolt = <2000000>;
++			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
++		};
++
++		vreg_l13c_2p7: ldo13 {
++			regulator-name = "vreg_l13c_2p7";
++			regulator-min-microvolt = <2700000>;
++			regulator-max-microvolt = <3544000>;
++			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
++		};
++
++		vreg_bob_3p296: bob {
++			regulator-name = "vreg_bob_3p296";
++			regulator-min-microvolt = <3008000>;
++			regulator-max-microvolt = <3960000>;
++		};
++	};
++};
+-- 
+2.43.0
+
