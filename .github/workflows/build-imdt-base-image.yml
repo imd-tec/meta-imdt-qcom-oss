@@ -36,12 +36,36 @@ jobs:
     steps:
       - id: cfg
         run: |
+          # Each image is tested on both board variants as separate runs.
+          # The board entries carry everything that differs between the two
+          # DUTs: the LAVA device tag, the expected available memory, and
+          # camera presence. The DUT ssh endpoint for each board tag is a
+          # secret (DUT_SSH_HOST_8GB / DUT_SSH_HOST_12GB) resolved inside
+          # lava-tests.yml — secrets cannot appear in a strategy matrix.
+          # has-sdcard false: the 8GB fixture has no SD card inserted — flip
+          # this once a card is fitted. has-wifi false: IW416 enumerates on
+          # SDIO but no driver binds on the 8GB board with the current image.
+          BOARD_8GB='"board-tag":"8550-8gb","mem-min-mb":"4500","has-camera":true,"has-sdcard":false,"has-wifi":false'
+          # 8500 not 9000: the 12GB board idles at ~9.2GB available, so 9000
+          # was within noise of a fresh boot's memory usage (false failures).
+          # Flags are always explicit: GHA loose equality coerces null and
+          # false both to 0, so an absent key can't be defaulted with
+          # `!= false` at the call site.
+          BOARD_12GB='"board-tag":"8550-12gb","mem-min-mb":"8500","has-camera":true,"has-sdcard":true,"has-wifi":true'
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "kas-config=kas/imdt-8550-all.yml" >> "$GITHUB_OUTPUT"
-            echo 'lava-matrix={"include":[{"image-name":"qcom-minimal-image"},{"image-name":"qcom-multimedia-image"}]}' >> "$GITHUB_OUTPUT"
+            echo "lava-matrix={\"include\":[
+              {\"image-name\":\"qcom-minimal-image\",$BOARD_8GB},
+              {\"image-name\":\"qcom-minimal-image\",$BOARD_12GB},
+              {\"image-name\":\"qcom-multimedia-image\",$BOARD_8GB},
+              {\"image-name\":\"qcom-multimedia-image\",$BOARD_12GB}]}" | tr -d '\n ' >> "$GITHUB_OUTPUT"
+            echo >> "$GITHUB_OUTPUT"
           else
             echo "kas-config=kas/imdt-8550-minimal.yml" >> "$GITHUB_OUTPUT"
-            echo 'lava-matrix={"include":[{"image-name":"qcom-minimal-image"}]}' >> "$GITHUB_OUTPUT"
+            echo "lava-matrix={\"include\":[
+              {\"image-name\":\"qcom-minimal-image\",$BOARD_8GB},
+              {\"image-name\":\"qcom-minimal-image\",$BOARD_12GB}]}" | tr -d '\n ' >> "$GITHUB_OUTPUT"
+            echo >> "$GITHUB_OUTPUT"
           fi
 
   build:
@@ -71,6 +95,11 @@ jobs:
     uses: ./.github/workflows/lava-tests.yml
     with:
       image-name: ${{ matrix.image-name }}
+      board-tag: ${{ matrix.board-tag }}
+      mem-min-mb: ${{ matrix.mem-min-mb }}
+      has-camera: ${{ matrix.has-camera }}
+      has-sdcard: ${{ matrix.has-sdcard }}
+      has-wifi: ${{ matrix.has-wifi }}
       is-pr: ${{ github.event_name == 'pull_request' }}
       pr-number: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || 0 }}
     secrets: inherit

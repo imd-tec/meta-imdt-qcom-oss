@@ -5,18 +5,25 @@ Subject: [PATCH] arm64: dts: qcom: qcs8550-imdt-sbc: Add PCIe switch Key B
  overlay
 
 Add a device tree overlay to select M.2 Key B PCIe routing instead of
-the default GBE PHY routing. The overlay overrides the pcie_switch_sel_gpio
-hog to invert the GPIO polarity, driving the physical pin high.
+the default GBE PHY routing.
 
-Add a label to the PCIe switch GPIO hog node so the overlay can
-reference it.
+The PCIe switch SEL line (TL37 gpio16) selects GBE PHY routing when
+low and M.2 Key B routing when high. The base board dts drives it low
+via the pcie_switch_sel_default pinctrl state, applied from pcie1's
+pinctrl-0 at controller probe, immediately before link training.
+
+The overlay therefore replaces pcie1's pinctrl-0 with a state that
+drives the pin high instead. The property is replaced wholesale
+because a devicetree overlay cannot delete the output-low property
+from the existing pcie_switch_sel_default node; and a gpio-hog is
+deliberately not used, as any hog setting would be overridden by the
+pinctrl state pcie1 applies later in boot.
 
 Signed-off-by: William Bright <william.bright@imd-tec.com>
 ---
  arch/arm64/boot/dts/qcom/Makefile             |  1 +
- .../dts/qcom/qcs8550-imdt-sbc-pcie-keyb.dtso  | 20 +++++++++++++++++++
- arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc.dts | 10 ++++++++++
- 3 files changed, 31 insertions(+)
+ .../dts/qcom/qcs8550-imdt-sbc-pcie-keyb.dtso  | 36 ++++++++++++++++++
+ 2 files changed, 37 insertions(+)
  create mode 100644 arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-pcie-keyb.dtso
 
 diff --git a/arch/arm64/boot/dts/qcom/Makefile b/arch/arm64/boot/dts/qcom/Makefile
@@ -33,51 +40,45 @@ index 79fd05a32e00..a9a57392b4c9 100644
  dtb-$(CONFIG_ARCH_QCOM)	+= qcs9100-ride-r3.dtb
 diff --git a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-pcie-keyb.dtso b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-pcie-keyb.dtso
 new file mode 100644
-index 000000000000..e07f44bf6bdb
+index 000000000000..3c1a5c9b7d42
 --- /dev/null
 +++ b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-pcie-keyb.dtso
-@@ -0,0 +1,20 @@
+@@ -0,0 +1,36 @@
 +// SPDX-License-Identifier: BSD-3-Clause
 +/*
 + * Copyright (c) 2026 IMD Technologies Ltd
 + *
 + * There are two options for PCIe routing on the IMDT QCS8550 SBC.
-+ * By default, the PCIe switch is configured to route to the GBE PHY, but
-+ * this can be changed to route to the M.2 slot Key B by setting 
-+ * pcie_switch_sel_gpio high
++ * The PCIe switch SEL line (TLMM gpio16) selects GBE PHY routing when
++ * low (the default, driven by the pcie_switch_sel_default pinctrl
++ * state applied from pcie1's pinctrl-0) and M.2 Key B routing when
++ * high.
++ *
++ * This overlay reroutes PCIe1 to the M.2 Key B slot by replacing the
++ * SEL pinctrl state with one that drives the pin high. pcie1's
++ * pinctrl-0 is replaced wholesale because a devicetree overlay cannot
++ * delete the output-low property from the existing
++ * pcie_switch_sel_default state node; a gpio-hog is deliberately not
++ * used, as any hog setting is overridden by the pinctrl state pcie1
++ * applies later in boot, immediately before link training.
 + */
 +/dts-v1/;
 +/plugin/;
 +
-+#include <dt-bindings/gpio/gpio.h>
-+
-+&pcie_switch_sel_gpio {
-+		/* Change the PCIe switch so that key B routing is selected by
-+		 * inverting the GPIO polarity.
-+		 */
-+		gpios = <16 GPIO_ACTIVE_LOW>;
-+};
-diff --git a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc.dts b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc.dts
-index 73a13c4f0e65..bd3ef3567874 100644
---- a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc.dts
-+++ b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc.dts
-@@ -770,6 +770,16 @@ m2e_sdio_resetn_default: m2e-sdio-resetn-default-state {
- 		output-high;
- 	};
- 
-+	/* Force PCIE switch to select GBE PHY */
-+	pcie_switch_sel_gpio: pcie-switch-sel-gpio {
-+		gpio-hog;
-+		gpios = <16 GPIO_ACTIVE_HIGH>;
-+
++&tlmm {
++	pcie_switch_sel_keyb: pcie-switch-sel-keyb-state {
++		pins = "gpio16";
++		function = "gpio";
 +		drive-strength = <2>;
 +		bias-disable;
 +		output-high;
 +	};
++};
 +
- 	/* Force the on-board PCIe switch to select the GbE upstream port. */
- 	pcie_switch_sel_default: pcie-switch-sel-default-state {
- 		pins = "gpio16";
++&pcie1 {
++	pinctrl-0 = <&pcie1_default_state>,
++		    <&pcie_switch_sel_keyb>,
++		    <&gbe_reset_default>;
++};
 -- 
 2.43.0
-

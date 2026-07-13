@@ -7,6 +7,26 @@ on:
         description: Image whose .swu is deployed and tested (e.g. qcom-minimal-image)
         type: string
         default: qcom-minimal-image
+      board-tag:
+        description: LAVA device tag selecting the board variant (e.g. 8550-8gb, 8550-12gb)
+        type: string
+        required: true
+      mem-min-mb:
+        description: Minimum available memory (MB) expected on this board variant
+        type: string
+        default: '9000'
+      has-camera:
+        description: Whether the AR1335 camera module is attached to this board
+        type: boolean
+        default: true
+      has-sdcard:
+        description: Whether an SD card is inserted in this board's slot
+        type: boolean
+        default: true
+      has-wifi:
+        description: Whether Wi-Fi (mlan0) is expected to work on this board
+        type: boolean
+        default: true
       is-pr:
         type: boolean
         default: false
@@ -21,8 +41,10 @@ jobs:
   lava-test:
     runs-on: imx-runner
     timeout-minutes: 120
+    # Serialise per board: each physical DUT runs one pipeline at a time,
+    # but the two boards' pipelines run in parallel.
     concurrency:
-      group: lava-dut
+      group: lava-dut-${{ inputs.board-tag }}
       cancel-in-progress: false
     permissions:
       contents: read
@@ -51,18 +73,49 @@ jobs:
             token: ${LAVA_TOKEN}
           EOF
 
+      # ── Board-specific job definitions ──────────────────────────────────
+      # Every submitted job targets one specific board:
+      #  * ssh-device jobs (ssh-tests, pcie-keyb-test) are pinned by replacing
+      #    the generic dut-ssh tag with the board tag (8550-8gb / 8550-12gb);
+      #  * docker-device jobs (swu-deploy, ar1335-capture, pcie-keyb-switch)
+      #    reach the board over ssh, so SSH_HOST is set to the Pi forwarding
+      #    this board — the endpoint is a repo secret per board tag;
+      #  * the memory threshold and camera presence match the board variant.
+      - name: Prepare board-specific LAVA job definitions
+        run: |
+          case "${{ inputs.board-tag }}" in
+            8550-8gb)  DUT_SSH_HOST="${{ secrets.DUT_SSH_HOST_8GB }}" ;;
+            8550-12gb) DUT_SSH_HOST="${{ secrets.DUT_SSH_HOST_12GB }}" ;;
+            *) echo "Unknown board-tag '${{ inputs.board-tag }}'"; exit 1 ;;
+          esac
+          if [ -z "$DUT_SSH_HOST" ]; then
+            echo "DUT ssh host secret for '${{ inputs.board-tag }}' is not set"
+            exit 1
+          fi
+          mkdir -p /tmp/lava-jobs
+          CAMERA_PRESENT="${{ inputs.has-camera && 'yes' || 'no' }}"
+          SDCARD_PRESENT="${{ inputs.has-sdcard && 'yes' || 'no' }}"
+          WIFI_PRESENT="${{ inputs.has-wifi && 'yes' || 'no' }}"
+          for f in lava/*.yaml; do
+            sed -e "s|^- dut-ssh$|- ${{ inputs.board-tag }}|" \
+                -e "s|SSH_HOST: '[^']*'|SSH_HOST: '${DUT_SSH_HOST}'|" \
+                -e "s|MEM_MIN_MB: '[^']*'|MEM_MIN_MB: '${{ inputs.mem-min-mb }}'|" \
+                -e "s|CAMERA_PRESENT: '[^']*'|CAMERA_PRESENT: '${CAMERA_PRESENT}'|" \
+                -e "s|SDCARD_PRESENT: '[^']*'|SDCARD_PRESENT: '${SDCARD_PRESENT}'|" \
+                -e "s|WIFI_PRESENT: '[^']*'|WIFI_PRESENT: '${WIFI_PRESENT}'|" \
+                -e "s|FRAME_OUT: '[^']*'|FRAME_OUT: '/images/ar1335_${{ inputs.board-tag }}.png'|" \
+                -e "s|^job_name: \(.*\)|job_name: \1 [${{ inputs.board-tag }}]|" \
+                "$f" > "/tmp/lava-jobs/$(basename "$f")"
+          done
+
       # ── Job 1: swu-deploy (SSH) ─────────────────────────────────────────
       - name: Submit swu-deploy LAVA job
         run: |
           SWU_FILE="${{ inputs.image-name }}.swu-imdt-8550-sbc.rootfs-${{ github.sha }}.swu"
           UBOOT_FILE="BOOTAA64-${{ github.sha }}.EFI"
-          # DUT LAN address reachable from the dispatcher; override the YAML
-          # default by setting the DUT_SSH_HOST repo variable.
-          SSH_HOST="${{ vars.DUT_SSH_HOST }}"
           sed -e "s|SWU_FILE: '.*'|SWU_FILE: '${SWU_FILE}'|" \
               -e "s|UBOOT_FILE: '.*'|UBOOT_FILE: '${UBOOT_FILE}'|" \
-              ${SSH_HOST:+-e "s|SSH_HOST: '.*'|SSH_HOST: '${SSH_HOST}'|"} \
-              lava/swu-deploy.yaml > /tmp/lava-swu-deploy.yaml
+              /tmp/lava-jobs/swu-deploy.yaml > /tmp/lava-swu-deploy.yaml
           JOB_ID=$(lavacli --identity lava-ci jobs submit /tmp/lava-swu-deploy.yaml)
           echo "swu-deploy: $JOB_ID — http://${{ vars.LAVA_HOST }}/scheduler/job/$JOB_ID"
           echo "SWUDEPLOY_JOB_ID=$JOB_ID" >> "$GITHUB_ENV"
@@ -73,27 +126,29 @@ jobs:
       # ── Job 2: ssh-tests (SSH DUT) ──────────────────────────────────────
       - name: Submit ssh-tests LAVA job
         run: |
-          JOB_ID=$(lavacli --identity lava-ci jobs submit lava/ssh-tests.yaml)
+          JOB_ID=$(lavacli --identity lava-ci jobs submit /tmp/lava-jobs/ssh-tests.yaml)
           echo "ssh-tests: $JOB_ID — http://${{ vars.LAVA_HOST }}/scheduler/job/$JOB_ID"
           echo "SSHTESTS_JOB_ID=$JOB_ID" >> "$GITHUB_ENV"
 
       - name: Wait for ssh-tests
         run: bash lava/wait-job.sh "$SSHTESTS_JOB_ID"
 
-      # ── Job 3: ar1335 frame capture (ADB) ──────────────────────────────
+      # ── Job 3: ar1335 frame capture — camera boards only ───────────────
       - name: Submit ar1335-capture LAVA job
+        if: inputs.has-camera
         run: |
-          JOB_ID=$(lavacli --identity lava-ci jobs submit lava/ar1335-capture.yaml)
+          JOB_ID=$(lavacli --identity lava-ci jobs submit /tmp/lava-jobs/ar1335-capture.yaml)
           echo "ar1335-capture: $JOB_ID — http://${{ vars.LAVA_HOST }}/scheduler/job/$JOB_ID"
           echo "CAPTURE_JOB_ID=$JOB_ID" >> "$GITHUB_ENV"
 
       - name: Wait for ar1335-capture
+        if: inputs.has-camera
         run: bash lava/wait-job.sh "$CAPTURE_JOB_ID"
 
       # ── Job 4: PCIe Key-B switch (enable) ───────────────────────────────
       - name: Submit pcie-keyb-switch (enable) LAVA job
         run: |
-          sed "s|PCIE_KEYB_ENABLE: '.*'|PCIE_KEYB_ENABLE: 'yes'|" lava/pcie-keyb-switch.yaml \
+          sed "s|PCIE_KEYB_ENABLE: '.*'|PCIE_KEYB_ENABLE: 'yes'|" /tmp/lava-jobs/pcie-keyb-switch.yaml \
             > /tmp/lava-keyb-enable.yaml
           JOB_ID=$(lavacli --identity lava-ci jobs submit /tmp/lava-keyb-enable.yaml)
           echo "pcie-keyb-switch (enable): $JOB_ID — http://${{ vars.LAVA_HOST }}/scheduler/job/$JOB_ID"
@@ -105,7 +160,7 @@ jobs:
       # ── Job 5: PCIe Key-B tests (SSH DUT) ───────────────────────────────
       - name: Submit pcie-keyb-test LAVA job
         run: |
-          JOB_ID=$(lavacli --identity lava-ci jobs submit lava/pcie-keyb-test.yaml)
+          JOB_ID=$(lavacli --identity lava-ci jobs submit /tmp/lava-jobs/pcie-keyb-test.yaml)
           echo "pcie-keyb-test: $JOB_ID — http://${{ vars.LAVA_HOST }}/scheduler/job/$JOB_ID"
           echo "KEYB_TEST_JOB_ID=$JOB_ID" >> "$GITHUB_ENV"
 
@@ -116,7 +171,7 @@ jobs:
       - name: Submit pcie-keyb-switch (restore) LAVA job
         if: always() && env.KEYB_ENABLE_JOB_ID != ''
         run: |
-          sed "s|PCIE_KEYB_ENABLE: '.*'|PCIE_KEYB_ENABLE: 'no'|" lava/pcie-keyb-switch.yaml \
+          sed "s|PCIE_KEYB_ENABLE: '.*'|PCIE_KEYB_ENABLE: 'no'|" /tmp/lava-jobs/pcie-keyb-switch.yaml \
             > /tmp/lava-keyb-restore.yaml
           JOB_ID=$(lavacli --identity lava-ci jobs submit /tmp/lava-keyb-restore.yaml)
           echo "pcie-keyb-switch (restore): $JOB_ID — http://${{ vars.LAVA_HOST }}/scheduler/job/$JOB_ID"
@@ -202,7 +257,7 @@ jobs:
         if: always() && env.SWUDEPLOY_JOB_ID != ''
         uses: actions/upload-artifact@v4
         with:
-          name: lava-logs-${{ inputs.image-name }}-${{ github.sha }}
+          name: lava-logs-${{ inputs.image-name }}-${{ inputs.board-tag }}-${{ github.sha }}
           path: lava-logs/
           if-no-files-found: ignore
           retention-days: 30
@@ -217,7 +272,7 @@ jobs:
         if: always() && env.SWUDEPLOY_JOB_ID != ''
         uses: dorny/test-reporter@v2
         with:
-          name: LAVA Test Results (${{ inputs.image-name }})
+          name: LAVA Test Results (${{ inputs.image-name }}, ${{ inputs.board-tag }})
           path: lava-results.xml
           reporter: java-junit
           fail-on-error: true
@@ -230,6 +285,7 @@ jobs:
 
           lava_host = "${{ vars.LAVA_HOST }}"
           image_name = "${{ inputs.image-name }}"
+          board_tag = "${{ inputs.board-tag }}"
           jobs = [
               ('swu-deploy',       os.environ.get('SWUDEPLOY_JOB_ID', '')),
               ('ssh-tests',        os.environ.get('SSHTESTS_JOB_ID', '')),
@@ -263,7 +319,7 @@ jobs:
           )
 
           lines = [
-              f"## {status} LAVA Test Results — `{image_name}`",
+              f"## {status} LAVA Test Results — `{image_name}` on `{board_tag}`",
               "",
               job_links,
               "",
@@ -307,16 +363,16 @@ jobs:
       - name: Fetch camera frame from LAVA server
         if: always() && env.CAPTURE_JOB_ID != ''
         run: |
-          rsync -av \
-            pi@${{ vars.LAVA_HOST }}:/home/pi/qcom-oss/ar1335_4208x3120.png \
-            ar1335_4208x3120.png 2>/dev/null || true
+          rsync -av -e "ssh -o StrictHostKeyChecking=accept-new" \
+            pi@${{ vars.LAVA_HOST }}:/home/pi/qcom-oss/ar1335_${{ inputs.board-tag }}.png \
+            ar1335_${{ inputs.board-tag }}.png 2>/dev/null || true
 
       - name: Upload camera frame artifact
         if: always() && env.CAPTURE_JOB_ID != ''
         uses: actions/upload-artifact@v4
         with:
-          name: ar1335-frame-${{ inputs.image-name }}-${{ github.sha }}
-          path: ar1335_4208x3120.png
+          name: ar1335-frame-${{ inputs.image-name }}-${{ inputs.board-tag }}-${{ github.sha }}
+          path: ar1335_${{ inputs.board-tag }}.png
           if-no-files-found: ignore
           retention-days: 30
 
@@ -347,8 +403,8 @@ jobs:
         with:
           auth: ${{ secrets.GIST_SECRET }}
           gistID: ${{ vars.BADGE_GIST_ID }}
-          filename: hardware-tests-${{ inputs.image-name }}.json
-          label: qcs8550-sbc ${{ inputs.image-name }} LAVA QA
+          filename: hardware-tests-${{ inputs.image-name }}-${{ inputs.board-tag }}.json
+          label: ${{ inputs.board-tag }} ${{ inputs.image-name }} LAVA QA
           message: ${{ steps.badge.outputs.status }}
           color: ${{ steps.badge.outputs.color }}
           namedLogo: qualcomm
@@ -369,5 +425,5 @@ jobs:
           webhook-type: webhook-trigger
           payload: |
             {
-              "text": "${{ needs.lava-test.result == 'success' && '✅' || '❌' }} *LAVA tests* (${{ inputs.image-name }}) — ${{ needs.lava-test.result }}\n\n*Branch:* ${{ github.ref_name }}\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\n\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
+              "text": "${{ needs.lava-test.result == 'success' && '✅' || '❌' }} *LAVA tests* (${{ inputs.image-name }} on ${{ inputs.board-tag }}) — ${{ needs.lava-test.result }}\n\n*Branch:* ${{ github.ref_name }}\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\n\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
             }

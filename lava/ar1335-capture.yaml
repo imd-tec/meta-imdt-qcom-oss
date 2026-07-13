@@ -41,9 +41,13 @@ actions:
         # DUT address reachable from the dispatcher/container over the LAN
         # (GbE/Wi-Fi). Auth is key-based: the lava-adb image ships the private
         # key matching lava-dut-key.pub in root's authorized_keys on the DUT.
-        SSH_HOST: '192.168.51.3'
+        SSH_HOST: 'SET-BY-CI'
         SSH_PORT: '2222'
         SSH_USER: 'root'
+        # Output PNG on the LAVA host (/images = /home/pi/qcom-oss). The CI
+        # workflow makes this board-specific so parallel board runs don't
+        # overwrite each other's frame.
+        FRAME_OUT: '/images/ar1335_4208x3120.png'
       repository:
         metadata:
           format: Lava-Test Test Definition 1.0
@@ -62,7 +66,7 @@ actions:
           # when the job starts).
           - i=0; SSH_OK=0; while [ $i -lt 60 ]; do if $SSH true >/dev/null 2>&1; then SSH_OK=1; break; fi; i=$((i+1)); sleep 2; done
           - if [ "$SSH_OK" = 1 ]; then lava-test-case ssh-detect --result pass; else lava-test-case ssh-detect --result fail; fi
-          - SETUP_OUT=$($SSH "sh /opt/imdt/camss/qcs8550-csi0-ar1335.sh" 2>&1); SETUP_RC=$?
+          - SETUP_OUT=$($SSH "sh /opt/imdt/camss/qcs8550-csi0-ar1335.sh" 2>&1) && SETUP_RC=0 || SETUP_RC=$?
           - 'echo "$SETUP_OUT"'
           - lava-test-case pipeline-setup --result $([ "$SETUP_RC" = "0" ] && echo pass || echo fail)
           - VIDEO_DEV=$(echo "$SETUP_OUT" | grep -o '/dev/video[0-9]*' | head -n1)
@@ -70,4 +74,4 @@ actions:
           - 'echo "Using video device: $VIDEO_DEV"'
           - lava-test-case capture-raw-frame --shell $SSH "v4l2-ctl -d $VIDEO_DEV --set-fmt-video=width=4208,height=3120,pixelformat=pgAA --stream-mmap --stream-count=1 --stream-to=/tmp/ar1335_frame.raw"
           - lava-test-case pull-frame --shell $SCP "$SSH_USER@$SSH_HOST:/tmp/ar1335_frame.raw" /tmp/ar1335_frame.raw
-          - lava-test-case demosaic --shell python3 /usr/local/bin/demosaic.py /tmp/ar1335_frame.raw /images/ar1335_4208x3120.png
+          - lava-test-case demosaic --shell python3 /usr/local/bin/demosaic.py /tmp/ar1335_frame.raw "$FRAME_OUT"

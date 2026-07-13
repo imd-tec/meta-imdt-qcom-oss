@@ -46,7 +46,7 @@ actions:
         # DUT address reachable from the dispatcher/container over the LAN
         # (GbE/Wi-Fi). Auth is key-based: the lava-adb image ships the private
         # key matching lava-dut-key.pub in root's authorized_keys on the DUT.
-        SSH_HOST: '192.168.51.3'
+        SSH_HOST: 'SET-BY-CI'
         SSH_PORT: '2222'
         SSH_USER: 'root'
       repository:
@@ -69,7 +69,7 @@ actions:
           - if [ "$SSH_OK" = 1 ]; then lava-test-case ssh-detect --result pass; else lava-test-case ssh-detect --result fail; fi
           - 'echo "Using .swu: ${SWU_URL:-/images/$SWU_FILE}"'
           - if [ -n "$SWU_URL" ]; then lava-test-case fetch-swu --shell curl -fsSL "$SWU_URL" -o /tmp/update.swu; else lava-test-case copy-swu --shell cp "/images/$SWU_FILE" /tmp/update.swu; fi
-          - ROOT_BEFORE=$($SSH cat /proc/cmdline | tr ' ' '\n' | grep ^root=)
+          - ROOT_BEFORE=$($SSH cat /proc/cmdline | tr ' ' '\n' | grep ^root=) || ROOT_BEFORE=""
           - 'echo "Active rootfs before update: $ROOT_BEFORE"'
           - $SSH mkdir -p /home/swu
           - lava-test-case push-swu --shell $SCP /tmp/update.swu "$SSH_USER@$SSH_HOST:/home/swu/update.swu"
@@ -83,27 +83,38 @@ actions:
           - if [ -n "$UBOOT_URL" ]; then lava-test-case fetch-uboot --shell curl -fsSL "$UBOOT_URL" -o /tmp/BOOTAA64.EFI; else lava-test-case copy-uboot --shell cp "/images/$UBOOT_FILE" /tmp/BOOTAA64.EFI; fi
           - lava-test-case push-uboot --shell $SCP /tmp/BOOTAA64.EFI "$SSH_USER@$SSH_HOST:/home/BOOTAA64.EFI"
           - lava-test-case install-uboot --shell $SSH "cp /home/BOOTAA64.EFI '$UBOOT_TARGET' && sync && echo UBOOT_INSTALL_OK"
-          - UBOOT_SRC_MD5=$($SSH md5sum /home/BOOTAA64.EFI | cut -d' ' -f1)
-          - UBOOT_DST_MD5=$($SSH md5sum "$UBOOT_TARGET" | cut -d' ' -f1)
+          - UBOOT_SRC_MD5=$($SSH md5sum /home/BOOTAA64.EFI | cut -d' ' -f1) || UBOOT_SRC_MD5=""
+          - UBOOT_DST_MD5=$($SSH md5sum "$UBOOT_TARGET" | cut -d' ' -f1) || UBOOT_DST_MD5=""
           - 'echo "u-boot md5 src=$UBOOT_SRC_MD5 dst=$UBOOT_DST_MD5"'
           - if [ -n "$UBOOT_SRC_MD5" ] && [ "$UBOOT_SRC_MD5" = "$UBOOT_DST_MD5" ]; then lava-test-case uboot-verify --result pass; else lava-test-case uboot-verify --result fail; fi
           - $SSH rm -f /home/BOOTAA64.EFI
+          # Record the current boot so the reboot can be detected reliably.
+          # Comparing /proc/sys/kernel/random/boot_id before/after is immune
+          # to transient ssh failures on the forwarded transport, which used
+          # to fake the offline/online cycle and let the slot check read the
+          # pre-reboot cmdline (false slot-switched failures).
+          # NB: every probe is guarded with `|| ...` — the LAVA test shell
+          # runs with `set -e`, so an unguarded failing ssh (expected while
+          # the board is down) would kill the whole test run.
+          - i=0; BOOT_ID_BEFORE=""; while [ $i -lt 3 ] && [ -z "$BOOT_ID_BEFORE" ]; do BOOT_ID_BEFORE=$($SSH cat /proc/sys/kernel/random/boot_id 2>/dev/null) || BOOT_ID_BEFORE=""; i=$((i+1)); done
+          - 'echo "boot_id before reboot: ${BOOT_ID_BEFORE:-<unknown>}"'
           # Issue the reboot in the background and detach: `reboot` tears down
           # the ssh connection, so the command would otherwise return 255.
           - $SSH 'nohup sh -c "sleep 1; reboot" >/dev/null 2>&1 &' || true
           - lava-test-case reboot --result pass
-          # Wait for the box to drop off the network, then for ssh to come back
-          # under the freshly-written u-boot / switched rootfs slot.
-          - 'echo "Waiting for DUT to go offline..."'
-          - i=0; while [ $i -lt 30 ] && $SSH true >/dev/null 2>&1; do i=$((i+1)); sleep 2; done
-          - 'echo "Waiting for DUT ssh to come back..."'
-          - i=0; SSH_OK=0; while [ $i -lt 120 ]; do if $SSH true >/dev/null 2>&1; then SSH_OK=1; break; fi; i=$((i+1)); sleep 2; done
-          - if [ "$SSH_OK" = 1 ]; then lava-test-case wait-reboot --result pass; else lava-test-case wait-reboot --result fail; fi
+          # Wait for ssh to come back under a NEW boot_id — i.e. the board
+          # really rebooted into the freshly-written u-boot / switched slot.
+          - 'echo "Waiting for DUT to come back with a new boot_id..."'
+          - i=0; NEW_BOOT=0; while [ $i -lt 150 ]; do BID=$($SSH cat /proc/sys/kernel/random/boot_id 2>/dev/null) || BID=""; if [ -n "$BID" ] && [ "$BID" != "$BOOT_ID_BEFORE" ]; then NEW_BOOT=1; break; fi; i=$((i+1)); sleep 2; done
+          - 'echo "boot_id after reboot: ${BID:-<unreachable>}"'
+          - if [ "$NEW_BOOT" = 1 ] && [ -n "$BOOT_ID_BEFORE" ]; then lava-test-case wait-reboot --result pass; else lava-test-case wait-reboot --result fail; fi
           # The board booted under the freshly-written u-boot; confirm the
           # binary persisted unchanged across the reboot.
-          - UBOOT_BOOTED_MD5=$($SSH md5sum "$UBOOT_TARGET" | cut -d' ' -f1)
+          - UBOOT_BOOTED_MD5=$($SSH md5sum "$UBOOT_TARGET" | cut -d' ' -f1) || UBOOT_BOOTED_MD5=""
           - if [ -n "$UBOOT_SRC_MD5" ] && [ "$UBOOT_SRC_MD5" = "$UBOOT_BOOTED_MD5" ]; then lava-test-case uboot-booted --result pass; else lava-test-case uboot-booted --result fail; fi
-          - ROOT_AFTER=$($SSH cat /proc/cmdline | tr ' ' '\n' | grep ^root=)
+          - ROOT_AFTER=$($SSH cat /proc/cmdline | tr ' ' '\n' | grep ^root=) || ROOT_AFTER=""
           - 'echo "Active rootfs after update: $ROOT_AFTER"'
-          - if [ "$ROOT_BEFORE" != "$ROOT_AFTER" ]; then lava-test-case slot-switched --result pass; else lava-test-case slot-switched --result fail; fi
+          # Both sides must be non-empty AND differ — two failed reads would
+          # otherwise compare equal ("" != "") and mask a broken probe.
+          - if [ -n "$ROOT_BEFORE" ] && [ -n "$ROOT_AFTER" ] && [ "$ROOT_BEFORE" != "$ROOT_AFTER" ]; then lava-test-case slot-switched --result pass; else lava-test-case slot-switched --result fail; fi
           - lava-test-case post-boot-shell --shell $SSH "cat /etc/hwrevision"

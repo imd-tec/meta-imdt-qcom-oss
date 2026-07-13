@@ -58,7 +58,9 @@ actions:
           # confirms the PCIe switch has selected the Key-B path.
           - LAN7430=$(lspci -n 2>/dev/null | grep '1055:7430' || true)
           - 'echo "LAN7430 on PCIe bus: ${LAN7430:-absent (expected)}"'
-          - if [ -z "$LAN7430" ]; then lava-test-case no-lan7430 --result pass; else echo "FAIL: LAN7430 found - Key-B overlay not active"; lava-test-case no-lan7430 --result fail; fi
+          # NB: no ": " inside unquoted steps — YAML would parse the step as
+          # a mapping and LAVA aborts the whole suite at run time.
+          - if [ -z "$LAN7430" ]; then lava-test-case no-lan7430 --result pass; else echo "FAIL - LAN7430 found, Key-B overlay not active"; lava-test-case no-lan7430 --result fail; fi
 
           # The lan743x driver must not have bound to any PCI device.
           - LAN743X_BOUND=$(ls /sys/bus/pci/drivers/lan743x/ 2>/dev/null | grep -v 'bind\|unbind\|new_id\|remove_id\|uevent\|module' || true)
