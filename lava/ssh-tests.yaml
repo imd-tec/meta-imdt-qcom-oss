@@ -3,11 +3,15 @@ job_name: post-update system tests on imdt-8550-sbc
 tags:
 - dut-ssh
 
+# The whole suite normally completes in well under a minute; the worst
+# legitimate case (60s camera stream + 60s SD-card wait) is ~3 minutes.
+# Keep the action timeout tight so a silently-dead ssh transport (board
+# wedge / dropped adb forward) fails the job in minutes, not half an hour.
 timeouts:
   job:
-    minutes: 45
+    minutes: 20
   action:
-    minutes: 30
+    minutes: 10
   connection:
     minutes: 5
 priority: medium
@@ -29,7 +33,7 @@ actions:
 
 - test:
     timeout:
-      minutes: 30
+      minutes: 10
     definitions:
     - from: inline
       name: system-info
@@ -135,6 +139,9 @@ actions:
           # Wait up to 60s for the SD card device node to appear
           - SD_DEV=""; WAITED=0; while [ "$WAITED" -lt 60 ]; do if [ -e /dev/mmcblk0 ]; then SD_DEV=/dev/mmcblk0; break; fi; sleep 2; WAITED=$((WAITED+2)); done
           - echo "SD card wait took ${WAITED}s"
+          # On failure, dump the mmc/sdhci kernel log so a genuine
+          # enumeration failure can be told apart from a transport problem.
+          - if [ -z "$SD_DEV" ]; then dmesg | grep -iE 'mmc|sdhci' | tail -n 20 || true; fi
           - if [ -n "$SD_DEV" ]; then lava-test-case sdcard-present --result pass; else lava-test-case sdcard-present --result fail; fi
 
     - from: inline
