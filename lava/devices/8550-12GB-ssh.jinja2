@@ -9,7 +9,9 @@
      # then place this file at
      # /etc/lava-server/dispatcher-config/devices/8550-12GB-ssh.jinja2 (owner lavaserver)
 #}
-{% extends 'ssh.jinja2' %}
+{# ssh-keepalive, not stock ssh: adds ServerAlive keepalive to the primary
+   connection — see ssh-keepalive.jinja2 for why it has its own name. #}
+{% extends 'ssh-keepalive.jinja2' %}
 {% set ssh_host = 'ORIGINAL-PI-LAN-IP' %}
 {% set ssh_port = 2222 %}
 {% set ssh_user = 'root' %}

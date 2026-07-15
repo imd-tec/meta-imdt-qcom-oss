@@ -3,9 +3,13 @@ job_name: deploy qcom-minimal-image swu to imdt-8550-sbc via ssh
 tags:
 - dut
 
+# Job/test budget covers the worst retry case: 3 push attempts of a
+# multi-hundred-MB .swu (a stalled transfer now dies in ~60s via ssh
+# keepalive) plus up to 3 reboot attempts of ~5 min each. A healthy run
+# still completes in well under 10 minutes.
 timeouts:
   job:
-    minutes: 30
+    minutes: 40
   action:
     minutes: 20
   connection:
@@ -32,7 +36,7 @@ actions:
 
 - test:
     timeout:
-      minutes: 20
+      minutes: 30
     definitions:
     - from: inline
       name: swu-deploy
@@ -49,6 +53,11 @@ actions:
         SSH_HOST: 'SET-BY-CI'
         SSH_PORT: '2222'
         SSH_USER: 'root'
+        # Whether this fixture has an SD card inserted (overridden per board
+        # by the CI workflow). Used as a post-reboot boot-health probe: the
+        # 12GB board's known bad-boot signature is the SD card never
+        # enumerating, and such boots also wedge the ssh-tests suite later.
+        SDCARD_PRESENT: 'yes'
       repository:
         metadata:
           format: Lava-Test Test Definition 1.0
@@ -60,8 +69,12 @@ actions:
           # StrictHostKeyChecking=no are required because each A/B rootfs slot
           # carries its own host keys, so the key changes after the slot switch
           # below; ConnectTimeout keeps the reboot wait-loops responsive.
-          - SSH="ssh -p $SSH_PORT -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 $SSH_USER@$SSH_HOST"
-          - SCP="scp -P $SSH_PORT -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10"
+          # ServerAliveInterval/CountMax kill a silently-stalled connection in
+          # ~60s: the multi-hop transport to the 12GB board (wireguard tunnel +
+          # adb forward) can stall an established stream without an RST, which
+          # once left an scp of the .swu hanging at 35% for 16 minutes.
+          - SSH="ssh -p $SSH_PORT -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 $SSH_USER@$SSH_HOST"
+          - SCP="scp -P $SSH_PORT -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=4"
           - 'echo "DUT: $SSH_USER@$SSH_HOST:$SSH_PORT"'
           # Wait for the board to be reachable over ssh (it may still be booting
           # when the job starts).
@@ -72,8 +85,18 @@ actions:
           - ROOT_BEFORE=$($SSH cat /proc/cmdline | tr ' ' '\n' | grep ^root=) || ROOT_BEFORE=""
           - 'echo "Active rootfs before update: $ROOT_BEFORE"'
           - $SSH mkdir -p /home/swu
-          - lava-test-case push-swu --shell $SCP /tmp/update.swu "$SSH_USER@$SSH_HOST:/home/swu/update.swu"
-          - lava-test-case swupdate --shell $SSH "TMPDIR=/home/swu swupdate -i /home/swu/update.swu && echo SWUPDATE_OK"
+          # Push with retries and verify the transfer by checksum. The .swu
+          # can be several hundred MB and the transport can die mid-transfer
+          # (keepalive above turns a stall into a fast failure); a truncated
+          # file would otherwise cascade into misleading swupdate
+          # checksum/slot-switch failures.
+          - SWU_MD5=$(md5sum /tmp/update.swu | cut -d' ' -f1)
+          - PUSH_OK=0; a=0; while [ $a -lt 3 ] && [ "$PUSH_OK" != 1 ]; do a=$((a+1)); echo "push-swu attempt $a"; if $SCP /tmp/update.swu "$SSH_USER@$SSH_HOST:/home/swu/update.swu"; then DUT_MD5=$($SSH md5sum /home/swu/update.swu | cut -d' ' -f1) || DUT_MD5=""; if [ -n "$DUT_MD5" ] && [ "$DUT_MD5" = "$SWU_MD5" ]; then PUSH_OK=1; fi; fi; done
+          - 'echo "swu md5 local=$SWU_MD5 dut=${DUT_MD5:-<none>} attempts=$a"'
+          - if [ "$PUSH_OK" = 1 ]; then lava-test-case push-swu --result pass; else lava-test-case push-swu --result fail; fi
+          # Only attempt the update with a verified file; a swupdate run on a
+          # truncated image is guaranteed noise.
+          - if [ "$PUSH_OK" = 1 ]; then lava-test-case swupdate --shell $SSH "TMPDIR=/home/swu swupdate -i /home/swu/update.swu && echo SWUPDATE_OK"; else lava-test-case swupdate --result skip; fi
           - $SSH rm -rf /home/swu
           # ── u-boot (UEFI) update ─────────────────────────────────────────
           # Overwrite the BOOTAA64.EFI the SoC firmware boots from on the EFI
@@ -98,16 +121,24 @@ actions:
           # the board is down) would kill the whole test run.
           - i=0; BOOT_ID_BEFORE=""; while [ $i -lt 3 ] && [ -z "$BOOT_ID_BEFORE" ]; do BOOT_ID_BEFORE=$($SSH cat /proc/sys/kernel/random/boot_id 2>/dev/null) || BOOT_ID_BEFORE=""; i=$((i+1)); done
           - 'echo "boot_id before reboot: ${BOOT_ID_BEFORE:-<unknown>}"'
-          # Issue the reboot in the background and detach: `reboot` tears down
-          # the ssh connection, so the command would otherwise return 255.
-          - $SSH 'nohup sh -c "sleep 1; reboot" >/dev/null 2>&1 &' || true
-          - lava-test-case reboot --result pass
-          # Wait for ssh to come back under a NEW boot_id — i.e. the board
-          # really rebooted into the freshly-written u-boot / switched slot.
-          - 'echo "Waiting for DUT to come back with a new boot_id..."'
-          - i=0; NEW_BOOT=0; while [ $i -lt 150 ]; do BID=$($SSH cat /proc/sys/kernel/random/boot_id 2>/dev/null) || BID=""; if [ -n "$BID" ] && [ "$BID" != "$BOOT_ID_BEFORE" ]; then NEW_BOOT=1; break; fi; i=$((i+1)); sleep 2; done
-          - 'echo "boot_id after reboot: ${BID:-<unreachable>}"'
+          # Reboot and wait for ssh to come back under a NEW boot_id — i.e.
+          # the board really rebooted into the freshly-written u-boot /
+          # switched slot. Up to 3 boot attempts: a boot that comes back
+          # without the SD card enumerating (when the fixture has one) is the
+          # 12GB board's known bad-boot signature — such boots later wedge
+          # mid-suite in ssh-tests — so it is retried with a further reboot
+          # rather than handed on. Issue each reboot in the background and
+          # detach: `reboot` tears down the ssh connection, so the command
+          # would otherwise return 255.
+          - BOOT_TRY=0; NEW_BOOT=0; BOOT_HEALTHY=0; PREV_BID="$BOOT_ID_BEFORE"
+          - while [ $BOOT_TRY -lt 3 ] && [ "$BOOT_HEALTHY" != 1 ]; do BOOT_TRY=$((BOOT_TRY+1)); echo "boot attempt $BOOT_TRY"; $SSH 'nohup sh -c "sleep 1; reboot" >/dev/null 2>&1 &' || true; if [ $BOOT_TRY = 1 ]; then lava-test-case reboot --result pass; fi; NEW_BOOT=0; i=0; while [ $i -lt 150 ]; do BID=$($SSH cat /proc/sys/kernel/random/boot_id 2>/dev/null) || BID=""; if [ -n "$BID" ] && [ "$BID" != "$PREV_BID" ]; then NEW_BOOT=1; break; fi; i=$((i+1)); sleep 2; done; if [ "$NEW_BOOT" != 1 ]; then echo "no new boot_id on attempt $BOOT_TRY"; continue; fi; PREV_BID="$BID"; if [ "$SDCARD_PRESENT" != yes ]; then BOOT_HEALTHY=1; else j=0; while [ $j -lt 15 ]; do if $SSH test -e /dev/mmcblk0 2>/dev/null; then BOOT_HEALTHY=1; break; fi; j=$((j+1)); sleep 2; done; fi; if [ "$BOOT_HEALTHY" != 1 ]; then echo "degraded boot (no mmcblk0) on attempt $BOOT_TRY - retrying reboot"; fi; done
+          - 'echo "boot_id after reboot: ${BID:-<unreachable>} (attempts: $BOOT_TRY)"'
           - if [ "$NEW_BOOT" = 1 ] && [ -n "$BOOT_ID_BEFORE" ]; then lava-test-case wait-reboot --result pass; else lava-test-case wait-reboot --result fail; fi
+          # Boot health = the post-reboot system looks like a good boot (SD
+          # card enumerated when the fixture has one). Reported separately so
+          # a boot that only recovered on a retry is still visible in the
+          # attempt count logged above.
+          - if [ "$BOOT_HEALTHY" = 1 ]; then lava-test-case boot-health --result pass; else lava-test-case boot-health --result fail; fi
           # The board booted under the freshly-written u-boot; confirm the
           # binary persisted unchanged across the reboot.
           - UBOOT_BOOTED_MD5=$($SSH md5sum "$UBOOT_TARGET" | cut -d' ' -f1) || UBOOT_BOOTED_MD5=""
