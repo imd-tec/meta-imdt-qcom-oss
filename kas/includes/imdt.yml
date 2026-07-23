@@ -4,10 +4,6 @@ header:
 
 repos:
   meta-imdt-qcom-oss:
-  # Used for Wi-Fi firmware binaries
-  meta-freescale:
-    url: https://git.yoctoproject.org/meta-freescale
-    branch: master
 
 local_conf_header:
   imdt: |
