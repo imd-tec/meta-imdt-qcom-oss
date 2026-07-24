@@ -9,3 +9,4 @@ docs/serial-port-settings.png filter=lfs diff=lfs merge=lfs -text
 docs/connectors-bottom.png filter=lfs diff=lfs merge=lfs -text
 docs/logo.svg filter=lfs diff=lfs merge=lfs -text
 recipes-bsp/firmware/files/NON-HLOS.bin filter=lfs diff=lfs merge=lfs -text
+recipes-kernel/linux-firmware/linux-firmware/sdiouartiw416_combo_v0.bin.lf-6.1.22_2.0.0 filter=lfs diff=lfs merge=lfs -text
