@@ -211,7 +211,10 @@ kas-container build --update meta-imdt-qcom-oss/kas/imdt-8550-minimal.yml
 # Multimedia image (adds Weston + GStreamer media stack)
 kas-container build --update meta-imdt-qcom-oss/kas/imdt-8550-multimedia.yml
 
-# Both images in a single build (shares the common package set; used by CI)
+# Multimedia image with Qualcomm's proprietary multimedia stack
+kas-container build --update meta-imdt-qcom-oss/kas/imdt-8550-multimedia-proprietary.yml
+
+# Both open source images in a single build (shares the common package set; used by CI)
 kas-container build --update meta-imdt-qcom-oss/kas/imdt-8550-all.yml
 ```
 
