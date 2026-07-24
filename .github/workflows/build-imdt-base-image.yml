@@ -25,8 +25,9 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  # The multimedia image is only built and tested on tag releases. On master
-  # pushes and PRs we build/test the minimal image alone, keeping CI fast.
+  # The multimedia images (open-source and proprietary) are only built and
+  # tested on tag releases. On master pushes and PRs we build/test the minimal
+  # image alone, keeping CI fast.
   # This job selects the kas-config and LAVA matrix for the rest of the run.
   setup:
     runs-on: ubuntu-latest
@@ -58,7 +59,9 @@ jobs:
               {\"image-name\":\"qcom-minimal-image\",$BOARD_8GB},
               {\"image-name\":\"qcom-minimal-image\",$BOARD_12GB},
               {\"image-name\":\"qcom-multimedia-image\",$BOARD_8GB},
-              {\"image-name\":\"qcom-multimedia-image\",$BOARD_12GB}]}" | tr -d '\n ' >> "$GITHUB_OUTPUT"
+              {\"image-name\":\"qcom-multimedia-image\",$BOARD_12GB},
+              {\"image-name\":\"qcom-multimedia-proprietary-image\",$BOARD_8GB},
+              {\"image-name\":\"qcom-multimedia-proprietary-image\",$BOARD_12GB}]}" | tr -d '\n ' >> "$GITHUB_OUTPUT"
             echo >> "$GITHUB_OUTPUT"
           else
             echo "kas-config=kas/imdt-8550-minimal.yml" >> "$GITHUB_OUTPUT"
