@@ -19,6 +19,8 @@ repos:
     url: https://github.com/qualcomm-linux/meta-qcom.git
   meta-swupdate:
     url: https://github.com/sbabic/meta-swupdate.git
+    # Temporary solution until poky gets updated in meta-qcom
+    commit: 30b8bb07bde140ed9579395037d4cfa213178857
 
 
 
