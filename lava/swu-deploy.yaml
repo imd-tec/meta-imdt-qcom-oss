@@ -5,11 +5,12 @@ tags:
 
 # Job/test budget covers the worst retry case: 3 push attempts of a
 # multi-hundred-MB .swu (a stalled transfer now dies in ~60s via ssh
-# keepalive) plus up to 3 reboot attempts of ~5 min each. A healthy run
+# keepalive) plus up to 3 reboot attempts of ~5 min each, each now preceded
+# by a wait for the rootfs grow to settle (capped at 3 min). A healthy run
 # still completes in well under 10 minutes.
 timeouts:
   job:
-    minutes: 40
+    minutes: 55
   action:
     minutes: 20
   connection:
@@ -36,7 +37,7 @@ actions:
 
 - test:
     timeout:
-      minutes: 30
+      minutes: 45
     definitions:
     - from: inline
       name: swu-deploy
@@ -121,6 +122,16 @@ actions:
           # the board is down) would kill the whole test run.
           - i=0; BOOT_ID_BEFORE=""; while [ $i -lt 3 ] && [ -z "$BOOT_ID_BEFORE" ]; do BOOT_ID_BEFORE=$($SSH cat /proc/sys/kernel/random/boot_id 2>/dev/null) || BOOT_ID_BEFORE=""; i=$((i+1)); done
           - 'echo "boot_id before reboot: ${BOOT_ID_BEFORE:-<unknown>}"'
+          # Never reboot through a filesystem grow. resize-rootfs latches
+          # "already grown" by writing `systemctl disable` into /etc, which
+          # lives inside the rootfs SWUpdate overwrites, so the grow re-arms
+          # on every update: each first boot of a new slot expands ext4 from
+          # ~2 GB to the full ~22 GiB slot, and ext4lazyinit then zeroes the
+          # new inode tables in the background. Interrupting either leaves
+          # half-initialised metadata on disk. Every reboot below is gated on
+          # this returning; a timeout is logged and reported but does not
+          # abort the run.
+          - 'wait_fs_settle() { i=0; while [ $i -lt 90 ]; do GA=$($SSH systemctl is-active systemd-growfs-root.service 2>/dev/null) || GA=inactive; LZ=$($SSH ps ax 2>/dev/null | grep ext4lazyinit | grep -v grep | wc -l) || LZ=0; if [ "$GA" != activating ] && [ "$LZ" = 0 ]; then return 0; fi; echo "waiting for fs to settle (growfs=$GA lazyinit=$LZ)"; i=$((i+1)); sleep 2; done; return 1; }'
           # Reboot and wait for ssh to come back under a NEW boot_id — i.e.
           # the board really rebooted into the freshly-written u-boot /
           # switched slot. Up to 3 boot attempts: a boot that comes back
@@ -131,7 +142,7 @@ actions:
           # detach: `reboot` tears down the ssh connection, so the command
           # would otherwise return 255.
           - BOOT_TRY=0; NEW_BOOT=0; BOOT_HEALTHY=0; PREV_BID="$BOOT_ID_BEFORE"
-          - while [ $BOOT_TRY -lt 3 ] && [ "$BOOT_HEALTHY" != 1 ]; do BOOT_TRY=$((BOOT_TRY+1)); echo "boot attempt $BOOT_TRY"; $SSH 'nohup sh -c "sleep 1; reboot" >/dev/null 2>&1 &' || true; if [ $BOOT_TRY = 1 ]; then lava-test-case reboot --result pass; fi; NEW_BOOT=0; i=0; while [ $i -lt 150 ]; do BID=$($SSH cat /proc/sys/kernel/random/boot_id 2>/dev/null) || BID=""; if [ -n "$BID" ] && [ "$BID" != "$PREV_BID" ]; then NEW_BOOT=1; break; fi; i=$((i+1)); sleep 2; done; if [ "$NEW_BOOT" != 1 ]; then echo "no new boot_id on attempt $BOOT_TRY"; continue; fi; PREV_BID="$BID"; if [ "$SDCARD_PRESENT" != yes ]; then BOOT_HEALTHY=1; else j=0; while [ $j -lt 15 ]; do if $SSH test -e /dev/mmcblk0 2>/dev/null; then BOOT_HEALTHY=1; break; fi; j=$((j+1)); sleep 2; done; fi; if [ "$BOOT_HEALTHY" != 1 ]; then echo "degraded boot (no mmcblk0) on attempt $BOOT_TRY - retrying reboot"; fi; done
+          - while [ $BOOT_TRY -lt 3 ] && [ "$BOOT_HEALTHY" != 1 ]; do BOOT_TRY=$((BOOT_TRY+1)); echo "boot attempt $BOOT_TRY"; wait_fs_settle || echo "fs settle timed out before reboot $BOOT_TRY - rebooting anyway"; $SSH 'nohup sh -c "sleep 1; reboot" >/dev/null 2>&1 &' || true; if [ $BOOT_TRY = 1 ]; then lava-test-case reboot --result pass; fi; NEW_BOOT=0; i=0; while [ $i -lt 150 ]; do BID=$($SSH cat /proc/sys/kernel/random/boot_id 2>/dev/null) || BID=""; if [ -n "$BID" ] && [ "$BID" != "$PREV_BID" ]; then NEW_BOOT=1; break; fi; i=$((i+1)); sleep 2; done; if [ "$NEW_BOOT" != 1 ]; then echo "no new boot_id on attempt $BOOT_TRY"; continue; fi; PREV_BID="$BID"; if [ "$SDCARD_PRESENT" != yes ]; then BOOT_HEALTHY=1; else j=0; while [ $j -lt 15 ]; do if $SSH test -e /dev/mmcblk0 2>/dev/null; then BOOT_HEALTHY=1; break; fi; j=$((j+1)); sleep 2; done; fi; if [ "$BOOT_HEALTHY" != 1 ]; then echo "degraded boot (no mmcblk0) on attempt $BOOT_TRY - retrying reboot"; fi; done
           - 'echo "boot_id after reboot: ${BID:-<unreachable>} (attempts: $BOOT_TRY)"'
           - if [ "$NEW_BOOT" = 1 ] && [ -n "$BOOT_ID_BEFORE" ]; then lava-test-case wait-reboot --result pass; else lava-test-case wait-reboot --result fail; fi
           # Boot health = the post-reboot system looks like a good boot (SD
@@ -139,6 +150,10 @@ actions:
           # a boot that only recovered on a retry is still visible in the
           # attempt count logged above.
           - if [ "$BOOT_HEALTHY" = 1 ]; then lava-test-case boot-health --result pass; else lava-test-case boot-health --result fail; fi
+          # Reported separately so a slow/stuck grow is visible rather than
+          # just showing up as downstream flakiness in ssh-tests.
+          - if wait_fs_settle; then lava-test-case fs-settle --result pass; else lava-test-case fs-settle --result fail; fi
+          - 'echo "rootfs after boot: $($SSH df -h / | tail -1)"'
           # The board booted under the freshly-written u-boot; confirm the
           # binary persisted unchanged across the reboot.
           - UBOOT_BOOTED_MD5=$($SSH md5sum "$UBOOT_TARGET" | cut -d' ' -f1) || UBOOT_BOOTED_MD5=""

@@ -8,11 +8,10 @@
  * picks the *inactive* slot from the device /proc/mounts shows mounted as
  * / (3 -> /dev/sda3 active, 4 -> /dev/sda4 active; the U-Boot
  * 'rootfs_part' env var is only cross-checked, since it can desync and
- * acting on a stale value would raw-write the live rootfs), zeroes that
- * slot, delegates the actual write to the built-in 'raw' handler, then
- * flips 'rootfs_part' (and resets bootcount / sets upgrade_available) on
- * success. The result: a
- * single .swu can be installed via the web UI, the IPC socket or the CLI
+ * acting on a stale value would raw-write the live rootfs), delegates the
+ * actual write to the built-in 'raw' handler, then flips 'rootfs_part'
+ * (and resets bootcount / sets upgrade_available) on success. The result:
+ * a single .swu can be installed via the web UI, the IPC socket or the CLI
  * without any -e selection or wrapper, and always lands on the inactive
  * slot.
  *

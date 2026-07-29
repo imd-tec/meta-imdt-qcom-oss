@@ -3,9 +3,11 @@ job_name: PCIe Key-B overlay switch on imdt-8550-sbc
 tags:
 - dut
 
+# Budget allows for the pre-reboot rootfs-grow wait (capped at 3 min) on top
+# of the ~5 min boot wait.
 timeouts:
   job:
-    minutes: 15
+    minutes: 20
   action:
     minutes: 10
   connection:
@@ -32,7 +34,7 @@ actions:
 
 - test:
     timeout:
-      minutes: 10
+      minutes: 15
     definitions:
     - from: inline
       name: pcie-keyb-switch
@@ -74,6 +76,15 @@ actions:
           # Probes are guarded with `|| ...`: the test shell runs with set -e.
           - i=0; BOOT_ID_BEFORE=""; while [ $i -lt 3 ] && [ -z "$BOOT_ID_BEFORE" ]; do BOOT_ID_BEFORE=$($SSH cat /proc/sys/kernel/random/boot_id 2>/dev/null) || BOOT_ID_BEFORE=""; i=$((i+1)); done
           - 'echo "boot_id before reboot: ${BOOT_ID_BEFORE:-<unknown>}"'
+          # Never reboot through a rootfs grow. resize-rootfs re-arms on every
+          # SWUpdate install (its `systemctl disable` latch lives in the /etc
+          # that gets overwritten), so a board deployed just before this job
+          # may still be expanding ext4 to fill its ~22 GiB slot, with
+          # ext4lazyinit zeroing the new inode tables afterwards. Interrupting
+          # either leaves half-initialised metadata on disk. Same gate as
+          # swu-deploy.yaml.
+          - 'wait_fs_settle() { i=0; while [ $i -lt 90 ]; do GA=$($SSH systemctl is-active systemd-growfs-root.service 2>/dev/null) || GA=inactive; LZ=$($SSH ps ax 2>/dev/null | grep ext4lazyinit | grep -v grep | wc -l) || LZ=0; if [ "$GA" != activating ] && [ "$LZ" = 0 ]; then return 0; fi; echo "waiting for fs to settle (growfs=$GA lazyinit=$LZ)"; i=$((i+1)); sleep 2; done; return 1; }'
+          - if wait_fs_settle; then lava-test-case fs-settle --result pass; else lava-test-case fs-settle --result fail; fi
           # Issue the reboot in the background and detach: `reboot` tears down
           # the ssh connection, so the command would otherwise return 255.
           - $SSH 'nohup sh -c "sleep 1; reboot" >/dev/null 2>&1 &' || true
