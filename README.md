@@ -21,8 +21,7 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 
 ## Table of Contents
 
-- [QCS8550-SBC Feature Support](#qcs8550-sbc-feature-support)
-- [QCS6490-SBC Feature Support](#qcs6490-sbc-feature-support)
+- [Feature Support](#feature-support)
 - [Upstreaming Status](#upstreaming-status)
 - [Boot Chain](#boot-chain)
 - [UFS Layout](#ufs-layout)
@@ -35,96 +34,52 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 - [SWUpdate](#swupdate)
 - [Appendix](#appendix)
 
-## QCS8550-SBC Feature Support
+## Feature Support
 > [!NOTE]
 > ADSP, CDSP and IPA have only been proven to probe successfully in
 > Linux. There hasn't been any runtime testing to prove they are fully
 > functional.
 >
 > Bluetooth is not supported at the moment.
-
-| Feature | Hardware | Interface | Kernel Driver | QCS8550 SBC Rev 2 (12GB) Status | QCS8550 SBC Rev 5 (8GB) Status |
-|---|---|---|---|---|---|
-| A/B Rootfs Updates | — | — | — | ✅ | ✅ |
-| ADSP | Hexagon v73 DSP | — | remoteproc | ✅ | ✅ |
-| Android Debug Bridge (ADB) | — | USB | — | ✅ | ✅ |
-| Audio (LPASS) | — | — | — | 🚧 Planned | 🚧 Planned |
-| Bluetooth | NXP IW416 | UART14 | btnxpuart | ❌ | ❌ |
-| Camera (AR1335 - 13MP) | ON Semiconductor AR1335 | CSI0 | ar1335 | ✅ | ✅ |
-| CDSP | Hexagon v73 DSP | — | remoteproc | ✅ | ✅ |
-| Debug Serial Console (J19)| — | UART7 (115200 baud) | qcom-geni-serial | ✅ | ✅ |
-| DDR Memory | 8GB / 12GB LPDDR5 | — | — | ✅ 12GB | ✅ 8GB |
-| DisplayPort over USB Type-C | — | DWC3 (QCOM) / USB-C DP Alt Mode | — | ❌ | 🚧 Planned |
-| Gigabit Ethernet | Microchip LAN7430 | PCIe1 (default) | lan743x | ✅ | ✅ |
-| PCIe Expansion (M.2 Key-B) | PCIe switch downstream Key-B port | PCIe1 (overlay) | qcom-pcie | ✅ Requires Key-B DTBO overlay | ✅ Requires Key-B DTBO overlay |
-| GPIO | PM8550 GPIO bank | SPMI | qcom-spmi-gpio | ✅ | ✅ |
-| GPU (Adreno 740) | Adreno 740 | — | msm drm | ✅ | ✅ |
-| HDMI Display | DSI-to-HDMI adapter | DSI0 | drm/msm | ❌ | ❌ |
-| I2C | QupV3 I2C hub | I2C | geni-i2c | ✅ | ✅ |
-| IPA | Qualcomm IP Accelerator | — | ipa | ✅ | ✅ |
-| ISP (CAMX) | Qualcomm proprietary camera framework | — | — | ❌ | ❌ |
-| libcamera (AR1335) | ON Semiconductor AR1335 | CSI0 | ar1335 | ✅ | ✅ |
-| libcamera tuning (AR1335) | ON Semiconductor AR1335 | CSI0 | ar1335 | 🚧 WiP | 🚧 WiP |
-| microSD Card | — | SDHC2 | sdhci | ✅ | ✅ |
-| MIPI DSI Display | Team Source TST070WSBE-196C 7" | DSI0 | drm/msm | ✅ | 🚧 Not supported yet |
-| OTA Rootfs Updates | — | — | — | ✅ | ✅ |
-| PCIe Expansion (M.2 Key-E) | M.2 Key-E slot | PCIe0 | qcom-pcie | ✅ | ✅ |
-| U-Boot as ARM64 UEFI App| — | — | — | ✅ | ✅ |
-| UFS Storage | — | UFS | ufshcd | ✅ | ✅ |
-| USB 3.0 Type-C | NXP PTN3222 eUSB2 redriver | DWC3 (QCOM) | dwc3-qcom | ✅ Peripheral mode | ✅ Peripheral mode |
-| Wi-Fi 802.11a/b/g/n/ac | NXP IW416 | SDIO (SDHC4) | mwifiex_sdio | ✅ | 🚧 Planned |
-| Yocto / OpenEmbedded Master branch | — | — | — | ✅ | ✅ |
-
-
-## QCS6490-SBC Feature Support
-
-> [!NOTE]
-> The QCS6490 SBC is at early bring-up. The board now boots the
-> `qcom-minimal-image` from eMMC through to a login prompt on the debug
-> console. Statuses below reflect what has actually been observed on hardware;
-> most peripherals have only been checked to the "probes and the board stays
-> up" level, not runtime-validated.
 >
-> Unlike the QCS8550 SBC, this board boots from **eMMC** (there is no UFS) and
-> does not run the U-Boot UEFI stage — UEFI loads the systemd-boot UKI
-> (`linux-imdt-6490-sbc.efi`) directly from the ESP.
+> The QCS6490 SBC (4GB) column reflects early bring-up: the board boots to a
+> login prompt from eMMC, and most of its peripherals are only confirmed to
+> probe rather than being runtime-tested. That board boots from eMMC (there is
+> no UFS) and loads a systemd-boot UKI rather than the U-Boot UEFI stage. The
+> Hardware / Interface / Kernel Driver columns describe the QCS8550 SBC.
 
-Getting the board to boot needed three device-tree/firmware fixes on top of the
-initial board support, all in this layer:
-
-- **`0012-...-Add-protected-clocks.patch`** — mark the GCC clocks owned by TZ /
-  a peer VM as `protected-clocks` (as `qcs6490-rb3gen2.dts` does). Without it
-  `gcc_sc7280_probe` takes a synchronous external abort reading
-  `GCC_QSPI_CORE_CLK_SRC` and panics.
-- **`0013-...-detach-eMMC-ICE.patch`** — drop `qcom,ice` from `sdhc_1`. UEFI's
-  CryptoDxe only unlocks the *UFS* inline-crypto engine, so on this eMMC-only
-  board the SDCC1 ICE stays owned by TrustZone and touching it during
-  `sdhci_msm` probe resets the SoC.
-- **Kodiak CPUCP firmware** — the boot-binaries package shipped a Hamoa
-  (X-Elite) `cpucp.elf`; XBL silently loaded 0 bytes of it and the SoC reset the
-  moment Linux brought up a secondary CPU. `build_firmware.sh` now sources the
-  genuine Kodiak (`-K2C`) build and refuses to package a Hamoa image.
-
-| Feature | Hardware | Interface | Kernel Driver | QCS6490 SBC (4GB) Status |
-|---|---|---|---|---|
-| Boot to Linux userspace | — | — | — | ✅ eMMC → UEFI → UKI → systemd login |
-| eMMC Storage (rootfs) | on-SoM 32 GB eMMC | SDHC1 | sdhci-msm | ✅ CQE init success, ext4 rootfs |
-| DDR Memory | 4 GB LPDDR5 | — | — | ✅ |
-| SMP (8 cores) | 4× A55 + 3× A78 + 1× | — | — | ✅ all 8 cores online |
-| Debug Serial Console (J19) | — | UART5 / ttyMSM0 (115200) | qcom-geni-serial | ✅ |
-| ADSP | Hexagon DSP | — | remoteproc | ✅ probes (state: running) |
-| CDSP | Hexagon DSP | — | remoteproc | ✅ probes (state: running) |
-| I2C | QupV3 I2C | I2C | geni-i2c | ✅ buses enumerate |
-| Thermal | TSENS | — | qcom-tsens | ✅ 29 zones |
-| GPU (Adreno) | Adreno | — | drm/msm | 🚧 probes, no display test |
-| Bluetooth | Murata IW612 (NXP) | UART7 | btnxpuart | 🚧 hci0 attaches, HCI reset times out |
-| Wi-Fi | Murata IW612 (NXP) | SDIO (SDHC2) | — | ❌ driver not probing |
-| Gigabit Ethernet | Microchip LAN7430 | PCIe1 | lan743x | 🚧 PCIe RC up, LAN7430 not detected |
-| PCIe (M.2 Key-E / Key-B) | — | PCIe0 / PCIe1 | qcom-pcie | 🚧 root complexes probe, no endpoint found |
-| USB Type-C (J53) | — | DWC3 (QCOM) | dwc3-qcom | 🚧 peripheral mode, dwc3-qcom probes |
-| Display (DSI) | — | DSI0 | drm/msm | ❌ untested |
-| Camera (AR1335) | ON Semi AR1335 | CSI | ar1335 | ❌ untested |
-| A/B Rootfs / OTA Updates | — | — | — | 🚧 partitions present, not wired |
+| Feature | Hardware | Interface | Kernel Driver | QCS8550 SBC Rev 2 (12GB) Status | QCS8550 SBC Rev 5 (8GB) Status | QCS6490 SBC (4GB) Status |
+|---|---|---|---|---|---|---|
+| A/B Rootfs Updates | — | — | — | ✅ | ✅ | 🚧 |
+| ADSP | Hexagon v73 DSP | — | remoteproc | ✅ | ✅ | ✅ |
+| Android Debug Bridge (ADB) | — | USB | — | ✅ | ✅ | 🚧 |
+| Audio (LPASS) | — | — | — | 🚧 Planned | 🚧 Planned | 🚧 |
+| Bluetooth | NXP IW416 | UART14 | btnxpuart | ❌ | ❌ | ❌ |
+| Camera (AR1335 - 13MP) | ON Semiconductor AR1335 | CSI0 | ar1335 | ✅ | ✅ | 🚧 |
+| CDSP | Hexagon v73 DSP | — | remoteproc | ✅ | ✅ | ✅ |
+| Debug Serial Console (J19)| — | UART7 (115200 baud) | qcom-geni-serial | ✅ | ✅ | ✅ |
+| DDR Memory | 8GB / 12GB LPDDR5 | — | — | ✅ 12GB | ✅ 8GB | ✅ 4GB |
+| DisplayPort over USB Type-C | — | DWC3 (QCOM) / USB-C DP Alt Mode | — | ❌ | 🚧 Planned | 🚧 |
+| Gigabit Ethernet | Microchip LAN7430 | PCIe1 (default) | lan743x | ✅ | ✅ | 🚧 |
+| PCIe Expansion (M.2 Key-B) | PCIe switch downstream Key-B port | PCIe1 (overlay) | qcom-pcie | ✅ Requires Key-B DTBO overlay | ✅ Requires Key-B DTBO overlay | 🚧 |
+| GPIO | PM8550 GPIO bank | SPMI | qcom-spmi-gpio | ✅ | ✅ | 🚧 |
+| GPU (Adreno 740) | Adreno 740 | — | msm drm | ✅ | ✅ | 🚧 |
+| HDMI Display | DSI-to-HDMI adapter | DSI0 | drm/msm | ❌ | ❌ | 🚧 |
+| I2C | QupV3 I2C hub | I2C | geni-i2c | ✅ | ✅ | ✅ |
+| IPA | Qualcomm IP Accelerator | — | ipa | ✅ | ✅ | 🚧 |
+| ISP (CAMX) | Qualcomm proprietary camera framework | — | — | ❌ | ❌ | 🚧 |
+| libcamera (AR1335) | ON Semiconductor AR1335 | CSI0 | ar1335 | ✅ | ✅ | 🚧 |
+| libcamera tuning (AR1335) | ON Semiconductor AR1335 | CSI0 | ar1335 | 🚧 WiP | 🚧 WiP | 🚧 |
+| microSD Card | — | SDHC2 | sdhci | ✅ | ✅ | — |
+| MIPI DSI Display | Team Source TST070WSBE-196C 7" | DSI0 | drm/msm | ✅ | 🚧 Not supported yet | 🚧 |
+| OTA Rootfs Updates | — | — | — | ✅ | ✅ | 🚧 |
+| PCIe Expansion (M.2 Key-E) | M.2 Key-E slot | PCIe0 | qcom-pcie | ✅ | ✅ | 🚧 |
+| U-Boot as ARM64 UEFI App| — | — | — | ✅ | ✅ | — |
+| UFS Storage | — | UFS | ufshcd | ✅ | ✅ | — |
+| eMMC Storage | on-SoM 32 GB eMMC | SDHC1 | sdhci-msm | — | — | ✅ |
+| USB 3.0 Type-C | NXP PTN3222 eUSB2 redriver | DWC3 (QCOM) | dwc3-qcom | ✅ Peripheral mode | ✅ Peripheral mode | 🚧 |
+| Wi-Fi 802.11a/b/g/n/ac | NXP IW416 | SDIO (SDHC4) | mwifiex_sdio | ✅ | 🚧 Planned | 🚧 |
+| Yocto / OpenEmbedded Master branch | — | — | — | ✅ | ✅ | ✅ |
 
 ## Upstreaming Status
 An effort is being made into upstreaming our board and patches into Linux.
