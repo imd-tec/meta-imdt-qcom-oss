@@ -39,6 +39,8 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 > ADSP, CDSP and IPA have only been proven to probe successfully in
 > Linux. There hasn't been any runtime testing to prove they are fully
 > functional.
+>
+> Bluetooth is not supported at the moment.
 
 | Feature | Hardware | Interface | Kernel Driver | QCS8550 SBC Rev 2 (12GB) Status | QCS8550 SBC Rev 5 (8GB) Status |
 |---|---|---|---|---|---|
@@ -46,7 +48,7 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 | ADSP | Hexagon v73 DSP | — | remoteproc | ✅ | ✅ |
 | Android Debug Bridge (ADB) | — | USB | — | ✅ | ✅ |
 | Audio (LPASS) | — | — | — | 🚧 Planned | 🚧 Planned |
-| Bluetooth | NXP IW416 | UART14 | btnxpuart | ✅ | ✅ |
+| Bluetooth | NXP IW416 | UART14 | btnxpuart | ❌ | ❌ |
 | Camera (AR1335 - 13MP) | ON Semiconductor AR1335 | CSI0 | ar1335 | ✅ | ✅ |
 | CDSP | Hexagon v73 DSP | — | remoteproc | ✅ | ✅ |
 | Debug Serial Console (J19)| — | UART7 (115200 baud) | qcom-geni-serial | ✅ | ✅ |
@@ -176,6 +178,10 @@ This process has been tested on machines with the following parameters:
 - 64GiB RAM
 - At least 500GB of disk space on an ext4 formatted drive
 - Python3 installed
+- Git LFS installed (`sudo apt install git-lfs`) — this layer stores the boot
+  firmware, NON-HLOS binary, Wi-Fi/BT firmware and documentation images in
+  Git LFS, so the build will fail with LFS pointer files instead of real
+  binaries if it isn't set up before cloning
 
 It's recommended that anything older than Ubuntu 22.04 isn't used due to quirks with Docker security.
 
@@ -188,11 +194,18 @@ This section describes the process for building the release images from source.
 This needs to be performed once on your machine:
 
 ```bash
+sudo apt install git-lfs
+git lfs install
 git clone https://github.com/imd-tec/meta-imdt-qcom-oss.git
 python3 -m venv venv
 . venv/bin/activate
 pip3 install kas
 ```
+
+> [!NOTE]
+> `git lfs install` must be run before cloning. If you have already cloned the
+> repository without Git LFS, run `git lfs pull` inside it to fetch the real
+> binaries.
 
 Once this has been completed, you can then restore the python environment using:
 
