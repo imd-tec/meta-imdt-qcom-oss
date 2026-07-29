@@ -1,0 +1,44 @@
+From: William Bright <william.bright@imd-tec.com>
+Date: Wed, 29 Jul 2026 18:55:00 +0100
+Subject: [PATCH] arm64: dts: qcom: qcs6490-imdt-sbc: detach eMMC inline crypto
+
+The IMDT QCS6490 SBC boots from the on-SoM eMMC (sdhc_1), not UFS. On this
+Gunyah/LA firmware the SDCC1 inline-crypto engine (ICE, crypto@7c8000) is left
+owned by TrustZone: UEFI's CryptoDxe only fixes up the UFS ICE, and on an
+eMMC-only board it finds no UFS node --
+
+  CryptoDxeFixupEventNotifyFunc: ufs node not found in device tree
+
+so the SDCC1 ICE is never handed to the HLOS. When the sdhci-msm driver probes
+sdhc_1 and programs the ICE, the access is rejected and the SoC takes an
+immediate PSHOLD warm reset during probe (last console line is the
+"sdhci_msm 7c4000.mmc: there are no valid maps for state default" note, then
+the board resets and eventually drops into ramdump/EDL).
+
+This board does not need inline storage encryption, so detach the ICE from the
+eMMC controller. With this the board boots to userspace.
+
+Upstream-Status: Pending
+
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+---
+--- a/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
++++ b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
+@@ -617,6 +617,17 @@
+ 
+ /* On-SoM 32 GB eMMC */
+ &sdhc_1 {
++	/*
++	 * This board boots from eMMC, not UFS. UEFI's CryptoDxe only fixes up
++	 * (unlocks) the UFS inline-crypto engine -- the boot log shows
++	 * "CryptoDxeFixupEventNotifyFunc: ufs node not found in device tree" --
++	 * so the SDCC1 ICE at 0x7c8000 is left owned by TrustZone. When the HLOS
++	 * sdhci-msm driver then touches the ICE the SoC takes an immediate
++	 * warm reset during probe. We have no need for inline storage encryption
++	 * here, so detach the ICE from the controller.
++	 */
++	/delete-property/ qcom,ice;
++
+ 	vmmc-supply = <&vreg_l7b_2p952>;
+ 	vqmmc-supply = <&vreg_l19b_1p8>;
+ 

@@ -22,6 +22,7 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 ## Table of Contents
 
 - [QCS8550-SBC Feature Support](#qcs8550-sbc-feature-support)
+- [QCS6490-SBC Feature Support](#qcs6490-sbc-feature-support)
 - [Upstreaming Status](#upstreaming-status)
 - [Boot Chain](#boot-chain)
 - [UFS Layout](#ufs-layout)
@@ -74,6 +75,56 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 | Wi-Fi 802.11a/b/g/n/ac | NXP IW416 | SDIO (SDHC4) | mwifiex_sdio | ✅ | 🚧 Planned |
 | Yocto / OpenEmbedded Master branch | — | — | — | ✅ | ✅ |
 
+
+## QCS6490-SBC Feature Support
+
+> [!NOTE]
+> The QCS6490 SBC is at early bring-up. The board now boots the
+> `qcom-minimal-image` from eMMC through to a login prompt on the debug
+> console. Statuses below reflect what has actually been observed on hardware;
+> most peripherals have only been checked to the "probes and the board stays
+> up" level, not runtime-validated.
+>
+> Unlike the QCS8550 SBC, this board boots from **eMMC** (there is no UFS) and
+> does not run the U-Boot UEFI stage — UEFI loads the systemd-boot UKI
+> (`linux-imdt-6490-sbc.efi`) directly from the ESP.
+
+Getting the board to boot needed three device-tree/firmware fixes on top of the
+initial board support, all in this layer:
+
+- **`0012-...-Add-protected-clocks.patch`** — mark the GCC clocks owned by TZ /
+  a peer VM as `protected-clocks` (as `qcs6490-rb3gen2.dts` does). Without it
+  `gcc_sc7280_probe` takes a synchronous external abort reading
+  `GCC_QSPI_CORE_CLK_SRC` and panics.
+- **`0013-...-detach-eMMC-ICE.patch`** — drop `qcom,ice` from `sdhc_1`. UEFI's
+  CryptoDxe only unlocks the *UFS* inline-crypto engine, so on this eMMC-only
+  board the SDCC1 ICE stays owned by TrustZone and touching it during
+  `sdhci_msm` probe resets the SoC.
+- **Kodiak CPUCP firmware** — the boot-binaries package shipped a Hamoa
+  (X-Elite) `cpucp.elf`; XBL silently loaded 0 bytes of it and the SoC reset the
+  moment Linux brought up a secondary CPU. `build_firmware.sh` now sources the
+  genuine Kodiak (`-K2C`) build and refuses to package a Hamoa image.
+
+| Feature | Hardware | Interface | Kernel Driver | QCS6490 SBC (4GB) Status |
+|---|---|---|---|---|
+| Boot to Linux userspace | — | — | — | ✅ eMMC → UEFI → UKI → systemd login |
+| eMMC Storage (rootfs) | on-SoM 32 GB eMMC | SDHC1 | sdhci-msm | ✅ CQE init success, ext4 rootfs |
+| DDR Memory | 4 GB LPDDR5 | — | — | ✅ |
+| SMP (8 cores) | 4× A55 + 3× A78 + 1× | — | — | ✅ all 8 cores online |
+| Debug Serial Console (J19) | — | UART5 / ttyMSM0 (115200) | qcom-geni-serial | ✅ |
+| ADSP | Hexagon DSP | — | remoteproc | ✅ probes (state: running) |
+| CDSP | Hexagon DSP | — | remoteproc | ✅ probes (state: running) |
+| I2C | QupV3 I2C | I2C | geni-i2c | ✅ buses enumerate |
+| Thermal | TSENS | — | qcom-tsens | ✅ 29 zones |
+| GPU (Adreno) | Adreno | — | drm/msm | 🚧 probes, no display test |
+| Bluetooth | Murata IW612 (NXP) | UART7 | btnxpuart | 🚧 hci0 attaches, HCI reset times out |
+| Wi-Fi | Murata IW612 (NXP) | SDIO (SDHC2) | — | ❌ driver not probing |
+| Gigabit Ethernet | Microchip LAN7430 | PCIe1 | lan743x | 🚧 PCIe RC up, LAN7430 not detected |
+| PCIe (M.2 Key-E / Key-B) | — | PCIe0 / PCIe1 | qcom-pcie | 🚧 root complexes probe, no endpoint found |
+| USB Type-C (J53) | — | DWC3 (QCOM) | dwc3-qcom | 🚧 peripheral mode, dwc3-qcom probes |
+| Display (DSI) | — | DSI0 | drm/msm | ❌ untested |
+| Camera (AR1335) | ON Semi AR1335 | CSI | ar1335 | ❌ untested |
+| A/B Rootfs / OTA Updates | — | — | — | 🚧 partitions present, not wired |
 
 ## Upstreaming Status
 An effort is being made into upstreaming our board and patches into Linux.
@@ -300,6 +351,49 @@ After unzipping a prebuilt image or an image you have built yourself, pass the i
 # Flash the minimal image
 flash_qcs8550_sbc qcom-minimal-image
 ```
+
+### Flashing the QCS6490 SBC
+
+The QCS6490 SBC boots from **eMMC** (there is no UFS), so it is flashed with the
+`prog_firehose_ddr.elf` programmer and `-s emmc` rather than the 8550's
+UFS/melf flow.
+
+Boot the board into EDL first (see
+[Boot SBC into Emergency Download (EDL) mode](#boot-sbc-into-emergency-download-edl-mode)),
+then confirm the host sees it — it enumerates as Qualcomm `05c6:9008`:
+
+```bash
+qdl list
+# 05c6:9008	<serial>
+```
+
+Run the flash from the deploy images directory (`build/tmp/deploy/images/imdt-6490-sbc/`
+in a source build, or the extracted release directory). That directory holds
+both the `*.qcomflash/` payload **and** the signed boot-firmware ELFs
+(`xbl.elf`, `tz.mbn`, `hypvm.mbn`, `uefi.elf`, `cpucp.elf`, …) that
+`rawprogram0.xml` pulls in by name, so it must be the working directory:
+
+```bash
+cd build/tmp/deploy/images/imdt-6490-sbc
+
+qdl -i *.qcomflash -s emmc prog_firehose_ddr.elf \
+    qcom-minimal-image-imdt-6490-*.qcomflash/rawprogram0.xml \
+    qcom-minimal-image-imdt-6490-*.qcomflash/rawprogram1.xml \
+    qcom-minimal-image-imdt-6490-*.qcomflash/patch0.xml \
+    qcom-minimal-image-imdt-6490-*.qcomflash/patch1.xml
+```
+
+`rawprogram0.xml` writes the full boot chain to both A/B slots (XBL, TZ,
+hypervisor, AOP, CPUCP, UEFI, DTB), the ESP (`efi`) and the rootfs;
+`rawprogram1.xml` writes the CDT. On success qdl prints `partition 0 is now
+bootable`. Power-cycle the board (a plain reset re-enters EDL if the download
+cookie is still set) and it should come up on the ttyMSM0 console at
+`imdt-6490-sbc login:`.
+
+> [!TIP]
+> qdl v2.8+ supports `--skipblock=sha256`, which reads back each block's digest
+> and only rewrites the ones that differ. On re-flashes where only the rootfs or
+> ESP changed this turns a multi-minute flash into a few seconds.
 
 ## Working with the board
 

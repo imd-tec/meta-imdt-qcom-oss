@@ -1,0 +1,62 @@
+From: William Bright <william.bright@imd-tec.com>
+Date: Wed, 29 Jul 2026 17:25:00 +0100
+Subject: [PATCH] arm64: dts: qcom: qcs6490-imdt-sbc: Add protected-clocks
+
+On this Gunyah-based platform a number of GCC clock registers are owned by
+TZ or a peer VM. Reading them from the HLOS raises a synchronous external
+abort while gcc probes:
+
+  Internal error: synchronous external abort: 0000000096000010
+  pc : regmap_mmio_read32le+0x1c/0xa0
+  Call trace:
+   clk_rcg2_get_parent
+   __clk_register
+   devm_clk_register_regmap
+   qcom_cc_really_probe
+   gcc_sc7280_probe
+  Kernel panic - not syncing: Attempted to kill init!
+
+The aborting access is GCC_QSPI_CORE_CLK_SRC's CFG register at 0x4b010
+(cmd_rcgr 0x4b00c + 4). Mark the clocks the HLOS does not own as protected
+so the clock driver skips registering them, matching qcs6490-rb3gen2.dts.
+This board has no QSPI, and the modem and WPSS remoteprocs are deleted, so
+none of these clocks are ours to drive.
+
+Upstream-Status: Pending
+
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+---
+--- a/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
++++ b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
+@@ -424,6 +424,31 @@
+ 	};
+ };
+ 
++&gcc {
++	/*
++	 * Registers for these clocks are owned by TZ or a peer VM on this
++	 * Gunyah-based platform, so reading them from the HLOS raises a
++	 * synchronous external abort while gcc probes -- clk_rcg2_get_parent()
++	 * reads GCC_QSPI_CORE_CLK_SRC's CFG at 0x4b010 and aborts. The board
++	 * has no QSPI, and the modem and WPSS remoteprocs are deleted above,
++	 * so none of these are ours to drive. Matches qcs6490-rb3gen2.dts.
++	 */
++	protected-clocks = <GCC_CFG_NOC_LPASS_CLK>,
++			   <GCC_MSS_CFG_AHB_CLK>,
++			   <GCC_MSS_GPLL0_MAIN_DIV_CLK_SRC>,
++			   <GCC_MSS_OFFLINE_AXI_CLK>,
++			   <GCC_MSS_Q6SS_BOOT_CLK_SRC>,
++			   <GCC_MSS_Q6_MEMNOC_AXI_CLK>,
++			   <GCC_MSS_SNOC_AXI_CLK>,
++			   <GCC_QSPI_CNOC_PERIPH_AHB_CLK>,
++			   <GCC_QSPI_CORE_CLK>,
++			   <GCC_QSPI_CORE_CLK_SRC>,
++			   <GCC_SEC_CTRL_CLK_SRC>,
++			   <GCC_WPSS_AHB_BDG_MST_CLK>,
++			   <GCC_WPSS_AHB_CLK>,
++			   <GCC_WPSS_RSCP_CLK>;
++};
++
+ &gpi_dma0 {
+ 	status = "okay";
+ };
