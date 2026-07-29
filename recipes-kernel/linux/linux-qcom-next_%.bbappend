@@ -17,8 +17,7 @@ SRC_URI:append = " \
     file://0009-arm64-dts-qcom-qcs8550-imdt-sbc-enable-zap-shader.patch \
     file://0010-qcs8550-imdt-sbc-display-Enable-backlight-improve-po.patch \
     file://0011-arm64-dts-qcom-Add-support-for-the-IMDT-QCS6490-SBC-.patch \
-    file://0012-arm64-dts-qcom-qcs6490-imdt-sbc-Add-protected-clocks.patch \
-    file://0013-arm64-dts-qcom-qcs6490-imdt-sbc-detach-eMMC-ICE.patch \
+    file://0012-arm64-dts-qcom-qcs6490-imdt-sbc-detach-eMMC-ICE.patch \
     file://configs/imdt.cfg \
 "
 

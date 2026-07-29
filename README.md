@@ -310,45 +310,35 @@ flash_qcs8550_sbc qcom-minimal-image
 ### Flashing the QCS6490 SBC
 
 The QCS6490 SBC boots from **eMMC** (there is no UFS), so it is flashed with the
-`prog_firehose_ddr.elf` programmer and `-s emmc` rather than the 8550's
-UFS/melf flow.
+`prog_firehose_ddr.elf` programmer and `-s emmc` rather than the 8550's UFS/melf flow.
 
-Boot the board into EDL first (see
-[Boot SBC into Emergency Download (EDL) mode](#boot-sbc-into-emergency-download-edl-mode)),
-then confirm the host sees it — it enumerates as Qualcomm `05c6:9008`:
+#### QDL bash function
 
-```bash
-qdl list
-# 05c6:9008	<serial>
-```
-
-Run the flash from the deploy images directory (`build/tmp/deploy/images/imdt-6490-sbc/`
-in a source build, or the extracted release directory). That directory holds
-both the `*.qcomflash/` payload **and** the signed boot-firmware ELFs
-(`xbl.elf`, `tz.mbn`, `hypvm.mbn`, `uefi.elf`, `cpucp.elf`, …) that
-`rawprogram0.xml` pulls in by name, so it must be the working directory:
+Append the below bash function to your `.bashrc` file:
 
 ```bash
-cd build/tmp/deploy/images/imdt-6490-sbc
-
-qdl -i *.qcomflash -s emmc prog_firehose_ddr.elf \
-    qcom-minimal-image-imdt-6490-*.qcomflash/rawprogram0.xml \
-    qcom-minimal-image-imdt-6490-*.qcomflash/rawprogram1.xml \
-    qcom-minimal-image-imdt-6490-*.qcomflash/patch0.xml \
-    qcom-minimal-image-imdt-6490-*.qcomflash/patch1.xml
+flash_qcs6490_sbc() {
+    local image="${1:?Usage: flash_qcs6490_sbc <image-name>}"
+    local dir="${image}-imdt-6490-sbc.rootfs.qcomflash"
+    qdl -s emmc -i "${dir}/" prog_firehose_ddr.elf "${dir}/rawprogram"*.xml "${dir}/patch"*.xml
+}
 ```
 
-`rawprogram0.xml` writes the full boot chain to both A/B slots (XBL, TZ,
-hypervisor, AOP, CPUCP, UEFI, DTB), the ESP (`efi`) and the rootfs;
-`rawprogram1.xml` writes the CDT. On success qdl prints `partition 0 is now
-bootable`. Power-cycle the board (a plain reset re-enters EDL if the download
-cookie is still set) and it should come up on the ttyMSM0 console at
-`imdt-6490-sbc login:`.
+#### Flashing an image
+
+Please make sure that the board is powered and in EDL as per [these instructions](#boot-sbc-into-emergency-download-edl-mode).
+
+After unzipping a prebuilt image or an image you have built yourself, pass the image name as the argument:
+
+```bash
+# Flash the minimal image
+flash_qcs6490_sbc qcom-minimal-image
+```
 
 > [!TIP]
-> qdl v2.8+ supports `--skipblock=sha256`, which reads back each block's digest
-> and only rewrites the ones that differ. On re-flashes where only the rootfs or
-> ESP changed this turns a multi-minute flash into a few seconds.
+> `--skipblock=sha256` performs a read and then computes the hash to
+> check if a block needs updating, this can dramatically improve
+> programming speed. This feature is available in qdl verions above v2.8.
 
 ## Working with the board
 

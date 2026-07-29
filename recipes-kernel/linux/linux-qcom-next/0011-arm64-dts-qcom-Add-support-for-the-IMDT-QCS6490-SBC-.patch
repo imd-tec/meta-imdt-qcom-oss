@@ -7,7 +7,7 @@ Subject: [PATCH] arm64/dts/qcom: Add support for the IMDT QCS6490 SBC and SoM
  .../devicetree/bindings/arm/qcom.yaml         |   6 +
  arch/arm64/boot/dts/qcom/Makefile             |   2 +
  .../dts/qcom/qcs6490-imdt-sbc-pcie-keyb.dtso  |  18 +
- arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts | 845 ++++++++++++++++++
+ arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts | 863 ++++++++++++++++++
  .../arm64/boot/dts/qcom/qcs6490-imdt-som.dtsi | 291 ++++++
  5 files changed, 1162 insertions(+)
  create mode 100644 arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc-pcie-keyb.dtso
@@ -73,7 +73,7 @@ new file mode 100644
 index 000000000000..bf0201c5dac1
 --- /dev/null
 +++ b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
-@@ -0,0 +1,845 @@
+@@ -0,0 +1,863 @@
 +// SPDX-License-Identifier: BSD-3-Clause
 +/*
 + * Copyright (c) 2026 IMD Technologies Ltd
@@ -498,6 +498,24 @@ index 000000000000..bf0201c5dac1
 +		vdd-s10-supply = <&vph_pwr>;
 +		vdd-bob-supply = <&vph_pwr>;
 +	};
++};
++
++&gcc {
++	/* Clocks owned by TZ / a peer VM; the HLOS must not touch them. */
++	protected-clocks = <GCC_CFG_NOC_LPASS_CLK>,
++			   <GCC_MSS_CFG_AHB_CLK>,
++			   <GCC_MSS_GPLL0_MAIN_DIV_CLK_SRC>,
++			   <GCC_MSS_OFFLINE_AXI_CLK>,
++			   <GCC_MSS_Q6SS_BOOT_CLK_SRC>,
++			   <GCC_MSS_Q6_MEMNOC_AXI_CLK>,
++			   <GCC_MSS_SNOC_AXI_CLK>,
++			   <GCC_QSPI_CNOC_PERIPH_AHB_CLK>,
++			   <GCC_QSPI_CORE_CLK>,
++			   <GCC_QSPI_CORE_CLK_SRC>,
++			   <GCC_SEC_CTRL_CLK_SRC>,
++			   <GCC_WPSS_AHB_BDG_MST_CLK>,
++			   <GCC_WPSS_AHB_CLK>,
++			   <GCC_WPSS_RSCP_CLK>;
 +};
 +
 +&gpi_dma0 {
