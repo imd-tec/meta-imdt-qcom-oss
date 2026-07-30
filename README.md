@@ -144,18 +144,20 @@ See [docs/lava-tests.md](docs/lava-tests.md) for the full list of test cases.
 ## Downloading prebuilt release images
 
 If you don't need to build from source, every tagged release publishes the full
-set of deploy images as a single compressed tarball on the
-[GitHub Releases page](https://github.com/imd-tec/meta-imdt-qcom-oss-dev/releases).
+set of deploy images as one compressed tarball per board on the
+[GitHub Releases page](https://github.com/imd-tec/meta-imdt-qcom-oss-dev/releases):
+`qcom-imdt-images-imdt-8550-sbc.tar.zst` and
+`qcom-imdt-images-imdt-6490-sbc.tar.zst`.
 
-Because the tarball is larger than GitHub's 2 GiB per-file limit, it is split
-into numbered parts (`qcom-imdt-images.tar.zst.part00`, `.part01`, …). 
+Because the 8550 tarball is larger than GitHub's 2 GiB per-file limit, it is
+split into numbered parts (`...tar.zst.part00`, `.part01`, …).
 The snippet below pulls the latest release, stitches
 the parts back together, verifies the checksum and extracts everything into
 `./images`:
 
 ```bash
 base="https://github.com/imd-tec/meta-imdt-qcom-oss/releases/latest/download"
-name="qcom-imdt-images.tar.zst"
+name="qcom-imdt-images-imdt-8550-sbc.tar.zst"
 
 # Download the parts (this release has three) plus the checksum.
 wget "$base/$name.part00" "$base/$name.part01" "$base/$name.part02" "$base/$name.sha256"
@@ -235,8 +237,16 @@ kas-container build --update meta-imdt-qcom-oss/kas/imdt-8550-multimedia.yml
 # Multimedia image with Qualcomm's proprietary multimedia stack
 kas-container build --update meta-imdt-qcom-oss/kas/imdt-8550-multimedia-proprietary.yml
 
-# Both open source images in a single build (shares the common package set; used by CI)
+# All 8550 images in a single build (shares the common package set)
 kas-container build --update meta-imdt-qcom-oss/kas/imdt-8550-all.yml
+
+# 6490 minimal image
+kas-container build --update meta-imdt-qcom-oss/kas/imdt-6490-minimal.yml
+
+# Both boards in one multiconfig build — minimal only, or every image.
+# Used by CI; each board lands in its own build/tmp-<machine>/ directory.
+kas-container build --update meta-imdt-qcom-oss/kas/imdt-minimal.yml
+kas-container build --update meta-imdt-qcom-oss/kas/imdt-all.yml
 ```
 
 Bleeding edge builds can fail from time-to-time. If you wish to build a known working Kas configuration you can use the below command:

@@ -15,12 +15,6 @@ permissions:
   checks: write
   pull-requests: write
 
-# Only one build per ref needs to run on the single self-hosted builder;
-# cancel any superseded in-progress run so a new push doesn't queue behind it.
-concurrency:
-  group: build-${{ github.ref }}
-  cancel-in-progress: true
-
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -33,30 +27,23 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       kas-config: ${{ steps.cfg.outputs.kas-config }}
-      lava-matrix: ${{ steps.cfg.outputs.lava-matrix }}
+      images: ${{ steps.cfg.outputs.images }}
+      wg-slot-8gb: ${{ steps.cfg.outputs.wg-slot-8gb }}
+      wg-slot-12gb: ${{ steps.cfg.outputs.wg-slot-12gb }}
     steps:
       - id: cfg
         run: |
-          # Each image is tested on both board variants as separate runs.
-          # The board entries carry everything that differs between the two
-          # DUTs: the LAVA device tag, the expected available memory, and
-          # camera presence. The DUT ssh endpoint for each board tag is a
-          # secret (DUT_SSH_HOST_8GB / DUT_SSH_HOST_12GB) resolved inside
-          # lava-tests.yml — secrets cannot appear in a strategy matrix.
-          # has-sdcard false: the 8GB fixture has no SD card inserted — flip
-          # this once a card is fitted. has-wifi false: IW416 enumerates on
-          # SDIO but no driver binds on the 8GB board with the current image.
           # wg-slot picks the WG_CONF_<slot> secret the runner uses to reach the
-          # lab LAN. It is offset per board because lava-tests.yml serialises per
-          # board-tag, so no two jobs holding the same slot can ever run at once
-          # — including across concurrent runs on different branches.
+          # lab LAN. It is offset per board because the LAVA jobs are serialised
+          # per board-tag, so no two jobs holding the same slot can ever run at
+          # once — including across concurrent runs on different branches.
           #
           # The base comes from the WG_SLOT_BASE repo variable rather than being
           # hardcoded, so this file stays identical between the private layer and
           # the public one it syncs to while still using disjoint slots. That
-          # matters because the concurrency group below is scoped per-repo and
-          # cannot serialise the two repos against each other: two live tunnels
-          # on one slot overwrite each other's peer endpoint and both die.
+          # matters because concurrency groups are scoped per-repo and cannot
+          # serialise the two repos against each other: two live tunnels on one
+          # slot overwrite each other's peer endpoint and both die.
           #   WG_SLOT_BASE=10  meta-imdt-qcom-oss-dev (private), slots 10-14
           #   WG_SLOT_BASE=15  meta-imdt-qcom-oss (public),       slots 15-19
           #   slot 20          reserved for wg-ci-firewall's netns test
@@ -67,59 +54,39 @@ jobs:
             echo "WG_SLOT_BASE repo variable is unset or not numeric" >&2
             exit 1
           fi
-          BOARD_8GB='"board-tag":"8550-8gb","mem-min-mb":"4500","has-camera":true,"has-sdcard":false,"has-wifi":false,"wg-slot":"'$((WG_SLOT_BASE))'"'
-          # 8500 not 9000: the 12GB board idles at ~9.2GB available, so 9000
-          # was within noise of a fresh boot's memory usage (false failures).
-          # Flags are always explicit: GHA loose equality coerces null and
-          # false both to 0, so an absent key can't be defaulted with
-          # `!= false` at the call site.
-          BOARD_12GB='"board-tag":"8550-12gb","mem-min-mb":"8500","has-camera":true,"has-sdcard":true,"has-wifi":true,"wg-slot":"'$((WG_SLOT_BASE+1))'"'
+          echo "wg-slot-8gb=$((WG_SLOT_BASE))" >> "$GITHUB_OUTPUT"
+          echo "wg-slot-12gb=$((WG_SLOT_BASE+1))" >> "$GITHUB_OUTPUT"
+          # The multimedia images (open-source and proprietary) are only built
+          # and tested on tag releases. On master pushes and PRs we build/test
+          # the minimal image alone, keeping CI fast.
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "kas-config=kas/imdt-8550-all.yml" >> "$GITHUB_OUTPUT"
-            echo "lava-matrix={\"include\":[
-              {\"image-name\":\"qcom-minimal-image\",$BOARD_8GB},
-              {\"image-name\":\"qcom-minimal-image\",$BOARD_12GB},
-              {\"image-name\":\"qcom-multimedia-image\",$BOARD_8GB},
-              {\"image-name\":\"qcom-multimedia-image\",$BOARD_12GB},
-              {\"image-name\":\"qcom-multimedia-proprietary-image\",$BOARD_8GB},
-              {\"image-name\":\"qcom-multimedia-proprietary-image\",$BOARD_12GB}]}" | tr -d '\n ' >> "$GITHUB_OUTPUT"
-            echo >> "$GITHUB_OUTPUT"
+            echo "kas-config=kas/imdt-all.yml" >> "$GITHUB_OUTPUT"
+            echo 'images={"image-name":["qcom-minimal-image","qcom-multimedia-image","qcom-multimedia-proprietary-image"]}' >> "$GITHUB_OUTPUT"
           else
-            echo "kas-config=kas/imdt-8550-minimal.yml" >> "$GITHUB_OUTPUT"
-            echo "lava-matrix={\"include\":[
-              {\"image-name\":\"qcom-minimal-image\",$BOARD_8GB},
-              {\"image-name\":\"qcom-minimal-image\",$BOARD_12GB}]}" | tr -d '\n ' >> "$GITHUB_OUTPUT"
-            echo >> "$GITHUB_OUTPUT"
+            echo "kas-config=kas/imdt-minimal.yml" >> "$GITHUB_OUTPUT"
+            echo 'images={"image-name":["qcom-minimal-image"]}' >> "$GITHUB_OUTPUT"
           fi
 
-  # The 6490 SBC build runs first: it has no `needs`, so the single
-  # self-hosted builder picks it up while `setup` runs on a hosted runner,
-  # and the 8550 build below waits on it. No LAVA tests exist for this board
-  # yet, so nothing is rsynced to the LAVA host and no test job follows.
-  build-6490:
-    uses: imd-tec/kas-gh-ci/.github/workflows/kas-build.yml@master
-    with:
-      kas-config: kas/imdt-6490-minimal.yml
-      machine: 'imdt-6490-sbc'
-      artifact-name: 'qcom-imdt-6490-images'
-    secrets:
-      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-
   build:
-    # Build every image in a single bitbake invocation. The self-hosted builder
-    # runs one job at a time, so a per-image matrix would build sequentially and
-    # rebuild the shared package set twice; one combined build shares it.
-    needs: [setup, build-6490]
-    # Run even when the 6490 build fails — the boards are independent and the
-    # 8550 build feeds the LAVA tests, so it shouldn't be blocked by a 6490
-    # breakage; the `needs` edge exists only to order the two builds.
-    if: ${{ !cancelled() && needs.setup.result == 'success' }}
+    # One multiconfig build covers both boards and every image, so the shared
+    # package set is built once instead of once per board/image. Each machine
+    # is packed and uploaded as its own artifact.
+    needs: setup
+    # Scoped to this job rather than the whole workflow: cancelling at workflow
+    # level took running LAVA jobs down with it, leaving a DUT mid-test. A
+    # superseded push now only cancels the build it supersedes.
+    concurrency:
+      group: build-${{ github.ref }}
+      cancel-in-progress: true
     uses: imd-tec/kas-gh-ci/.github/workflows/kas-build.yml@master
     with:
       kas-config: ${{ needs.setup.outputs.kas-config }}
-      machine: 'imdt-8550-sbc'
+      machine: 'imdt-8550-sbc imdt-6490-sbc'
       artifact-name: 'qcom-imdt-images'
       rsync-enabled: true
+      # Only the 8550 has LAVA coverage, and both boards emit a BOOTAA64.EFI
+      # that would collide at the destination.
+      rsync-machine: 'imdt-8550-sbc'
       rsync-host: ${{ vars.LAVA_HOST }}
       rsync-user: pi
       rsync-dest: /home/pi/qcom-oss/
@@ -127,21 +94,57 @@ jobs:
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
-  lava:
+  # One job per board so the two DUTs test in parallel, with max-parallel
+  # serialising the images on each. Leaving all six matrix entries to the
+  # per-DUT concurrency group in lava-tests.yml is what dropped the multimedia
+  # runs on tag builds: a concurrency group holds one pending job and cancels
+  # any further one.
+  #
+  # Everything that differs between the two DUTs lives here. The DUT ssh
+  # endpoint is a secret (DUT_SSH_HOST_8GB / DUT_SSH_HOST_12GB) resolved inside
+  # lava-tests.yml from the board tag. Flags are always explicit: GHA loose
+  # equality coerces null and false both to 0, so an absent key can't be
+  # defaulted with `!= false` at the call site.
+  lava-8gb:
     needs: [setup, build]
     if: needs.build.result == 'success'
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.setup.outputs.lava-matrix) }}
+      max-parallel: 1
+      matrix: ${{ fromJSON(needs.setup.outputs.images) }}
     uses: ./.github/workflows/lava-tests.yml
     with:
       image-name: ${{ matrix.image-name }}
-      board-tag: ${{ matrix.board-tag }}
-      mem-min-mb: ${{ matrix.mem-min-mb }}
-      has-camera: ${{ matrix.has-camera }}
-      has-sdcard: ${{ matrix.has-sdcard }}
-      has-wifi: ${{ matrix.has-wifi }}
-      wg-slot: ${{ matrix.wg-slot }}
+      board-tag: '8550-8gb'
+      mem-min-mb: '4500'
+      has-camera: true
+      # No SD card inserted in this fixture — flip once a card is fitted.
+      has-sdcard: false
+      # IW416 enumerates on SDIO but no driver binds with the current image.
+      has-wifi: false
+      wg-slot: ${{ needs.setup.outputs.wg-slot-8gb }}
+      is-pr: ${{ github.event_name == 'pull_request' }}
+      pr-number: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || 0 }}
+    secrets: inherit
+
+  lava-12gb:
+    needs: [setup, build]
+    if: needs.build.result == 'success'
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix: ${{ fromJSON(needs.setup.outputs.images) }}
+    uses: ./.github/workflows/lava-tests.yml
+    with:
+      image-name: ${{ matrix.image-name }}
+      board-tag: '8550-12gb'
+      # 8500 not 9000: this board idles at ~9.2GB available, so 9000 was within
+      # noise of a fresh boot's memory usage (false failures).
+      mem-min-mb: '8500'
+      has-camera: true
+      has-sdcard: true
+      has-wifi: true
+      wg-slot: ${{ needs.setup.outputs.wg-slot-12gb }}
       is-pr: ${{ github.event_name == 'pull_request' }}
       pr-number: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || 0 }}
     secrets: inherit
@@ -150,13 +153,13 @@ jobs:
   # (hundreds of MB, GBs for multimedia) plus BOOTAA64.EFI to /home/pi/qcom-oss
   # for every commit, and swu-deploy only consumes them. Delete this commit's
   # artifacts once ALL board/image LAVA jobs have passed — a single job that
-  # 'needs: lava' runs after every matrix entry finishes, so it never removes a
-  # .swu another board's swu-deploy is still using. Skipped (artifacts kept) if
-  # any LAVA job failed or was skipped, so a red run's image stays available for
-  # debugging and re-runs.
+  # needs both board jobs runs after every matrix entry finishes, so it never
+  # removes a .swu another board's swu-deploy is still using. Skipped (artifacts
+  # kept) if any LAVA job failed or was skipped, so a red run's image stays
+  # available for debugging and re-runs.
   cleanup-lava-swu:
-    needs: lava
-    if: ${{ needs.lava.result == 'success' }}
+    needs: [lava-8gb, lava-12gb]
+    if: ${{ needs.lava-8gb.result == 'success' && needs.lava-12gb.result == 'success' }}
     runs-on: imx-runner
     steps:
       - name: Delete this commit's staged .swu and BOOTAA64 on the LAVA server
