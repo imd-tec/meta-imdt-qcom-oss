@@ -5,9 +5,10 @@ tags:
 
 # Job/test budget covers the worst retry case: 3 push attempts of a
 # multi-hundred-MB .swu (a stalled transfer now dies in ~60s via ssh
-# keepalive) plus up to 3 reboot attempts of ~5 min each, each now preceded
-# by a wait for the rootfs grow to settle (capped at 3 min). A healthy run
-# still completes in well under 10 minutes.
+# keepalive), a swupdate install polled for up to 10 min, plus up to 3 reboot
+# attempts of ~5 min each, each now preceded by a wait for the rootfs grow to
+# settle (capped at 3 min). A healthy run still completes in well under 10
+# minutes.
 timeouts:
   job:
     minutes: 55
@@ -95,9 +96,16 @@ actions:
           - PUSH_OK=0; a=0; while [ $a -lt 3 ] && [ "$PUSH_OK" != 1 ]; do a=$((a+1)); echo "push-swu attempt $a"; if $SCP /tmp/update.swu "$SSH_USER@$SSH_HOST:/home/swu/update.swu"; then DUT_MD5=$($SSH md5sum /home/swu/update.swu | cut -d' ' -f1) || DUT_MD5=""; if [ -n "$DUT_MD5" ] && [ "$DUT_MD5" = "$SWU_MD5" ]; then PUSH_OK=1; fi; fi; done
           - 'echo "swu md5 local=$SWU_MD5 dut=${DUT_MD5:-<none>} attempts=$a"'
           - if [ "$PUSH_OK" = 1 ]; then lava-test-case push-swu --result pass; else lava-test-case push-swu --result fail; fi
+          # Run swupdate detached and poll over short-lived connections: the
+          # 12GB board's install stalls its transport past the 60s keepalive
+          # above, which failed the test case for an update that succeeded.
+          # The launch is idempotent (guarded on the log the redirection
+          # creates) so a lost reply cannot start a second swupdate, and never
+          # returns early into the cleanup/reboot below while one is writing.
+          - 'run_swupdate() { $SSH "rm -f /home/swu/swupdate.log /home/swu/swupdate.rc" || true; L=0; while [ $L -lt 3 ]; do L=$((L+1)); if $SSH "if [ ! -f /home/swu/swupdate.log ]; then nohup sh -c ''TMPDIR=/home/swu swupdate -i /home/swu/update.swu >/home/swu/swupdate.log 2>&1; echo \$? >/home/swu/swupdate.rc'' >/dev/null 2>&1 & fi"; then break; fi; echo "swupdate launch attempt $L failed - retrying"; sleep 5; done; SWU_RC=""; i=0; while [ $i -lt 120 ]; do SWU_RC=$($SSH cat /home/swu/swupdate.rc 2>/dev/null) || SWU_RC=""; if [ -n "$SWU_RC" ]; then break; fi; i=$((i+1)); sleep 5; done; $SSH cat /home/swu/swupdate.log 2>/dev/null || true; echo "swupdate exit status: ${SWU_RC:-<timed out after 10 min>} (launch attempts: $L)"; [ "$SWU_RC" = 0 ]; }'
           # Only attempt the update with a verified file; a swupdate run on a
           # truncated image is guaranteed noise.
-          - if [ "$PUSH_OK" = 1 ]; then lava-test-case swupdate --shell $SSH "TMPDIR=/home/swu swupdate -i /home/swu/update.swu && echo SWUPDATE_OK"; else lava-test-case swupdate --result skip; fi
+          - if [ "$PUSH_OK" != 1 ]; then lava-test-case swupdate --result skip; elif run_swupdate; then lava-test-case swupdate --result pass; else lava-test-case swupdate --result fail; fi
           - $SSH rm -rf /home/swu
           # ── u-boot (UEFI) update ─────────────────────────────────────────
           # Overwrite the BOOTAA64.EFI the SoC firmware boots from on the EFI
