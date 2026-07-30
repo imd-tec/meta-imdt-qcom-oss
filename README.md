@@ -37,10 +37,12 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 ## Feature Support
 > [!NOTE]
 > ADSP, CDSP and IPA have only been proven to probe successfully in
-> Linux. There hasn't been any runtime testing to prove they are fully
-> functional.
+> Linux. However its been found that the cDSP firmware isn't mainline
+> compatible and fails the fastrpc-test so all three DSPs are marked as
+> WiP.
 >
-> Bluetooth is not supported at the moment.
+> Bluetooth is not supported at the moment due to an issue with RTS/CTS
+> lines.
 >
 > The QCS6490 SBC (4GB) column reflects early bring-up: the board boots to a
 > login prompt from eMMC, and most of its peripherals are only confirmed to
@@ -51,19 +53,19 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 | Feature | Hardware | Interface | Kernel Driver | QCS8550 SBC Rev 2 (12GB) Status | QCS8550 SBC Rev 5 (8GB) Status | QCS6490 SBC (4GB) Status |
 |---|---|---|---|---|---|---|
 | A/B Rootfs Updates | — | — | — | ✅ | ✅ | 🚧 |
-| ADSP | Hexagon v73 DSP | — | remoteproc | ✅ | ✅ | ✅ |
+| ADSP | Hexagon v73 DSP | — | remoteproc | 🚧 | 🚧 | 🚧  |
 | Android Debug Bridge (ADB) | — | USB | — | ✅ | ✅ | 🚧 |
 | Audio (LPASS) | — | — | — | 🚧 Planned | 🚧 Planned | 🚧 |
 | Bluetooth | NXP IW416 | UART14 | btnxpuart | ❌ | ❌ | ❌ |
 | Camera (AR1335 - 13MP) | ON Semiconductor AR1335 | CSI0 | ar1335 | ✅ | ✅ | 🚧 |
-| CDSP | Hexagon v73 DSP | — | remoteproc | ✅ | ✅ | ✅ |
+| CDSP | Hexagon DSP | — | remoteproc | 🚧  | 🚧 | ✅ |
 | Debug Serial Console (J19)| — | UART7 (115200 baud) | qcom-geni-serial | ✅ | ✅ | ✅ |
 | DDR Memory | 8GB / 12GB LPDDR5 | — | — | ✅ 12GB | ✅ 8GB | ✅ 4GB |
 | DisplayPort over USB Type-C | — | DWC3 (QCOM) / USB-C DP Alt Mode | — | ❌ | 🚧 Planned | 🚧 |
 | Gigabit Ethernet | Microchip LAN7430 | PCIe1 (default) | lan743x | ✅ | ✅ | 🚧 |
 | PCIe Expansion (M.2 Key-B) | PCIe switch downstream Key-B port | PCIe1 (overlay) | qcom-pcie | ✅ Requires Key-B DTBO overlay | ✅ Requires Key-B DTBO overlay | 🚧 |
 | GPIO | PM8550 GPIO bank | SPMI | qcom-spmi-gpio | ✅ | ✅ | 🚧 |
-| GPU (Adreno 740) | Adreno 740 | — | msm drm | ✅ | ✅ | 🚧 |
+| GPU (Adreno) | Adreno | — | msm drm | ✅ | ✅ | 🚧 |
 | HDMI Display | DSI-to-HDMI adapter | DSI0 | drm/msm | ❌ | ❌ | 🚧 |
 | I2C | QupV3 I2C hub | I2C | geni-i2c | ✅ | ✅ | ✅ |
 | IPA | Qualcomm IP Accelerator | — | ipa | ✅ | ✅ | 🚧 |
