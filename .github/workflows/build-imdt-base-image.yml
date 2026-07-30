@@ -46,13 +46,34 @@ jobs:
           # has-sdcard false: the 8GB fixture has no SD card inserted — flip
           # this once a card is fitted. has-wifi false: IW416 enumerates on
           # SDIO but no driver binds on the 8GB board with the current image.
-          BOARD_8GB='"board-tag":"8550-8gb","mem-min-mb":"4500","has-camera":true,"has-sdcard":false,"has-wifi":false'
+          # wg-slot picks the WG_CONF_<slot> secret the runner uses to reach the
+          # lab LAN. It is offset per board because lava-tests.yml serialises per
+          # board-tag, so no two jobs holding the same slot can ever run at once
+          # — including across concurrent runs on different branches.
+          #
+          # The base comes from the WG_SLOT_BASE repo variable rather than being
+          # hardcoded, so this file stays identical between the private layer and
+          # the public one it syncs to while still using disjoint slots. That
+          # matters because the concurrency group below is scoped per-repo and
+          # cannot serialise the two repos against each other: two live tunnels
+          # on one slot overwrite each other's peer endpoint and both die.
+          #   WG_SLOT_BASE=10  meta-imdt-qcom-oss-dev (private), slots 10-14
+          #   WG_SLOT_BASE=15  meta-imdt-qcom-oss (public),       slots 15-19
+          #   slot 20          reserved for wg-ci-firewall's netns test
+          # Each repo owns 5 slots; every job that can run in parallel with
+          # another needs its own offset, so keep BASE+n within the block.
+          WG_SLOT_BASE="${{ vars.WG_SLOT_BASE }}"
+          if ! [[ "$WG_SLOT_BASE" =~ ^[0-9]+$ ]]; then
+            echo "WG_SLOT_BASE repo variable is unset or not numeric" >&2
+            exit 1
+          fi
+          BOARD_8GB='"board-tag":"8550-8gb","mem-min-mb":"4500","has-camera":true,"has-sdcard":false,"has-wifi":false,"wg-slot":"'$((WG_SLOT_BASE))'"'
           # 8500 not 9000: the 12GB board idles at ~9.2GB available, so 9000
           # was within noise of a fresh boot's memory usage (false failures).
           # Flags are always explicit: GHA loose equality coerces null and
           # false both to 0, so an absent key can't be defaulted with
           # `!= false` at the call site.
-          BOARD_12GB='"board-tag":"8550-12gb","mem-min-mb":"8500","has-camera":true,"has-sdcard":true,"has-wifi":true'
+          BOARD_12GB='"board-tag":"8550-12gb","mem-min-mb":"8500","has-camera":true,"has-sdcard":true,"has-wifi":true,"wg-slot":"'$((WG_SLOT_BASE+1))'"'
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "kas-config=kas/imdt-8550-all.yml" >> "$GITHUB_OUTPUT"
             echo "lava-matrix={\"include\":[
@@ -120,6 +141,7 @@ jobs:
       has-camera: ${{ matrix.has-camera }}
       has-sdcard: ${{ matrix.has-sdcard }}
       has-wifi: ${{ matrix.has-wifi }}
+      wg-slot: ${{ matrix.wg-slot }}
       is-pr: ${{ github.event_name == 'pull_request' }}
       pr-number: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || 0 }}
     secrets: inherit

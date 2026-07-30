@@ -27,6 +27,16 @@ on:
         description: Whether Wi-Fi (mlan0) is expected to work on this board
         type: boolean
         default: true
+      wg-slot:
+        description: >
+          WireGuard client slot used to reach the lab LAN, resolved to the
+          WG_CONF_<slot> secret (slots 10-20 = clients 10-20). Two concurrent
+          jobs MUST NOT share a slot: WireGuard does not reject a duplicate
+          peer, it overwrites that peer's endpoint, so the older tunnel dies
+          silently mid-job. Safe assignment is per board-tag, because the
+          concurrency group below already serialises jobs per board.
+        type: string
+        required: true
       is-pr:
         type: boolean
         default: false
@@ -39,7 +49,10 @@ env:
 
 jobs:
   lava-test:
-    runs-on: imx-runner
+    # GitHub-hosted: the lab LAN (LAVA server, DUT ssh endpoints) is reached
+    # over a WireGuard tunnel brought up below, so these jobs no longer queue
+    # behind each other on the single self-hosted builder.
+    runs-on: ubuntu-latest
     timeout-minutes: 120
     # Serialise per board: each physical DUT runs one pipeline at a time,
     # but the two boards' pipelines run in parallel.
@@ -60,8 +73,66 @@ jobs:
           lfs: true
           persist-credentials: false
 
+      # ── Lab LAN access ──────────────────────────────────────────────────
+      # The client configs are pre-provisioned as static peers on the lab
+      # WireGuard server, so nothing is generated at run time. They are split
+      # tunnels (AllowedIPs = the two lab subnets only), so the runner's
+      # default route is untouched. Server-side iptables restricts these
+      # slots to the LAVA host's ports 80 and 22 and nothing else.
+      - name: Bring up WireGuard tunnel to lab LAN
+        env:
+          WG_CONF: ${{ secrets[format('WG_CONF_{0}', inputs.wg-slot)] }}
+        run: |
+          if [ -z "$WG_CONF" ]; then
+            echo "Secret WG_CONF_${{ inputs.wg-slot }} is empty or not set."
+            echo "Fork PRs do not receive secrets; otherwise check the slot number."
+            exit 1
+          fi
+          # Retry via apt-get update: the runner image's package lists can be
+          # stale enough to 404 on the pinned version.
+          sudo apt-get install -y wireguard-tools >/dev/null 2>&1 \
+            || { sudo apt-get update -qq && sudo apt-get install -y wireguard-tools >/dev/null; }
+          printf '%s\n' "$WG_CONF" | sudo tee /etc/wireguard/wg0.conf >/dev/null
+          sudo chmod 600 /etc/wireguard/wg0.conf
+          sudo wg-quick up wg0
+          # Assert reachability now: without this, a dead tunnel or a slot
+          # collision surfaces much later as an opaque lavacli timeout.
+          for i in $(seq 30); do
+            ping -c1 -W1 "${{ vars.LAVA_HOST }}" >/dev/null 2>&1 && break
+            sleep 1
+          done
+          if ! curl -fsS --max-time 10 -o /dev/null "http://${{ vars.LAVA_HOST }}/"; then
+            echo "LAVA host ${{ vars.LAVA_HOST }} unreachable over the tunnel"
+            sudo wg show
+            exit 1
+          fi
+          echo "Tunnel up on slot ${{ inputs.wg-slot }}; LAVA host reachable"
+
+      # Needed by the camera-frame rsync near the end of this job. On the
+      # self-hosted runner this key was already present in the runner's home.
+      - name: Install LAVA host ssh key
+        env:
+          LAVA_SSH_KEY: ${{ secrets.LAVA_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$LAVA_SSH_KEY" > ~/.ssh/id_lava
+          chmod 600 ~/.ssh/id_lava
+
+      # The GitHub-hosted image does not ship pip3, unlike the self-hosted
+      # builder this job used to run on, so bootstrap it instead of assuming
+      # it. A venv also side-steps PEP 668's block on the system Python, and
+      # only the lavacli entry point is linked onto PATH so the venv's
+      # interpreter cannot shadow the python3 the result-parsing steps use.
       - name: Install lavacli
-        run: pip3 install lavacli --quiet --break-system-packages 2>/dev/null || pip3 install lavacli --quiet
+        run: |
+          if ! python3 -m venv "$HOME/lavacli-venv" 2>/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y python3-venv >/dev/null
+            python3 -m venv "$HOME/lavacli-venv"
+          fi
+          "$HOME/lavacli-venv/bin/pip" install lavacli --quiet
+          sudo ln -sf "$HOME/lavacli-venv/bin/lavacli" /usr/local/bin/lavacli
+          lavacli --version
 
       - name: Configure lavacli identity
         run: |
@@ -363,7 +434,10 @@ jobs:
       - name: Fetch camera frame from LAVA server
         if: always() && env.CAPTURE_JOB_ID != ''
         run: |
-          rsync -av -e "ssh -o StrictHostKeyChecking=accept-new" \
+          # Same class of assumption as pip3 above: this step ignores failures,
+          # so a missing rsync would drop the frame artifact silently.
+          command -v rsync >/dev/null || { sudo apt-get update -qq; sudo apt-get install -y rsync >/dev/null; }
+          rsync -av -e "ssh -i ~/.ssh/id_lava -o StrictHostKeyChecking=accept-new" \
             pi@${{ vars.LAVA_HOST }}:/home/pi/qcom-oss/ar1335_${{ inputs.board-tag }}.png \
             ar1335_${{ inputs.board-tag }}.png 2>/dev/null || true
 
@@ -411,7 +485,13 @@ jobs:
 
       - name: Cleanup
         if: always()
-        run: rm -f ~/.config/lavacli.yaml
+        run: rm -f ~/.config/lavacli.yaml ~/.ssh/id_lava
+
+      # Last step in the job: everything above needs the tunnel, including the
+      # camera-frame rsync.
+      - name: Tear down WireGuard tunnel
+        if: always()
+        run: sudo wg-quick down wg0 || true
 
   notify-lava:
     runs-on: ubuntu-latest
