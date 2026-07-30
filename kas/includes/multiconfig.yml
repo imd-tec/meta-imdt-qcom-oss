@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/siemens/kas/master/kas/schema-kas.json
+# Common part of the combined (both boards) build configs.
+#
+# kas turns `mc:<machine>:<target>` entries into BBMULTICONFIG, and
+# conf/multiconfig/<machine>.conf in this layer pins MACHINE and a per-machine
+# TMPDIR. One bitbake invocation then covers both boards and builds the shared
+# package set once instead of once per board.
+#
+# The machine below is only the base default that the multiconfigs override;
+# nothing is built against it.
+header:
+  version: 14
+  includes:
+    - kas/includes/base.yml
+    - kas/includes/imdt.yml
+    - kas/machine/imdt-8550-sbc.yml
+    - kas/distro/qcom-distro.yml

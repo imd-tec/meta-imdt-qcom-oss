@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/siemens/kas/master/kas/schema-kas.json
+# Copyright IMDT 2026
+#
+# Minimal image for both boards in a single build. Used by CI on master pushes
+# and PRs; tag builds use imdt-all.yml.
+header:
+  version: 14
+  includes:
+    - kas/includes/multiconfig.yml
+
+target:
+  - mc:imdt-8550-sbc:qcom-minimal-image
+  - mc:imdt-8550-sbc:qcom-minimal-image.swu
+  # No .swu for the 6490: the .swu recipes are COMPATIBLE_MACHINE = "qcs8550"
+  # only, until SWUpdate support lands for this board.
+  - mc:imdt-6490-sbc:qcom-minimal-image
