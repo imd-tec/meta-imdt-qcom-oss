@@ -123,3 +123,22 @@ jobs:
       is-pr: ${{ github.event_name == 'pull_request' }}
       pr-number: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || 0 }}
     secrets: inherit
+
+  # Reclaim space on the LAVA server: the build step rsyncs a full rootfs .swu
+  # (hundreds of MB, GBs for multimedia) plus BOOTAA64.EFI to /home/pi/qcom-oss
+  # for every commit, and swu-deploy only consumes them. Delete this commit's
+  # artifacts once ALL board/image LAVA jobs have passed — a single job that
+  # 'needs: lava' runs after every matrix entry finishes, so it never removes a
+  # .swu another board's swu-deploy is still using. Skipped (artifacts kept) if
+  # any LAVA job failed or was skipped, so a red run's image stays available for
+  # debugging and re-runs.
+  cleanup-lava-swu:
+    needs: lava
+    if: ${{ needs.lava.result == 'success' }}
+    runs-on: imx-runner
+    steps:
+      - name: Delete this commit's staged .swu and BOOTAA64 on the LAVA server
+        run: |
+          ssh -o StrictHostKeyChecking=accept-new "pi@${{ vars.LAVA_HOST }}" \
+            "rm -f /home/pi/qcom-oss/*-imdt-8550-sbc.rootfs-${{ github.sha }}.swu \
+                   /home/pi/qcom-oss/BOOTAA64-${{ github.sha }}.EFI"

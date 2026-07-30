@@ -8,10 +8,16 @@
 -- bootcount / sets upgrade_available) on success, so a single .swu always
 -- lands on the inactive slot without any -e selection.
 --
--- The active slot comes from /proc/mounts, not from 'rootfs_part': the env
+-- The active slot is identified, in order of preference:
+--   1. the slot partition mounted at / in /proc/mounts;
+--   2. the kernel cmdline root= (when /proc/mounts shows /dev/root because
+--      root= was not resolved to the partition node);
+--   3. U-Boot's own rootfs_part env (fw_printenv), as a last resort.
+-- /proc/mounts and the cmdline are preferred over the env because the env
 -- var can desync from what the kernel actually mounted, and acting on a
 -- stale value would raw-write the live rootfs (corruption that only
--- surfaces on the next reboot).
+-- surfaces on the next reboot); the env is only consulted when neither of
+-- the authoritative sources names a slot device.
 --
 -- Loaded at SWUpdate startup (CONFIG_HANDLER_IN_LUA); handlers cannot be
 -- registered from sw-description embedded-scripts, hence this file.
@@ -41,14 +47,61 @@ local function mount_entry(target)
     return dev, opts
 end
 
+-- Slot number ('3'/'4') for a device node, or nil if it is not a slot.
+local function slot_of_dev(dev)
+    for slot, node in pairs(SLOT_DEV) do
+        if dev == node then
+            return slot
+        end
+    end
+    return nil
+end
+
 -- The device mounted as /, or nil if it is not one of the slot partitions
 -- (e.g. /dev/root from an unresolved PARTUUID= root=).
 local function mounted_root()
     local dev = mount_entry('/')
-    for slot, node in pairs(SLOT_DEV) do
-        if dev == node then
-            return node, slot
-        end
+    local slot = dev and slot_of_dev(dev)
+    if slot then
+        return dev, slot
+    end
+    return nil
+end
+
+-- Running slot from the kernel command line's root= (e.g. root=/dev/sda4).
+-- Authoritative — it names the device the kernel actually booted — and,
+-- unlike /proc/mounts, it is never rewritten to /dev/root. Returns node, slot
+-- or nil (e.g. when root= is a PARTUUID=).
+local function cmdline_root()
+    local f = io.open('/proc/cmdline')
+    if not f then
+        return nil
+    end
+    local line = f:read('*l') or ''
+    f:close()
+    local dev = line:match('root=(/dev/%S+)')
+    local slot = dev and slot_of_dev(dev)
+    if slot then
+        return dev, slot
+    end
+    return nil
+end
+
+-- U-Boot's own record of the booted slot, read straight from the environment
+-- via fw_printenv. Last-resort source for the running slot when neither
+-- /proc/mounts nor the kernel cmdline names a slot device.
+local function fw_getenv_slot()
+    local h = io.popen and io.popen('fw_printenv -n rootfs_part 2>/dev/null')
+    if not h then
+        return nil
+    end
+    local v = h:read('*l')
+    h:close()
+    if v then
+        v = v:gsub('%s+', '')
+    end
+    if v and SLOT_DEV[v] then
+        return SLOT_DEV[v], v
     end
     return nil
 end
@@ -76,19 +129,39 @@ end
 -- Target slot = the one we are not running from. Returns nil on any
 -- ambiguity, having logged why; the caller must abort rather than guess.
 local function inactive_slot()
+    -- Preferred: the slot partition mounted at / in /proc/mounts.
     local root_dev, active = mounted_root()
-    local env = swupdate.get_bootenv('rootfs_part')
+    local source = '/proc/mounts'
+
+    -- /proc/mounts often shows /dev/root rather than /dev/sdaN (a root=
+    -- that the kernel did not resolve to the partition node), naming no
+    -- slot. Rather than abort, fall back to the kernel cmdline's root=
+    -- (authoritative for the booted device) and then to U-Boot's own
+    -- rootfs_part env via fw_printenv.
+    if not active then
+        root_dev, active = cmdline_root()
+        source = '/proc/cmdline root='
+    end
+    if not active then
+        root_dev, active = fw_getenv_slot()
+        source = 'U-Boot rootfs_part'
+    end
 
     if not active then
         swupdate.error('rootfs_ab: cannot identify the running slot from ' ..
-                       '/proc/mounts; refusing to write')
+                       '/proc/mounts, kernel cmdline or U-Boot rootfs_part; ' ..
+                       'refusing to write')
         return nil
     end
+    swupdate.info(string.format('rootfs_ab: running slot %s (%s) via %s',
+                                active, tostring(root_dev), source))
+
+    local env = swupdate.get_bootenv('rootfs_part')
     if env ~= active then
-        -- Not fatal: /proc/mounts wins and the flip below repairs the env.
+        -- Not fatal: the running slot wins and the flip below repairs the env.
         swupdate.info(string.format('rootfs_ab: rootfs_part=%s disagrees with ' ..
-                                    'mounted root %s (slot %s); trusting /proc/mounts',
-                                    tostring(env), root_dev, active))
+                                    'running slot %s (%s); trusting the running slot',
+                                    tostring(env), active, tostring(root_dev)))
     end
 
     local new = OTHER_SLOT[active]
