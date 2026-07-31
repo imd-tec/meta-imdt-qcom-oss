@@ -3,15 +3,15 @@ job_name: deploy qcom-minimal-image swu to imdt-8550-sbc via ssh
 tags:
 - dut
 
-# Job/test budget covers the worst retry case: 3 push attempts of a
-# multi-hundred-MB .swu (a stalled transfer now dies in ~60s via ssh
-# keepalive), a swupdate install polled for up to 10 min, plus up to 3 reboot
-# attempts of ~5 min each, each now preceded by a wait for the rootfs grow to
+# Job/test budget covers the worst retry case: 10 resumable push attempts of a
+# multi-GB .swu (a stalled transfer dies in ~60s via ssh keepalive, a reset one
+# sooner), a swupdate install polled for up to 10 min, plus up to 3 reboot
+# attempts of ~5 min each, each preceded by a wait for the rootfs grow to
 # settle (capped at 3 min). A healthy run still completes in well under 10
 # minutes.
 timeouts:
   job:
-    minutes: 55
+    minutes: 75
   action:
     minutes: 20
   connection:
@@ -38,7 +38,7 @@ actions:
 
 - test:
     timeout:
-      minutes: 45
+      minutes: 60
     definitions:
     - from: inline
       name: swu-deploy
@@ -87,14 +87,39 @@ actions:
           - ROOT_BEFORE=$($SSH cat /proc/cmdline | tr ' ' '\n' | grep ^root=) || ROOT_BEFORE=""
           - 'echo "Active rootfs before update: $ROOT_BEFORE"'
           - $SSH mkdir -p /home/swu
-          # Push with retries and verify the transfer by checksum. The .swu
-          # can be several hundred MB and the transport can die mid-transfer
-          # (keepalive above turns a stall into a fast failure); a truncated
-          # file would otherwise cascade into misleading swupdate
-          # checksum/slot-switch failures.
+          # Push the .swu in resumable chunks, verifying the whole file by
+          # checksum at the end.
+          #
+          # A single scp of the .swu dies with "Couldn't send packet:
+          # Connection reset by peer" about 105s in on the 12GB board, at the
+          # same elapsed time whatever the size (a 202MB minimal .swu fails as
+          # readily as a 1.6GB proprietary one) — the sender runs far ahead of
+          # what the adb-forwarded USB hop can drain, and adbd drops the stream
+          # once its queue backs up. Retrying the whole file just re-enters the
+          # same doomed long-lived stream, so instead each connection carries at
+          # most CHUNK bytes and is torn down well inside that window.
+          #
+          # Each pass appends only the bytes the DUT is still missing, so a
+          # reset mid-chunk costs that chunk, not the transfer. The budget is 10
+          # *consecutive* no-progress passes rather than 10 total, so a slow
+          # transport still converges while a genuinely dead one gives up.
+          #
+          # Deliberately not rsync: qcom-minimal-image ships busybox+coreutils
+          # only, and that is the image running on the DUT while the next one is
+          # pushed, so rsync is missing exactly when it would be needed. stat,
+          # tail, head and cat are always present.
+          #
+          # Appending in place also holds peak DUT usage to one copy of the
+          # .swu, which matters on a board whose rootfs has ~2.6G free.
           - SWU_MD5=$(md5sum /tmp/update.swu | cut -d' ' -f1)
-          - PUSH_OK=0; a=0; while [ $a -lt 3 ] && [ "$PUSH_OK" != 1 ]; do a=$((a+1)); echo "push-swu attempt $a"; if $SCP /tmp/update.swu "$SSH_USER@$SSH_HOST:/home/swu/update.swu"; then DUT_MD5=$($SSH md5sum /home/swu/update.swu | cut -d' ' -f1) || DUT_MD5=""; if [ -n "$DUT_MD5" ] && [ "$DUT_MD5" = "$SWU_MD5" ]; then PUSH_OK=1; fi; fi; done
-          - 'echo "swu md5 local=$SWU_MD5 dut=${DUT_MD5:-<none>} attempts=$a"'
+          # 64MB: even at the ~2MB/s this transport degrades to, a chunk is
+          # ~34s of connection life, comfortably inside the ~105s window in
+          # which the stream gets reset. Handshake cost per chunk is ~1s.
+          - CHUNK=$((64 * 1024 * 1024))
+          - 'dut_size() { S=$($SSH "stat -c%s /home/swu/update.swu 2>/dev/null" 2>/dev/null) || S=""; case "$S" in ""|*[!0-9]*) S=0 ;; esac; echo "$S"; }'
+          - 'push_swu() { LOCAL_SIZE=$(stat -c%s /tmp/update.swu); STALL=0; PASS=0; while [ $STALL -lt 10 ]; do PASS=$((PASS+1)); HAVE=$(dut_size); if [ "$HAVE" -gt "$LOCAL_SIZE" ]; then echo "dut copy is longer than the source - restarting"; $SSH rm -f /home/swu/update.swu || true; HAVE=0; fi; if [ "$HAVE" -eq "$LOCAL_SIZE" ]; then DUT_MD5=$($SSH md5sum /home/swu/update.swu | cut -d" " -f1) || DUT_MD5=""; if [ -n "$DUT_MD5" ] && [ "$DUT_MD5" = "$SWU_MD5" ]; then echo "push-swu verified after $((PASS-1)) pass(es)"; return 0; fi; echo "checksum mismatch at full length - restarting"; $SSH rm -f /home/swu/update.swu || true; HAVE=0; fi; echo "push-swu pass $PASS: $HAVE of $LOCAL_SIZE bytes on dut"; tail -c +$((HAVE+1)) /tmp/update.swu | head -c $CHUNK | $SSH "cat >> /home/swu/update.swu" || true; if [ "$(dut_size)" -gt "$HAVE" ]; then STALL=0; else STALL=$((STALL+1)); echo "no progress ($STALL/10)"; fi; done; echo "push-swu gave up after 10 passes with no progress"; return 1; }'
+          - if push_swu; then PUSH_OK=1; else PUSH_OK=0; fi
+          - 'echo "swu md5 local=$SWU_MD5 dut=${DUT_MD5:-<none>}"'
           - if [ "$PUSH_OK" = 1 ]; then lava-test-case push-swu --result pass; else lava-test-case push-swu --result fail; fi
           # Run swupdate detached and poll over short-lived connections: the
           # 12GB board's install stalls its transport past the 60s keepalive
