@@ -104,6 +104,12 @@ actions:
           # *consecutive* no-progress passes rather than 10 total, so a slow
           # transport still converges while a genuinely dead one gives up.
           #
+          # A no-progress pass backs off 10s before retrying. A USB-level reset
+          # takes the whole adb transport down, not just this stream, and the
+          # forwards have to be re-established before anything can connect --
+          # ssh then fails instantly with connection refused, which would
+          # otherwise burn the whole budget in a couple of seconds.
+          #
           # Deliberately not rsync: qcom-minimal-image ships busybox+coreutils
           # only, and that is the image running on the DUT while the next one is
           # pushed, so rsync is missing exactly when it would be needed. stat,
@@ -117,7 +123,7 @@ actions:
           # which the stream gets reset. Handshake cost per chunk is ~1s.
           - CHUNK=$((64 * 1024 * 1024))
           - 'dut_size() { S=$($SSH "stat -c%s /home/swu/update.swu 2>/dev/null" 2>/dev/null) || S=""; case "$S" in ""|*[!0-9]*) S=0 ;; esac; echo "$S"; }'
-          - 'push_swu() { LOCAL_SIZE=$(stat -c%s /tmp/update.swu); STALL=0; PASS=0; while [ $STALL -lt 10 ]; do PASS=$((PASS+1)); HAVE=$(dut_size); if [ "$HAVE" -gt "$LOCAL_SIZE" ]; then echo "dut copy is longer than the source - restarting"; $SSH rm -f /home/swu/update.swu || true; HAVE=0; fi; if [ "$HAVE" -eq "$LOCAL_SIZE" ]; then DUT_MD5=$($SSH md5sum /home/swu/update.swu | cut -d" " -f1) || DUT_MD5=""; if [ -n "$DUT_MD5" ] && [ "$DUT_MD5" = "$SWU_MD5" ]; then echo "push-swu verified after $((PASS-1)) pass(es)"; return 0; fi; echo "checksum mismatch at full length - restarting"; $SSH rm -f /home/swu/update.swu || true; HAVE=0; fi; echo "push-swu pass $PASS: $HAVE of $LOCAL_SIZE bytes on dut"; tail -c +$((HAVE+1)) /tmp/update.swu | head -c $CHUNK | $SSH "cat >> /home/swu/update.swu" || true; if [ "$(dut_size)" -gt "$HAVE" ]; then STALL=0; else STALL=$((STALL+1)); echo "no progress ($STALL/10)"; fi; done; echo "push-swu gave up after 10 passes with no progress"; return 1; }'
+          - 'push_swu() { LOCAL_SIZE=$(stat -c%s /tmp/update.swu); STALL=0; PASS=0; while [ $STALL -lt 10 ]; do PASS=$((PASS+1)); HAVE=$(dut_size); if [ "$HAVE" -gt "$LOCAL_SIZE" ]; then echo "dut copy is longer than the source - restarting"; $SSH rm -f /home/swu/update.swu || true; HAVE=0; fi; if [ "$HAVE" -eq "$LOCAL_SIZE" ]; then DUT_MD5=$($SSH md5sum /home/swu/update.swu | cut -d" " -f1) || DUT_MD5=""; if [ -n "$DUT_MD5" ] && [ "$DUT_MD5" = "$SWU_MD5" ]; then echo "push-swu verified after $((PASS-1)) pass(es)"; return 0; fi; echo "checksum mismatch at full length - restarting"; $SSH rm -f /home/swu/update.swu || true; HAVE=0; fi; echo "push-swu pass $PASS: $HAVE of $LOCAL_SIZE bytes on dut"; tail -c +$((HAVE+1)) /tmp/update.swu | head -c $CHUNK | $SSH "cat >> /home/swu/update.swu" || true; if [ "$(dut_size)" -gt "$HAVE" ]; then STALL=0; else STALL=$((STALL+1)); echo "no progress ($STALL/10)"; sleep 10; fi; done; echo "push-swu gave up after 10 passes with no progress"; return 1; }'
           - if push_swu; then PUSH_OK=1; else PUSH_OK=0; fi
           - 'echo "swu md5 local=$SWU_MD5 dut=${DUT_MD5:-<none>}"'
           - if [ "$PUSH_OK" = 1 ]; then lava-test-case push-swu --result pass; else lava-test-case push-swu --result fail; fi
