@@ -83,6 +83,12 @@ jobs:
       kas-config: ${{ needs.setup.outputs.kas-config }}
       machine: 'imdt-8550-sbc imdt-6490-sbc'
       artifact-name: 'qcom-imdt-images'
+      # Nothing in this repo downloads the per-machine tarballs: LAVA gets the
+      # .swu and BOOTAA64.EFI by rsync below, and tag builds still attach the
+      # tarballs to the GitHub release (packing stays on for tags). Skipping the
+      # zstd pack + upload of two multi-GB deploy dirs takes a large chunk off
+      # every master/PR build.
+      upload-artifacts: false
       rsync-enabled: true
       # Only the 8550 has LAVA coverage, and both boards emit a BOOTAA64.EFI
       # that would collide at the destination.
