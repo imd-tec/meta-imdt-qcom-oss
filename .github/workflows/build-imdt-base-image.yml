@@ -91,6 +91,7 @@ jobs:
       rsync-user: pi
       rsync-dest: /home/pi/qcom-oss/
       rsync-pattern: '*.swu BOOTAA64.EFI'
+      clean-checkout: false
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
