@@ -44,7 +44,8 @@ actions:
         SSH_HOST: 'SET-BY-CI'
         SSH_PORT: '2222'
         SSH_USER: 'root'
-        # Output PNG on the LAVA host (/images = /home/pi/qcom-oss). The CI
+        # Output PNG on the LAVA host (/images is bind-mounted by the dut0
+        # device dict from the LAVA images dir on the server). The CI
         # workflow makes this board-specific so parallel board runs don't
         # overwrite each other's frame.
         FRAME_OUT: '/images/ar1335_4208x3120.png'

@@ -149,20 +149,31 @@ jobs:
       #  * ssh-device jobs (ssh-tests, pcie-keyb-test) are pinned by replacing
       #    the generic dut-ssh tag with the board tag (8550-8gb / 8550-12gb);
       #  * docker-device jobs (swu-deploy, ar1335-capture, pcie-keyb-switch)
-      #    reach the board over ssh, so SSH_HOST is set to the Pi forwarding
-      #    this board — the endpoint is a repo secret per board tag;
+      #    reach the board over ssh, so SSH_HOST/SSH_PORT are set to the relay
+      #    forwarding this board — the endpoint is a repo secret per board tag;
       #  * the memory threshold and camera presence match the board variant.
       - name: Prepare board-specific LAVA job definitions
         run: |
+          # Both boards now sit behind the same relay address, distinguished
+          # only by port, so the port is board-specific too. It defaults to
+          # 2222 (the historic value, and still the 12 GB board's) when the
+          # secret is unset, so a repo that has not set it keeps working.
           case "${{ inputs.board-tag }}" in
-            8550-8gb)  DUT_SSH_HOST="${{ secrets.DUT_SSH_HOST_8GB }}" ;;
-            8550-12gb) DUT_SSH_HOST="${{ secrets.DUT_SSH_HOST_12GB }}" ;;
+            8550-8gb)
+              DUT_SSH_HOST="${{ secrets.DUT_SSH_HOST_8GB }}"
+              DUT_SSH_PORT="${{ secrets.DUT_SSH_PORT_8GB }}"
+              ;;
+            8550-12gb)
+              DUT_SSH_HOST="${{ secrets.DUT_SSH_HOST_12GB }}"
+              DUT_SSH_PORT="${{ secrets.DUT_SSH_PORT_12GB }}"
+              ;;
             *) echo "Unknown board-tag '${{ inputs.board-tag }}'"; exit 1 ;;
           esac
           if [ -z "$DUT_SSH_HOST" ]; then
             echo "DUT ssh host secret for '${{ inputs.board-tag }}' is not set"
             exit 1
           fi
+          DUT_SSH_PORT="${DUT_SSH_PORT:-2222}"
           mkdir -p /tmp/lava-jobs
           CAMERA_PRESENT="${{ inputs.has-camera && 'yes' || 'no' }}"
           SDCARD_PRESENT="${{ inputs.has-sdcard && 'yes' || 'no' }}"
@@ -170,6 +181,7 @@ jobs:
           for f in lava/*.yaml; do
             sed -e "s|^- dut-ssh$|- ${{ inputs.board-tag }}|" \
                 -e "s|SSH_HOST: '[^']*'|SSH_HOST: '${DUT_SSH_HOST}'|" \
+                -e "s|SSH_PORT: '[^']*'|SSH_PORT: '${DUT_SSH_PORT}'|" \
                 -e "s|MEM_MIN_MB: '[^']*'|MEM_MIN_MB: '${{ inputs.mem-min-mb }}'|" \
                 -e "s|CAMERA_PRESENT: '[^']*'|CAMERA_PRESENT: '${CAMERA_PRESENT}'|" \
                 -e "s|SDCARD_PRESENT: '[^']*'|SDCARD_PRESENT: '${SDCARD_PRESENT}'|" \
@@ -438,7 +450,7 @@ jobs:
           # so a missing rsync would drop the frame artifact silently.
           command -v rsync >/dev/null || { sudo apt-get update -qq; sudo apt-get install -y rsync >/dev/null; }
           rsync -av -e "ssh -i ~/.ssh/id_lava -o StrictHostKeyChecking=accept-new" \
-            pi@${{ vars.LAVA_HOST }}:/home/pi/qcom-oss/ar1335_${{ inputs.board-tag }}.png \
+            ${{ vars.LAVA_USER }}@${{ vars.LAVA_HOST }}:${{ vars.LAVA_IMAGES_DIR }}/ar1335_${{ inputs.board-tag }}.png \
             ar1335_${{ inputs.board-tag }}.png 2>/dev/null || true
 
       - name: Upload camera frame artifact

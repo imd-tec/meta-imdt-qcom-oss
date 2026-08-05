@@ -94,8 +94,8 @@ jobs:
       # that would collide at the destination.
       rsync-machine: 'imdt-8550-sbc'
       rsync-host: ${{ vars.LAVA_HOST }}
-      rsync-user: pi
-      rsync-dest: /home/pi/qcom-oss/
+      rsync-user: ${{ vars.LAVA_USER }}
+      rsync-dest: ${{ vars.LAVA_IMAGES_DIR }}/
       rsync-pattern: '*.swu BOOTAA64.EFI'
       clean-checkout: false
     secrets:
@@ -157,7 +157,7 @@ jobs:
     secrets: inherit
 
   # Reclaim space on the LAVA server: the build step rsyncs a full rootfs .swu
-  # (hundreds of MB, GBs for multimedia) plus BOOTAA64.EFI to /home/pi/qcom-oss
+  # (hundreds of MB, GBs for multimedia) plus BOOTAA64.EFI to the LAVA images dir
   # for every commit, and swu-deploy only consumes them. Delete this commit's
   # artifacts once ALL board/image LAVA jobs have passed — a single job that
   # needs both board jobs runs after every matrix entry finishes, so it never
@@ -171,6 +171,6 @@ jobs:
     steps:
       - name: Delete this commit's staged .swu and BOOTAA64 on the LAVA server
         run: |
-          ssh -o StrictHostKeyChecking=accept-new "pi@${{ vars.LAVA_HOST }}" \
-            "rm -f /home/pi/qcom-oss/*-imdt-8550-sbc.rootfs-${{ github.sha }}.swu \
-                   /home/pi/qcom-oss/BOOTAA64-${{ github.sha }}.EFI"
+          ssh -o StrictHostKeyChecking=accept-new "${{ vars.LAVA_USER }}@${{ vars.LAVA_HOST }}" \
+            "rm -f ${{ vars.LAVA_IMAGES_DIR }}/*-imdt-8550-sbc.rootfs-${{ github.sha }}.swu \
+                   ${{ vars.LAVA_IMAGES_DIR }}/BOOTAA64-${{ github.sha }}.EFI"
