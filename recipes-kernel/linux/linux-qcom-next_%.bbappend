@@ -2,10 +2,15 @@ FILESEXTRAPATHS:prepend := "${THISDIR}/linux-qcom-next:"
 
 # We have a mix of patches that are in the process of upstreamed
 # and patches that are WiP.
+#
+# Patches fetched from lore have to be dropped once the kernel that meta-qcom pins
+# gains them, or do_patch fails. We track meta-qcom master, so its kernel SRCREV bumps arrive
+# without any change here. The signature in the do_patch log is unmistakable:
+#   Hunk #1 FAILED ... / Patch <name> can be reverse-applied
+# "can be reverse-applied" means the change is already in the tree -- remove the entry
+# and its SRC_URI[<name>.sha256sum] rather than trying to rebase it.
 SRC_URI:append = " \
     https://lore.kernel.org/all/20260427-sm8550-sdhc4-support-v2-1-a4241f43ecd5@imd-tec.com/raw;downloadfilename=0001-sm8550-sdhc4-support.patch;apply=yes;striplevel=1;name=sdhc4 \
-    https://lore.kernel.org/all/20260428-imdt-dsi-display-v2-1-cf7294b5d7d6@imd-tec.com/raw;downloadfilename=0002-dsi-bindings.patch;apply=yes;striplevel=1;name=dsi_bindings \
-    https://lore.kernel.org/all/20260428-imdt-dsi-display-v2-2-cf7294b5d7d6@imd-tec.com/raw;downloadfilename=0003-dsi-display.patch;apply=yes;striplevel=1;name=dsi_display \
     file://0001-dt-bindings-vendor-prefixes-Add-IMDT.patch \
     file://0002-dt-bindings-qcom-Document-IMDT-QCS8550-SBC-and-SoM.patch \
     file://0003-arm64-dts-qcom-Add-IMDT-QCS8550-SBC.patch \
@@ -22,8 +27,6 @@ SRC_URI:append = " \
 "
 
 SRC_URI[sdhc4.sha256sum]         = "b47391ea40077dbdef7d230d4a1e83fe33ba200ca8f4f9273fb1db98a1cadc7f"
-SRC_URI[dsi_bindings.sha256sum]  = "f09bd422b105c0f99b3028920d2edf4baf20e2cf583dd5ce857dd72fd634fdaa"
-SRC_URI[dsi_display.sha256sum]   = "667468d0a8b426cb16f8b0768d51a79b45a18d0dbf702fe4e57abd88d943ccc3"
 # This QA fails on lore.kernel patch files even though the patches
 # are being upstreamed.
 ERROR_QA:remove = "patch-status"
