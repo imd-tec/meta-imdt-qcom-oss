@@ -1,3 +1,4 @@
+From c0ccbdc4567752968c2b1ddd4782e2810bb67d0d Mon Sep 17 00:00:00 2001
 From: William Bright <william.bright@imd-tec.com>
 Date: Wed, 29 Jul 2026 18:55:00 +0100
 Subject: [PATCH] arm64: dts: qcom: qcs6490-imdt-sbc: detach eMMC inline crypto
@@ -22,9 +23,14 @@ Upstream-Status: Pending
 
 Signed-off-by: William Bright <william.bright@imd-tec.com>
 ---
+ arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
+index ccad9256a828..6f41f4c9d24b 100644
 --- a/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
 +++ b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
-@@ -617,6 +617,17 @@
+@@ -632,6 +632,17 @@ &remoteproc_cdsp {
  
  /* On-SoM 32 GB eMMC */
  &sdhc_1 {
@@ -42,3 +48,6 @@ Signed-off-by: William Bright <william.bright@imd-tec.com>
  	vmmc-supply = <&vreg_l7b_2p952>;
  	vqmmc-supply = <&vreg_l19b_1p8>;
  
+-- 
+2.43.0
+

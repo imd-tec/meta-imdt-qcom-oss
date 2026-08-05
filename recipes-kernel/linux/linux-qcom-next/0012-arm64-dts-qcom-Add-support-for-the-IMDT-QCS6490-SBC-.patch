@@ -1,4 +1,4 @@
-From eeaf7d63e37de13d6165df33fe397fdd44611b6d Mon Sep 17 00:00:00 2001
+From 730134613ff72b6ea446a6f00f585d23c02b990b Mon Sep 17 00:00:00 2001
 From: William Bright <william.bright@imd-tec.com>
 Date: Tue, 7 Jul 2026 15:33:43 +0100
 Subject: [PATCH] arm64/dts/qcom: Add support for the IMDT QCS6490 SBC and SoM
@@ -7,18 +7,18 @@ Subject: [PATCH] arm64/dts/qcom: Add support for the IMDT QCS6490 SBC and SoM
  .../devicetree/bindings/arm/qcom.yaml         |   6 +
  arch/arm64/boot/dts/qcom/Makefile             |   2 +
  .../dts/qcom/qcs6490-imdt-sbc-pcie-keyb.dtso  |  18 +
- arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts | 863 ++++++++++++++++++
+ arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts | 885 ++++++++++++++++++
  .../arm64/boot/dts/qcom/qcs6490-imdt-som.dtsi | 291 ++++++
- 5 files changed, 1162 insertions(+)
+ 5 files changed, 1202 insertions(+)
  create mode 100644 arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc-pcie-keyb.dtso
  create mode 100644 arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
  create mode 100644 arch/arm64/boot/dts/qcom/qcs6490-imdt-som.dtsi
 
 diff --git a/Documentation/devicetree/bindings/arm/qcom.yaml b/Documentation/devicetree/bindings/arm/qcom.yaml
-index 51109871cb09..9ab02a571f37 100644
+index e0029caff82f..df39b367724d 100644
 --- a/Documentation/devicetree/bindings/arm/qcom.yaml
 +++ b/Documentation/devicetree/bindings/arm/qcom.yaml
-@@ -397,6 +397,12 @@ properties:
+@@ -405,6 +405,12 @@ properties:
                - thundercomm,rubikpi3
            - const: qcom,qcm6490
  
@@ -32,10 +32,10 @@ index 51109871cb09..9ab02a571f37 100644
          items:
            - enum:
 diff --git a/arch/arm64/boot/dts/qcom/Makefile b/arch/arm64/boot/dts/qcom/Makefile
-index a9a57392b4c9..c5c501c00021 100644
+index d93b89a06136..c083502b4e9a 100644
 --- a/arch/arm64/boot/dts/qcom/Makefile
 +++ b/arch/arm64/boot/dts/qcom/Makefile
-@@ -197,6 +197,8 @@ qcs615-ride-el2-dtbs := qcs615-ride.dtb talos-el2.dtbo
+@@ -208,6 +208,8 @@ qcs615-ride-el2-dtbs := qcs615-ride.dtb talos-el2.dtbo
  
  dtb-$(CONFIG_ARCH_QCOM)	+= qcs615-ride-el2.dtb
  dtb-$(CONFIG_ARCH_QCOM)	+= talos-el2.dtbo
@@ -70,10 +70,10 @@ index 000000000000..a126bedbeaf1
 +};
 diff --git a/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
 new file mode 100644
-index 000000000000..bf0201c5dac1
+index 000000000000..ccad9256a828
 --- /dev/null
 +++ b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
-@@ -0,0 +1,863 @@
+@@ -0,0 +1,885 @@
 +// SPDX-License-Identifier: BSD-3-Clause
 +/*
 + * Copyright (c) 2026 IMD Technologies Ltd
@@ -107,6 +107,28 @@ index 000000000000..bf0201c5dac1
 +/delete-node/ &wlan_fw_mem;
 +/delete-node/ &wpss_mem;
 +/delete-node/ &xbl_mem;
++
++/*
++ * The mdmss thermal zones throttle via &remoteproc_mpss, deleted above, which
++ * leaves their cooling-maps referencing a non-existent label and aborts dtc.
++ * Drop the maps only: the sensors and their trip points, including the critical
++ * shutdown trip, stay live.
++ */
++&mdmss0_thermal {
++	/delete-node/ cooling-maps;
++};
++
++&mdmss1_thermal {
++	/delete-node/ cooling-maps;
++};
++
++&mdmss2_thermal {
++	/delete-node/ cooling-maps;
++};
++
++&mdmss3_thermal {
++	/delete-node/ cooling-maps;
++};
 +
 +/ {
 +	model = "IMDT QCS6490 SBC";

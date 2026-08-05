@@ -1,4 +1,4 @@
-From 87f9a90784c10aa4dd07869380b85596ff20976d Mon Sep 17 00:00:00 2001
+From d13a61a34d841abd256d852133d19f75bf0ac334 Mon Sep 17 00:00:00 2001
 From: William Bright <William.Bright@imd-tec.com>
 Date: Wed, 15 Apr 2026 11:57:54 +0100
 Subject: [PATCH] arm64: dts: qcom: qcs8550-imdt-sbc: Add PCIe switch Key B
@@ -22,15 +22,15 @@ pinctrl state pcie1 applies later in boot.
 Signed-off-by: William Bright <william.bright@imd-tec.com>
 ---
  arch/arm64/boot/dts/qcom/Makefile             |  1 +
- .../dts/qcom/qcs8550-imdt-sbc-pcie-keyb.dtso  | 36 ++++++++++++++++++
+ .../dts/qcom/qcs8550-imdt-sbc-pcie-keyb.dtso  | 36 +++++++++++++++++++
  2 files changed, 37 insertions(+)
  create mode 100644 arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-pcie-keyb.dtso
 
 diff --git a/arch/arm64/boot/dts/qcom/Makefile b/arch/arm64/boot/dts/qcom/Makefile
-index 79fd05a32e00..a9a57392b4c9 100644
+index 7350299fdb87..d93b89a06136 100644
 --- a/arch/arm64/boot/dts/qcom/Makefile
 +++ b/arch/arm64/boot/dts/qcom/Makefile
-@@ -221,6 +221,7 @@ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-aim300-aiot.dtb
+@@ -241,6 +241,7 @@ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-aim300-aiot.dtb
  dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc.dtb
  dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-display.dtbo
  dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-ar1335-csi0.dtbo
@@ -40,7 +40,7 @@ index 79fd05a32e00..a9a57392b4c9 100644
  dtb-$(CONFIG_ARCH_QCOM)	+= qcs9100-ride-r3.dtb
 diff --git a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-pcie-keyb.dtso b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-pcie-keyb.dtso
 new file mode 100644
-index 000000000000..3c1a5c9b7d42
+index 000000000000..a55377db3cc9
 --- /dev/null
 +++ b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-pcie-keyb.dtso
 @@ -0,0 +1,36 @@
@@ -82,3 +82,4 @@ index 000000000000..3c1a5c9b7d42
 +};
 -- 
 2.43.0
+

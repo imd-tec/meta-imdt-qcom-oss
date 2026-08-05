@@ -1,4 +1,4 @@
-From a28be8de744d72954b8c3428ec3a397bbe8ca019 Mon Sep 17 00:00:00 2001
+From b8c7947990c803b16046c971ec8a82d21a4728c2 Mon Sep 17 00:00:00 2001
 From: William Bright <William.Bright@imd-tec.com>
 Date: Wed, 8 Apr 2026 10:43:05 +0100
 Subject: [PATCH] media: i2c: ar1335: Add ON Semiconductor AR1335 camera sensor
@@ -64,7 +64,7 @@ index ea33cb60dbab..64ca54ced9e3 100644
                              ar1335_ep: endpoint {
                                      remote-endpoint = <&csi_in>;
 diff --git a/drivers/media/i2c/Kconfig b/drivers/media/i2c/Kconfig
-index 8f2ba4121586..85e3565d3544 100644
+index 5d173e0ecf42..05c1b40e5f2c 100644
 --- a/drivers/media/i2c/Kconfig
 +++ b/drivers/media/i2c/Kconfig
 @@ -60,6 +60,16 @@ config VIDEO_AR0521
@@ -85,7 +85,7 @@ index 8f2ba4121586..85e3565d3544 100644
  	tristate "GalaxyCore GC0308 sensor support"
  	select V4L2_CCI_I2C
 diff --git a/drivers/media/i2c/Makefile b/drivers/media/i2c/Makefile
-index 90b276a7417a..031247160432 100644
+index e45359efe0e4..d02ba4ad5bc4 100644
 --- a/drivers/media/i2c/Makefile
 +++ b/drivers/media/i2c/Makefile
 @@ -16,6 +16,7 @@ obj-$(CONFIG_VIDEO_ADV7511) += adv7511-v4l2.o

@@ -1,0 +1,81 @@
+From 902226116144fec1a5e66d12dc429a681ca97067 Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Mon, 27 Apr 2026 12:24:51 +0100
+Subject: [PATCH] arm64: dts: qcom: sm8550: add SDHC4 controller node
+
+Add the SDC4 SDHCI controller node for the SM8550 SoC.
+
+SMMU stream ID 0x80 was sourced from the UEFI bootloader IORT tables,
+as SDCC stream IDs are not documented in the register reference manual.
+Unlike SDC2, the data path is routed via aggre1_noc, matching
+MASTER_SDCC_4 in drivers/interconnect/qcom/sm8550.c.
+
+The SDHCI capabilities register on this SoC advertises SDR104
+and SDR50 but these UHS-I modes are broken on SDHC4.
+Mask them via sdhci-caps-mask, this keeps the bus in HS mode,
+which initialises reliably.
+
+Tested on the IMDT QCS8550 SBC. This board is not currently
+supported in-tree.
+
+Co-developed-by: Tendai Makumire <tendai.makumire@imd-tec.com>
+Signed-off-by: Tendai Makumire <tendai.makumire@imd-tec.com>
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+---
+ arch/arm64/boot/dts/qcom/sm8550.dtsi | 40 ++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm8550.dtsi b/arch/arm64/boot/dts/qcom/sm8550.dtsi
+index 396201905ef2..06e57d789706 100644
+--- a/arch/arm64/boot/dts/qcom/sm8550.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm8550.dtsi
+@@ -3641,6 +3641,46 @@ opp-202000000 {
+ 			};
+ 		};
+ 
++		sdhc_4: mmc@8844000 {
++			compatible = "qcom,sm8550-sdhci", "qcom,sdhci-msm-v5";
++			reg = <0 0x08844000 0 0x1000>;
++
++			interrupts = <GIC_SPI 261 IRQ_TYPE_LEVEL_HIGH 0>,
++				     <GIC_SPI 227 IRQ_TYPE_LEVEL_HIGH 0>;
++			interrupt-names = "hc_irq", "pwr_irq";
++
++			clocks = <&gcc GCC_SDCC4_AHB_CLK>,
++				 <&gcc GCC_SDCC4_APPS_CLK>,
++				 <&bi_tcxo_div2>;
++			clock-names = "iface", "core", "xo";
++			iommus = <&apps_smmu 0x80 0>;
++			power-domains = <&rpmhpd RPMHPD_CX>;
++			operating-points-v2 = <&sdhc4_opp_table>;
++
++			interconnects = <&aggre1_noc MASTER_SDCC_4 QCOM_ICC_TAG_ALWAYS
++					 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>,
++					<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ACTIVE_ONLY
++					 &config_noc SLAVE_SDCC_4 QCOM_ICC_TAG_ACTIVE_ONLY>;
++			interconnect-names = "sdhc-ddr", "cpu-sdhc";
++			bus-width = <4>;
++			max-sd-hs-hz = <37500000>;
++			dma-coherent;
++
++			/* Forbid SDR104/SDR50 broken hw! */
++			sdhci-caps-mask = <0x3 0>;
++
++			status = "disabled";
++
++			sdhc4_opp_table: opp-table {
++				compatible = "operating-points-v2";
++
++				opp-75000000 {
++					opp-hz = /bits/ 64 <75000000>;
++					required-opps = <&rpmhpd_opp_low_svs>;
++				};
++			};
++		};
++
+ 		iris: video-codec@aa00000 {
+ 			compatible = "qcom,sm8550-iris";
+ 
+-- 
+2.43.0
+

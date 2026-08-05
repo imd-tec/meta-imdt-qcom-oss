@@ -1,4 +1,4 @@
-From 5d5ac0524363ceb460b859fb44844d98bf3d16fb Mon Sep 17 00:00:00 2001
+From d94c754a77c50e24c1b0ebb3dd1872b201cd00ce Mon Sep 17 00:00:00 2001
 From: William Bright <william.bright@imd-tec.com>
 Date: Wed, 18 Mar 2026 11:48:20 +0000
 Subject: [PATCH] dt-bindings: vendor-prefixes: Add IMDT
@@ -12,10 +12,10 @@ Signed-off-by: William Bright <william.bright@imd-tec.com>
  1 file changed, 2 insertions(+)
 
 diff --git a/Documentation/devicetree/bindings/vendor-prefixes.yaml b/Documentation/devicetree/bindings/vendor-prefixes.yaml
-index 28784d66ae7b..1484442fa0d9 100644
+index 396044f368e7..ea62296ce864 100644
 --- a/Documentation/devicetree/bindings/vendor-prefixes.yaml
 +++ b/Documentation/devicetree/bindings/vendor-prefixes.yaml
-@@ -783,6 +783,8 @@ patternProperties:
+@@ -789,6 +789,8 @@ patternProperties:
      description: ILI Technology Corporation (ILITEK)
    "^imagis,.*":
      description: Imagis Technologies Co., Ltd.

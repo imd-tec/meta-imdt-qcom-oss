@@ -1,4 +1,4 @@
-From 9a53b7f9a9683c4dfe1a9377cec1131e4a23b034 Mon Sep 17 00:00:00 2001
+From 6cffc518de177090e7e709f4cd68fc1778553eb5 Mon Sep 17 00:00:00 2001
 From: William Bright <william.bright@imd-tec.com>
 Date: Wed, 18 Mar 2026 12:02:16 +0000
 Subject: [PATCH] dt-bindings: qcom: Document IMDT QCS8550 SBC and SoM
@@ -13,10 +13,10 @@ Signed-off-by: William Bright <william.bright@imd-tec.com>
  1 file changed, 7 insertions(+)
 
 diff --git a/Documentation/devicetree/bindings/arm/qcom.yaml b/Documentation/devicetree/bindings/arm/qcom.yaml
-index f7a9f00963db..51109871cb09 100644
+index 1a3a3719d9fb..e0029caff82f 100644
 --- a/Documentation/devicetree/bindings/arm/qcom.yaml
 +++ b/Documentation/devicetree/bindings/arm/qcom.yaml
-@@ -1118,6 +1118,13 @@ properties:
+@@ -1133,6 +1133,13 @@ properties:
            - const: qcom,qcs8550
            - const: qcom,sm8550
  

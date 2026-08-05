@@ -1,4 +1,4 @@
-From 485006e131037bce2fd6cc3f617c734d8097f2e4 Mon Sep 17 00:00:00 2001
+From e40b0f6a3e01735fa3b4cd36ac4907d23d9e75a4 Mon Sep 17 00:00:00 2001
 From: William Bright <william.bright@imd-tec.com>
 Date: Thu, 25 Jun 2026 08:46:42 +0100
 Subject: [PATCH] arm64: dts: qcom: qcs8550-imdt-sbc: enable zap shader
@@ -14,7 +14,7 @@ Signed-off-by: William Bright <william.bright@imd-tec.com>
  1 file changed, 1 insertion(+), 2 deletions(-)
 
 diff --git a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc.dts b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc.dts
-index bd3ef3567874..92d39ee45100 100644
+index 73a13c4f0e65..59cacf863c91 100644
 --- a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc.dts
 +++ b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc.dts
 @@ -290,8 +290,7 @@ &gpu {
