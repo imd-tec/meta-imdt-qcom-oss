@@ -26,6 +26,7 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 - [Feature Support](#feature-support)
 - [Upstreaming Status](#upstreaming-status)
 - [Boot Chain](#boot-chain)
+- [Device Tree Overlays](#device-tree-overlays)
 - [UFS Layout](#ufs-layout)
 - [References](#references)
 - [Downloading prebuilt release images](#downloading-prebuilt-release-images)
@@ -105,6 +106,38 @@ The boot chain used to boot into Linux is shown below.
 4. **U-Boot** — built as an ARM64 **UEFI application** (`BOOTAA64.EFI`) on the EFI System Partition (ESP), which is what `abl2esp` finds and starts. Running U-Boot here lets us apply device tree fixups/overlays and select the A/B rootfs slot (with automatic rollback) before booting Linux.
 5. **Linux** — U-Boot loads the kernel and matching device tree and boots into the Yocto userspace.
 
+## Device Tree Overlays
+
+The board boots a multi-DTB **FIT image** (`dtb.bin`). The UEFI firmware
+(`DtPlatformDxe`, boot-chain step 4) picks the FIT configuration for this board
+from its CDT identity, loads the base DTB and **applies a fixed set of overlays**
+before handing the device tree to the kernel. By default that set is the
+**display** panel and the **AR1335 camera on CSI0**.
+
+Which overlays are applied is defined in two places that must agree:
+
+1. **The FIT configuration** —
+   [`conf/machine/include/imdt-fit-dtb-compatible.inc`](conf/machine/include/imdt-fit-dtb-compatible.inc).
+   The stems after the base DTB on the board's line are the overlays UEFI applies:
+
+   ```
+   FIT_DTB_COMPATIBLE[imdt_qcs8550-sbc] = "qcs8550-imdt-sbc qcs8550-imdt-sbc-display qcs8550-imdt-sbc-ar1335-csi0"
+   #                                       └ base DTB      └ overlay ───────────┘ └ overlay ────────────────┘
+   ```
+
+2. **The built device trees** — `KERNEL_DEVICETREE` in
+   [`conf/machine/imdt-8550-sbc.conf`](conf/machine/imdt-8550-sbc.conf), which must
+   list the base `.dtb` and every overlay `.dtbo` you reference above so they are
+   compiled and packed into the FIT.
+
+To **change the applied overlays**, edit both lists together — e.g. to drop the
+camera overlay, remove `qcs8550-imdt-sbc-ar1335-csi0` from the
+`FIT_DTB_COMPATIBLE` line (leaving it in `KERNEL_DEVICETREE` just builds it
+without applying it). Add a new overlay by putting its `.dtbo` in
+`KERNEL_DEVICETREE` and appending its stem to the `FIT_DTB_COMPATIBLE` line. Then
+rebuild and reflash (or ship an OSTree update — the FIT lives in the ESP, so a
+DTB/overlay change needs the `efi` partition reflashed).
+
 ## UFS Layout
 
 Everything lives on a single onboard UFS device, partitioned across
@@ -114,7 +147,7 @@ in [`imdt-qcom-ptool`](https://github.com/imd-tec/imdt-qcom-ptool) and flashed b
 
 | LUN | Responsible for |
 |---|---|
-| 0 | EFI System Partition and the A/B rootfs (see below). |
+| 0 | EFI System Partition and the OSTree rootfs (see below). |
 | 1 / 2 | XBL |
 | 3 | Configuration Data Table (`cdt`) and DDR training (`ddr`). |
 | 4 | The bulk of the boot firmware — `abl` (our `abl2esp`), `uboot_env`, TrustZone, hypervisor, AOP, CPU subsystem, DSP and device config. |
@@ -124,10 +157,9 @@ in [`imdt-qcom-ptool`](https://github.com/imd-tec/imdt-qcom-ptool) and flashed b
 
 | Partition | Size | Contents |
 |---|---|---|
-| `efi` | 512 MiB | EFI System Partition — U-Boot (`BOOTAA64.EFI`), kernel, device trees and overlays. |
-| `rootfs_a` | ~22 GiB | A/B rootfs slot A (active by default). |
-| `rootfs_b` | ~22 GiB | A/B rootfs slot B — [SWUpdate](#swupdate) writes the inactive slot and U-Boot switches over with rollback. |
-| `misc` | 1 MiB | Boot-control metadata (active/pending slot). |
+| `efi` | 512 MiB | EFI System Partition — systemd-boot (`BOOTAA64.EFI`), the OSTree Boot Loader Spec entries (`loader/entries/ostree-N.conf`) and the per-deployment kernels (UKIs). Mounted at `/boot` at runtime so OSTree can manage it. |
+| `otaroot` | ~44 GiB | The OSTree rootfs (ext4 label `otaroot`): one physical filesystem holding `/ostree/repo` and the hard-linked deployments. OSTree stages a new deployment in place and rolls back to the previous one — no A/B partition swap. The old `rootfs_b` A/B twin was removed and folded into this partition, and `resize-fs` grows the filesystem to fill it on first boot so a second full deployment fits. |
+| `misc` | 1 MiB | Unused under OSTree (rollback is via the systemd-boot BLS boot counter, not a boot-control block). |
 
 ## Hardware Testing
 
@@ -309,6 +341,47 @@ flash_qcs8550_sbc() {
     local dir="${image}-imdt-8550-sbc.rootfs.qcomflash"
     qdl -i "${dir}/" xbl_s_devprg_ns.melf "${dir}/rawprogram"*.xml "${dir}/patch"*.xml
 }
+```
+
+#### Programming the CDT
+
+The **CDT** (Configuration Data Table) is the tiny binary UEFI reads to identify
+the board: its board-id (`0x20`, SBC) and oem-id (`1`, IMDT) are what the FIT DTB
+selection matches to pick the IMDT device tree (the stock HDK CDT fails the match
+and lands on a bad DTB → kernel panic). It also carries the **board revision**.
+
+There is one CDT per board revision. They are distinct files but differ only in
+the revision byte — board-id and oem-id are identical, so **both select the same
+DTB**. The `.qcomflash` bundle ships them alongside `cdt.bin`, which is what
+actually gets written to the `cdt` partition and defaults to **rev5**:
+
+| Board revision | CDT file |
+|---|---|
+| rev5 | `cdt_imdt_8550_sbc_rev5.bin` (this is the default `cdt.bin`) |
+| rev3 | `cdt_imdt_8550_sbc_rev3.bin` |
+
+Program the CDT **matching your board** before flashing images — if you have a
+rev3 board program the rev3 CDT, if you have a rev5 board program the rev5 CDT.
+The CDT is written to the `cdt` partition as part of the normal flash, so you
+only need to make sure `cdt.bin` is the right revision first, from inside the
+`.qcomflash` directory:
+
+```bash
+cd qcom-minimal-image-imdt-8550-sbc.rootfs.qcomflash   # any image's bundle
+
+# rev5 board: nothing to do — cdt.bin already is the rev5 CDT.
+# rev3 board: select the rev3 CDT before flashing:
+cp cdt_imdt_8550_sbc_rev3.bin cdt.bin
+cd ..
+```
+
+If the board is already flashed and you only need to correct the CDT, re-run the
+flash with the LUN-3 program file alone (it writes `cdt.bin` to the `cdt`
+partition) after setting `cdt.bin` as above:
+
+```bash
+dir=qcom-minimal-image-imdt-8550-sbc.rootfs.qcomflash
+qdl -i "${dir}/" xbl_s_devprg_ns.melf "${dir}/rawprogram3.xml"
 ```
 
 #### Flashing an image
