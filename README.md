@@ -337,50 +337,29 @@ Append the below bash function to your `.bashrc` file:
 
 ```bash
 flash_qcs8550_sbc() {
-    local image="${1:?Usage: flash_qcs8550_sbc <image-name>}"
+    local image="${1:?Usage: flash_qcs8550_sbc <image-name> <rev3|rev5>}"
+    local rev="${2:?Usage: flash_qcs8550_sbc <image-name> <rev3|rev5>}"
     local dir="${image}-imdt-8550-sbc.rootfs.qcomflash"
+    # Program the CDT for this board revision (written to the cdt partition).
+    cp "${dir}/cdt_imdt_8550_sbc_${rev}.bin" "${dir}/cdt.bin"
     qdl -i "${dir}/" xbl_s_devprg_ns.melf "${dir}/rawprogram"*.xml "${dir}/patch"*.xml
 }
 ```
 
 #### Programming the CDT
 
-The **CDT** (Configuration Data Table) is the tiny binary UEFI reads to identify
-the board: its board-id (`0x20`, SBC) and oem-id (`1`, IMDT) are what the FIT DTB
-selection matches to pick the IMDT device tree (the stock HDK CDT fails the match
-and lands on a bad DTB → kernel panic). It also carries the **board revision**.
+The **CDT** identifies the board to UEFI (board-id + oem-id), which the FIT DTB
+selection matches to load the correct device tree. There is one per board
+revision, and `flash_qcs8550_sbc` writes the matching one to the `cdt` partition
+from the `rev3`/`rev5` argument you pass it — so it is programmed as part of the
+normal flash.
 
-There is one CDT per board revision. They are distinct files but differ only in
-the revision byte — board-id and oem-id are identical, so **both select the same
-DTB**. The `.qcomflash` bundle ships them alongside `cdt.bin`, which is what
-actually gets written to the `cdt` partition and defaults to **rev5**:
-
-| Board revision | CDT file |
-|---|---|
-| rev5 | `cdt_imdt_8550_sbc_rev5.bin` (this is the default `cdt.bin`) |
-| rev3 | `cdt_imdt_8550_sbc_rev3.bin` |
-
-Program the CDT **matching your board** before flashing images — if you have a
-rev3 board program the rev3 CDT, if you have a rev5 board program the rev5 CDT.
-The CDT is written to the `cdt` partition as part of the normal flash, so you
-only need to make sure `cdt.bin` is the right revision first, from inside the
-`.qcomflash` directory:
+To reprogram only the CDT on an already-flashed board, flash the LUN-3 program
+file alone:
 
 ```bash
-cd qcom-minimal-image-imdt-8550-sbc.rootfs.qcomflash   # any image's bundle
-
-# rev5 board: nothing to do — cdt.bin already is the rev5 CDT.
-# rev3 board: select the rev3 CDT before flashing:
-cp cdt_imdt_8550_sbc_rev3.bin cdt.bin
-cd ..
-```
-
-If the board is already flashed and you only need to correct the CDT, re-run the
-flash with the LUN-3 program file alone (it writes `cdt.bin` to the `cdt`
-partition) after setting `cdt.bin` as above:
-
-```bash
-dir=qcom-minimal-image-imdt-8550-sbc.rootfs.qcomflash
+dir=<image>-imdt-8550-sbc.rootfs.qcomflash
+cp "${dir}/cdt_imdt_8550_sbc_rev3.bin" "${dir}/cdt.bin"   # or rev5
 qdl -i "${dir}/" xbl_s_devprg_ns.melf "${dir}/rawprogram3.xml"
 ```
 
@@ -388,11 +367,12 @@ qdl -i "${dir}/" xbl_s_devprg_ns.melf "${dir}/rawprogram3.xml"
 
 Please make sure that the board is powered and in EDL as per [these instructions](#boot-sbc-into-emergency-download-edl-mode).
 
-After unzipping a prebuilt image or an image you have built yourself, pass the image name as the argument:
+After unzipping a prebuilt image or an image you have built yourself, pass the
+image name and your board revision (`rev3` or `rev5`):
 
 ```bash
-# Flash the minimal image
-flash_qcs8550_sbc qcom-minimal-image
+# Flash the minimal image onto a rev5 board
+flash_qcs8550_sbc qcom-minimal-image rev5
 ```
 
 ### Flashing the QCS6490 SBC
@@ -701,38 +681,19 @@ depending on the state of GPIO16:
 | Low (default) | Microchip LAN7430 GbE PHY → RJ45 port (J55) |
 | High | M.2 Key-B slot (J46) |
 
-U-Boot applies device tree overlays at boot from the list stored in the
-`overlays` u-boot environment variable. The variable is read/written with
-`fw_printenv` / `fw_setenv` on the running system; the new value takes
-effect on next boot.
+The path is selected by the **`qcs8550-imdt-sbc-pcie-keyb`** device tree overlay,
+which drives GPIO16 high to route PCIe1 to the Key-B slot; without it GPIO16 stays
+low and PCIe1 goes to the LAN7430 GbE PHY.
 
-#### How device tree overlays work on this board
+Overlays are baked into the FIT image at build time and applied by UEFI — the old
+U-Boot `fw_setenv overlays` runtime switching no longer exists (the board boots
+systemd-boot / UEFI, not U-Boot). Key-B is therefore a build-time choice: add
+`qcs8550-imdt-sbc-pcie-keyb` to the applied overlays as described in
+[Device Tree Overlays](#device-tree-overlays) (put its `.dtbo` in
+`KERNEL_DEVICETREE` and append its stem to the `FIT_DTB_COMPATIBLE[imdt_qcs8550-sbc]`
+line), then rebuild and reflash. The Key-B and GbE paths are mutually exclusive.
 
-U-Boot loads the base DTB (`qcs8550-imdt-sbc.dtb`) and then applies each
-overlay listed in the `overlays` env var in order, e.g.:
-
-```
-overlays=qcs8550-imdt-sbc-display.dtbo qcs8550-imdt-sbc-ar1335-csi0.dtbo
-```
-
-All overlay `.dtbo` files live in `/boot/` on the active rootfs partition
-and are deployed there by the Yocto image. To add or remove a feature,
-append or remove the corresponding `.dtbo` filename from `overlays` using
-`fw_setenv`, then reboot.
-
-#### Switch to M.2 Key-B mode
-
-```bash
-# Check the current overlay list
-adb shell fw_printenv overlays
-
-# Enable the Key-B overlay (append it to the default overlay list)
-adb shell "fw_setenv overlays 'qcs8550-imdt-sbc-display.dtbo qcs8550-imdt-sbc-ar1335-csi0.dtbo qcs8550-imdt-sbc-pcie-keyb.dtbo'"
-adb reboot
-```
-
-After rebooting, the PCIe switch routes PCIe1 to J46. Insert an M.2 Key-B
-card and verify enumeration:
+After flashing, insert an M.2 Key-B card and verify enumeration:
 
 ```bash
 adb shell lspci
@@ -740,23 +701,8 @@ adb shell lspci
 # Expect: no Microchip LAN7430 (1055:7430) entry
 ```
 
-> **Note:** The LAN7430 Ethernet interface (`eth1`) will be absent in this
-> mode. Use Wi-Fi or a USB Ethernet adapter for network access if needed.
-
-#### Switch back to LAN7430 / GbE mode
-
-```bash
-# Restore the default overlay list (removes pcie-keyb.dtbo)
-adb shell "fw_setenv overlays 'qcs8550-imdt-sbc-display.dtbo qcs8550-imdt-sbc-ar1335-csi0.dtbo'"
-adb reboot
-```
-
-#### Testing with LAVA
-
-The CI automatically runs the PCIe Key-B test suite after every build. It
-enables the Key-B overlay via `fw_setenv`, runs `lava/pcie-keyb-test.yaml`
-over SSH, then restores the default overlay list. See
-[docs/lava-tests.md](docs/lava-tests.md) for the full list of test cases.
+> **Note:** The LAN7430 Ethernet interface (`eth1`) is absent in Key-B mode. Use
+> Wi-Fi or a USB Ethernet adapter for network access.
 
 ### USB Type-C Role Detection and DisplayPort Alt Mode
 
