@@ -1,5 +1,5 @@
-# imdt-8550-sbc: the ADSP firmware (from NON-HLOS.bin) fatally
-# crashes its sensor process.
+# Stop audioreach_driver auto-loading: when the closed ADSP firmware's sensor
+# process crashes at boot its probe livelocks two CPUs until a power cycle.
 do_install:append:imdt-8550-sbc() {
     install -d ${D}${sysconfdir}/modprobe.d
     printf '%s\n' \
