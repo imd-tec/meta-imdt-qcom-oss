@@ -79,7 +79,7 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 | MIPI DSI Display | Team Source TST070WSBE-196C 7" | DSI0 | drm/msm | ✅ | 🚧 Not supported yet | 🚧 |
 | OTA Rootfs Updates | — | — | — | ✅ | ✅ | 🚧 |
 | PCIe Expansion (M.2 Key-E) | M.2 Key-E slot | PCIe0 | qcom-pcie | ✅ | ✅ | 🚧 |
-| U-Boot as ARM64 UEFI App| — | — | — | ✅ | ✅ | — |
+| systemd-boot as ARM64 UEFI App| — | — | — | ✅ | ✅ | ✅ |
 | UFS Storage | — | UFS | ufshcd | ✅ | ✅ | — |
 | eMMC Storage | on-SoM 32 GB eMMC | SDHC1 | sdhci-msm | — | — | ✅ |
 | USB 3.0 Type-C | NXP PTN3222 eUSB2 redriver | DWC3 (QCOM) | dwc3-qcom | ✅ Peripheral mode | ✅ Host or peripheral mode | 🚧 |
@@ -92,7 +92,7 @@ An effort is being made into upstreaming our board and patches into Linux.
 |---|---|---|
 | Team Source TST070WSBE-196C display panel | ✅ Accepted | [v2 on lore.kernel.org](https://lore.kernel.org/all/20260428-imdt-dsi-display-v2-0-cf7294b5d7d6@imd-tec.com/T/#t) |
 | SDHC4 (Wi-Fi SDIO) support | Pending | [v2 on lore.kernel.org](https://lore.kernel.org/all/20260427-sm8550-sdhc4-support-v2-1-a4241f43ecd5@imd-tec.com/T/#u) |
-| QCS8550 SBC device tree | WiP | [v4 on lore.kernel.org](https://lore.kernel.org/linux-arm-msm/20260610-imdt-qcs8550-sbc-rfc-v4-0-358e71d606bc@imd-tec.com/T/#u) |
+| QCS8550 SBC device tree | ✅ Accepted | [v5 on lore.kernel.org](https://lore.kernel.org/linux-arm-msm/20260723-imdt-qcs8550-sbc-rfc-v5-0-2fb988854623@imd-tec.com/T/#t) |
 | AR1335 camera sensor | Planned | — |
 
 ## Boot Chain
