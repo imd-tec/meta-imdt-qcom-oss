@@ -1,0 +1,36 @@
+From cd74064c3b9cc93a2d42e602784e6608e4381e7f Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Thu, 6 Aug 2026 19:25:05 +0100
+Subject: [PATCH] arm64: dts: qcom: qcs8550-imdt-som: Drop LPM mode in
+ vreg_l1g_1p2
+
+In 14% of cold or warm boots, PMIC G would overcurrent after switching
+to LPM mode in vreg_l1g_1p2 which is used for powering the vcc_q rail
+for UFS. The SBL1 bootloader would then print the following reset cause:
+  PM: Reset by PMIC_G OCP
+
+Removing LPM support for this regulator fixes this overcurrent condition
+when testing on the IMDT QCS8550 SBC.
+
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+---
+ arch/arm64/boot/dts/qcom/qcs8550-imdt-som.dtsi | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/qcs8550-imdt-som.dtsi b/arch/arm64/boot/dts/qcom/qcs8550-imdt-som.dtsi
+index 816cbd254dea..a6a3c42854de 100644
+--- a/arch/arm64/boot/dts/qcom/qcs8550-imdt-som.dtsi
++++ b/arch/arm64/boot/dts/qcom/qcs8550-imdt-som.dtsi
+@@ -273,9 +273,6 @@ vreg_l1g_1p2: ldo1 {
+ 			regulator-min-microvolt = <1200000>;
+ 			regulator-max-microvolt = <1200000>;
+ 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+-			regulator-allow-set-load;
+-			regulator-allowed-modes = <RPMH_REGULATOR_MODE_LPM
+-						   RPMH_REGULATOR_MODE_HPM>;
+ 		};
+ 
+ 		vreg_l3g_1p2: ldo3 {
+-- 
+2.43.0
+

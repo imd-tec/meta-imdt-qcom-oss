@@ -23,6 +23,7 @@ SRC_URI:append = " \
     file://0011-qcs8550-imdt-sbc-display-Enable-backlight-improve-po.patch \
     file://0012-arm64-dts-qcom-Add-support-for-the-IMDT-QCS6490-SBC-.patch \
     file://0013-arm64-dts-qcom-qcs6490-imdt-sbc-detach-eMMC-inline-c.patch \
+    file://0014-arm64-dts-qcom-qcs8550-imdt-som-Drop-LPM-mode-in-vre.patch \
     file://configs/imdt.cfg \
 "
 
