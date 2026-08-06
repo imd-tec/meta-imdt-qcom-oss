@@ -308,9 +308,13 @@ jobs:
           python3 - <<'PYEOF'
           import csv, os
           rows = [r for r in csv.DictReader(open('lava-all-results.csv')) if r.get('suite') != 'lava']
-          passed = sum(1 for r in rows if r.get('result', '').lower() == 'pass')
-          total = len(rows)
+          scored = [r for r in rows if r.get('result', '').lower() != 'skip']
+          passed = sum(1 for r in scored if r.get('result', '').lower() == 'pass')
+          total = len(scored)
+          skipped = len(rows) - total
           status = f'{passed} / {total} passed'
+          if skipped:
+              status += f' ({skipped} skipped)'
           color = '3fb950' if passed == total and total > 0 else ('f85149' if total > 0 else 'e4e669')
           with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
               out.write(f'status={status}\n')
