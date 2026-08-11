@@ -17,6 +17,8 @@ defaults:
 repos:
   meta-qcom:
     url: https://github.com/qualcomm-linux/meta-qcom.git
+    # Last green CI build; master dropped hexagon-dspso in 26179804, breaking packagegroup-core-boot.
+    commit: 4dc473d239792f29b78f9d8f21dd88e9eaa6de51
   meta-swupdate:
     url: https://github.com/sbabic/meta-swupdate.git
     # Temporary solution until poky gets updated in meta-qcom

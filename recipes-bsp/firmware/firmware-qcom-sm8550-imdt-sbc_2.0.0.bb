@@ -22,17 +22,19 @@ FW_QCOM_LIST = "\
     modem.mbn modemr.jsn \
 "
 
-# NON-HLOS.bin ships with this recipe. firmware-qcom-nhlos.inc's get_nhlos_path()
-# only handles an absolute file:// URI (a relative file://name resolves to an
-# empty path), so build the URI from the absolute recipe directory.
+# NON-HLOS.bin ships with this recipe. firmware-qcom-nhlos-imdt.inc's
+# get_nhlos_path() only handles an absolute file:// URI (a relative file://name
+# resolves to an empty path), so build the URI from the absolute recipe directory.
 NHLOS_URI = "file://${THISDIR}/files/NON-HLOS.bin"
 
 S = "${UNPACKDIR}"
 
 require recipes-bsp/firmware/firmware-qcom.inc
-require recipes-bsp/firmware/firmware-qcom-nhlos.inc
+# Our own copy of what used to be meta-qcom's firmware-qcom-nhlos.inc; upstream
+# deleted it in 26179804 along with all its CLOSED-licensed firmware recipes.
+require recipes-bsp/firmware/firmware-qcom-nhlos-imdt.inc
 
-# firmware-qcom-nhlos.inc empties the main package (FILES:${PN} = "") and
+# firmware-qcom-nhlos-imdt.inc empties the main package (FILES:${PN} = "") and
 # firmware-qcom.inc makes every split package RDEPEND on it. Without an RPM for
 # the (empty) main package that hard dependency is unsatisfiable, so the split
 # packages get silently dropped from the rootfs. Allow the empty package so an
