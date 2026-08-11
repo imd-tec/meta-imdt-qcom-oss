@@ -24,6 +24,11 @@ SRC_URI:append = " \
     file://0012-arm64-dts-qcom-Add-support-for-the-IMDT-QCS6490-SBC-.patch \
     file://0013-arm64-dts-qcom-qcs6490-imdt-sbc-detach-eMMC-inline-c.patch \
     file://0014-arm64-dts-qcom-qcs8550-imdt-som-Drop-LPM-mode-in-vre.patch \
+    file://0015-drivers-usb-typec-Add-CYPD-patches-and-qcs8550-DTS-o.patch \
+    file://0016-drivers-usb-typec-ucsi-Fix-for-cold-boot-typec-mux-n.patch \
+    file://0017-arm64-dts-qcom-qcs8550-imdt-sbc-Enable-DisplayPort.patch \
+    file://0018-drivers-usb-typec-ucsi-ccg-Register-a-DP-HPD-bridge-.patch \
+    file://0019-arm64-dts-qcom-qcs8550-imdt-sbc-Stop-the-display-ove.patch \
     file://configs/imdt.cfg \
 "
 

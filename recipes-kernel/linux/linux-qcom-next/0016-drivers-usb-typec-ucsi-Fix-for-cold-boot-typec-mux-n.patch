@@ -1,0 +1,53 @@
+From ac8e6db96f19708c887c9dc1fd40057b504bb06e Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Tue, 11 Aug 2026 12:05:49 +0100
+Subject: [PATCH] drivers: usb: typec: ucsi: Fix for cold boot typec mux not
+ being set
+
+Under a cold boot, the CCI register reads as 0 because a connector event
+hasn't occurred yet. This prevents ucsi_connector_change being called.
+This patch has fixed the cold boot scenario by calling
+ucsi_connector_change for all CCI connectors which are reported to be
+connected.
+
+The original patch is linked below.
+
+Link: https://patchwork.kernel.org/project/linux-usb/patch/20240401210515.1902048-1-lk@c--e.de/
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+---
+ drivers/usb/typec/ucsi/ucsi.c | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/usb/typec/ucsi/ucsi.c b/drivers/usb/typec/ucsi/ucsi.c
+index 2a83bee71772..6fd8e8ef2452 100644
+--- a/drivers/usb/typec/ucsi/ucsi.c
++++ b/drivers/usb/typec/ucsi/ucsi.c
+@@ -1892,7 +1892,9 @@ static u64 ucsi_get_supported_notifications(struct ucsi *ucsi)
+ static int ucsi_init(struct ucsi *ucsi)
+ {
+ 	struct ucsi_connector *con, *connector;
++	unsigned long change_mask;
+ 	u64 command, ntfy;
++	unsigned int bit;
+ 	u32 cci;
+ 	int ret;
+ 	int i;
+@@ -1962,8 +1964,13 @@ static int ucsi_init(struct ucsi *ucsi)
+ 	mutex_unlock(&ucsi->ppm_lock);
+ 	if (ret)
+ 		return ret;
+-	if (UCSI_CCI_CONNECTOR(cci))
+-		ucsi_connector_change(ucsi, UCSI_CCI_CONNECTOR(cci));
++
++	change_mask = UCSI_CCI_CONNECTOR(cci) ? BIT(UCSI_CCI_CONNECTOR(cci) - 1) : 0;
++	for (i = 0; i < ucsi->cap.num_connectors && i < BITS_PER_LONG; i++)
++		change_mask |= UCSI_CONSTAT(&connector[i], CONNECTED) ? BIT(i) : 0;
++
++	for_each_set_bit(bit, &change_mask, BITS_PER_LONG)
++		ucsi_connector_change(ucsi, bit + 1);
+ 
+ 	return 0;
+ 
+-- 
+2.43.0
+

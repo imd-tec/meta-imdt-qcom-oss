@@ -1,0 +1,29 @@
+From cd6f204c38647621519592be0aad22669f74bb34 Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Tue, 11 Aug 2026 16:00:19 +0100
+Subject: [PATCH] arm64: dts: qcom: qcs8550-imdt-sbc: Stop the display overlay
+ disabling DP
+
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+---
+ arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-display.dtso | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-display.dtso b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-display.dtso
+index 664947c2f282..9108533e4412 100644
+--- a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-display.dtso
++++ b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-display.dtso
+@@ -38,10 +38,6 @@ panel0_in: endpoint {
+ 	};
+ };
+ 
+-&mdss_dp0 {
+-	status = "disabled";
+-};
+-
+ &mdss_dsi0_out {
+ 	remote-endpoint = <&panel0_in>;
+ 	data-lanes = <0 1 2 3>;
+-- 
+2.43.0
+

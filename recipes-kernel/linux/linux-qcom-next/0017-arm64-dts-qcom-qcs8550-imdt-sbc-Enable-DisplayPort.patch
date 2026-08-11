@@ -1,0 +1,49 @@
+From 04d80cfd7424334196e358fd3dd0c8c431676918 Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Tue, 11 Aug 2026 13:42:00 +0100
+Subject: [PATCH] arm64: dts: qcom: qcs8550-imdt-sbc: Enable DisplayPort
+
+Enable DP within the CYPD overlay for the qcs8550 IMDT SBC.
+
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+---
+ .../boot/dts/qcom/qcs8550-imdt-sbc-cypd6125.dtso   | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-cypd6125.dtso b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-cypd6125.dtso
+index aa774906f67b..4b1608571dd5 100644
+--- a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-cypd6125.dtso
++++ b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-cypd6125.dtso
+@@ -71,6 +71,14 @@ cypd6125_ss_in: endpoint {
+ 	};
+ };
+ 
++&mdss {
++	status = "okay";
++};
++
++&mdss_dp0 {
++	status = "okay";
++};
++
+ &tlmm {
+ 	ccg_irq_default: ccg-irq-default-state {
+ 		pins = "gpio10";
+@@ -82,14 +90,8 @@ ccg_irq_default: ccg-irq-default-state {
+ };
+ 
+ &usb_1 {
+-	/*
+-	 * The base board file pins usb_1 to peripheral mode and drops
+-	 * its role switch; with the CYPD6125 managing the port, restore
+-	 * OTG so the UCSI connector events drive host/device switching.
+-	 */
+ 	dr_mode = "otg";
+ 	usb-role-switch;
+-
+ };
+ 
+ &usb_1_dwc3_hs {
+-- 
+2.43.0
+
