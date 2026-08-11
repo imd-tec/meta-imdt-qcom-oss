@@ -13,17 +13,33 @@
 # The in-tree mwifiex driver (CONFIG_MWIFIEX_SDIO) requests this image under
 # the "mrvl/" prefix (SD8978_SDIOUART_FW_NAME = "mrvl/sdiouartiw416_combo_v0.bin"),
 # so it must be installed there for the WLAN chip to come up.
+#
+# Also ship the Cypress CYPD6125 USB-PD controller firmware images.
 
 FILESEXTRAPATHS:prepend := "${THISDIR}/${BPN}:"
 
 SRC_URI:append = " file://sdiouartiw416_combo_v0.bin.lf-6.1.22_2.0.0"
+SRC_URI:append = " file://CYPD6125-40LQXI_notebook_1.cyacd"
+SRC_URI:append = " file://CYPD6125-40LQXI_notebook_2.cyacd"
 
 do_install:append() {
     # Install NXP Connectivity IW416 Wi-Fi/BT combo firmware
     install -d ${D}${nonarch_base_libdir}/firmware/mrvl
     install -m 0644 ${UNPACKDIR}/sdiouartiw416_combo_v0.bin.lf-6.1.22_2.0.0 \
         ${D}${nonarch_base_libdir}/firmware/mrvl/sdiouartiw416_combo_v0.bin
+
+    # Install CYPD Firmware
+    install -d ${D}${nonarch_base_libdir}/firmware
+    install -m 0644 ${UNPACKDIR}/CYPD6125-40LQXI_notebook_1.cyacd ${D}${nonarch_base_libdir}/firmware/ccg_secondary.cyacd
+    install -m 0644 ${UNPACKDIR}/CYPD6125-40LQXI_notebook_2.cyacd ${D}${nonarch_base_libdir}/firmware/ccg_primary.cyacd
 }
 
 PACKAGES =+ "${PN}-iw416-sdio"
 FILES:${PN}-iw416-sdio = "${nonarch_base_libdir}/firmware/mrvl/sdiouartiw416_combo_v0.bin"
+
+PACKAGES =+ "linux-firmware-cypd6125"
+PROVIDES =+ "linux-firmware-cypd6125"
+
+FILES:linux-firmware-cypd6125   = "${nonarch_base_libdir}/firmware/ccg_secondary.cyacd \
+                                   ${nonarch_base_libdir}/firmware/ccg_primary.cyacd \
+"

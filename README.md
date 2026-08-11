@@ -55,15 +55,15 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 | Feature | Hardware | Interface | Kernel Driver | QCS8550 SBC Rev 2 (12GB) Status | QCS8550 SBC Rev 5 (8GB) Status | QCS6490 SBC (4GB) Status |
 |---|---|---|---|---|---|---|
 | A/B Rootfs Updates | — | — | — | ✅ | ✅ | 🚧 |
-| ADSP | Hexagon v73 DSP | — | remoteproc | 🚧 | 🚧 | 🚧  |
+| ADSP | Hexagon v73 DSP | — | remoteproc | 🚧 | 🚧 | 🚧 |
 | Android Debug Bridge (ADB) | — | USB | — | ✅ | ✅ | 🚧 |
 | Audio (LPASS) | — | — | — | 🚧 Planned | 🚧 Planned | 🚧 |
 | Bluetooth | NXP IW416 | UART14 | btnxpuart | ❌ | ❌ | ❌ |
 | Camera (AR1335 - 13MP) | ON Semiconductor AR1335 | CSI0 | ar1335 | ✅ | ✅ | 🚧 |
-| CDSP | Hexagon DSP | — | remoteproc | 🚧  | 🚧 | ✅ |
+| CDSP | Hexagon DSP | — | remoteproc | 🚧 | 🚧 | ✅ |
 | Debug Serial Console (J19)| — | UART7 (115200 baud) | qcom-geni-serial | ✅ | ✅ | ✅ |
 | DDR Memory | 8GB / 12GB LPDDR5 | — | — | ✅ 12GB | ✅ 8GB | ✅ 4GB |
-| DisplayPort over USB Type-C | — | DWC3 (QCOM) / USB-C DP Alt Mode | — | ❌ | 🚧 Planned | 🚧 |
+| DisplayPort over USB Type-C | Cypress CYPD6125 | DWC3 (QCOM) / USB-C DP Alt Mode | ucsi_ccg | ❌ | ✅ Requires CYPD6125 DTBO overlay | 🚧 |
 | Gigabit Ethernet | Microchip LAN7430 | PCIe1 (default) | lan743x | ✅ | ✅ | 🚧 |
 | PCIe Expansion (M.2 Key-B) | PCIe switch downstream Key-B port | PCIe1 (overlay) | qcom-pcie | ✅ Requires Key-B DTBO overlay | ✅ Requires Key-B DTBO overlay | 🚧 |
 | GPIO | PM8550 GPIO bank | SPMI | qcom-spmi-gpio | ✅ | ✅ | 🚧 |
@@ -81,7 +81,7 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 | U-Boot as ARM64 UEFI App| — | — | — | ✅ | ✅ | — |
 | UFS Storage | — | UFS | ufshcd | ✅ | ✅ | — |
 | eMMC Storage | on-SoM 32 GB eMMC | SDHC1 | sdhci-msm | — | — | ✅ |
-| USB 3.0 Type-C | NXP PTN3222 eUSB2 redriver | DWC3 (QCOM) | dwc3-qcom | ✅ Peripheral mode | ✅ Peripheral mode | 🚧 |
+| USB 3.0 Type-C | NXP PTN3222 eUSB2 redriver | DWC3 (QCOM) | dwc3-qcom | ✅ Peripheral mode | ✅ Host or peripheral mode | 🚧 |
 | Wi-Fi 802.11a/b/g/n/ac | NXP IW416 | SDIO (SDHC4) | mwifiex_sdio | ✅ | 🚧 Planned | 🚧 |
 | Yocto / OpenEmbedded Master branch | — | — | — | ✅ | ✅ | ✅ |
 
@@ -115,7 +115,7 @@ in [`imdt-qcom-ptool`](https://github.com/imd-tec/imdt-qcom-ptool) and flashed b
 | LUN | Responsible for |
 |---|---|
 | 0 | EFI System Partition and the A/B rootfs (see below). |
-| 1 / 2 | XBL  |
+| 1 / 2 | XBL |
 | 3 | Configuration Data Table (`cdt`) and DDR training (`ddr`). |
 | 4 | The bulk of the boot firmware — `abl` (our `abl2esp`), `uboot_env`, TrustZone, hypervisor, AOP, CPU subsystem, DSP and device config. |
 | 5 | Modem (Unused) |
@@ -684,6 +684,24 @@ The CI automatically runs the PCIe Key-B test suite after every build. It
 enables the Key-B overlay via `fw_setenv`, runs `lava/pcie-keyb-test.yaml`
 over SSH, then restores the default overlay list. See
 [docs/lava-tests.md](docs/lava-tests.md) for the full list of test cases.
+
+### USB Type-C Role Detection and DisplayPort Alt Mode
+
+On Rev 5 and newer QCS8550 SBCs, the onboard CYPD6125 Type-C controller can
+handle role, orientation and DisplayPort Alt Mode detection. It is enabled with
+a device tree overlay:
+
+```bash
+# Check the current overlay list
+adb shell fw_printenv overlays
+
+# Enable the CYPD6125 overlay
+adb shell "fw_setenv overlays 'qcs8550-imdt-sbc-display.dtbo qcs8550-imdt-sbc-ar1335-csi0.dtbo qcs8550-imdt-sbc-cypd6125.dtbo'"
+adb reboot
+```
+
+After rebooting you can connect a USB-C hub — [this UGREEN hub](https://uk.ugreen.com/products/75244)
+has been tested — and drive an external DisplayPort-compatible monitor from it.
 
 ## SWUpdate
 

@@ -3,6 +3,7 @@
 SOC_FAMILY = "qcs8550"
 require conf/machine/include/qcom-base.inc
 require conf/machine/include/qcom-common.inc
+require conf/machine/include/imdt-common.inc
 
 DEFAULTTUNE = "armv8-2a-crypto"
 require conf/machine/include/arm/arch-armv8-2a.inc
