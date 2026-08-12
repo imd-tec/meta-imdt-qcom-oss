@@ -17,8 +17,10 @@ defaults:
 repos:
   meta-qcom:
     url: https://github.com/qualcomm-linux/meta-qcom.git
-    # Last green CI build; master dropped hexagon-dspso in 26179804, breaking packagegroup-core-boot.
-    commit: 4dc473d239792f29b78f9d8f21dd88e9eaa6de51
+    # ort-qnn merge, which adds the onnxruntime-qnn recipe that qcom-distro's
+    # qcom-multimedia-proprietary-image now installs. Still held short of
+    # 26179804, where master drops hexagon-dspso and breaks packagegroup-core-boot.
+    commit: 96ce479f9467cdf954b20602a472b76398b5aaac
   meta-swupdate:
     url: https://github.com/sbabic/meta-swupdate.git
     # Temporary solution until poky gets updated in meta-qcom
