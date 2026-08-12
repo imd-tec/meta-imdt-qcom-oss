@@ -1,0 +1,79 @@
+From 0f2372897e3f16548654b87dd51c538c4090f967 Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Wed, 12 Aug 2026 09:49:09 +0100
+Subject: [PATCH] drm/msm/dp: fix link bandwidth check when wide bus is enabled
+
+msm_dp_display_mode_valid() halves the pixel clock when either YUV420 or
+wide bus is in use, then uses that halved value both for the controller
+pixel clock limit and for the DP link bandwidth check.
+
+Only YUV420 halves the data crossing the link. Wide bus widens the
+internal DPU to DP interface to two pixels per clock, halving the
+controller clock. Every pixel is still transmitted, so the link
+bandwidth requirement remains.
+
+As a result, modes needing up to twice the available link bandwidth pass
+validation. On the IMDT QCS8550 SBC, where DP runs over USB-C alt mode
+where only two lanes are available, 3840x2160@60 was accepted despite
+needing 9.6 Gbps against the 8.64 Gbps the link can carry.
+
+Use a separate link pixel clock that is only halved for YUV420 for the
+bandwidth calculation, leaving the wide bus halving to apply solely to
+the controller pixel clock limit. With this, 4k@60 is correctly rejected
+and 4k@30 selected instead.
+
+Fixes: df9cf852ca30 ("drm/msm/dp: account for widebus and yuv420 during
+mode validation")
+Assisted-by: Claude Opus 5
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+---
+ drivers/gpu/drm/msm/dp/dp_display.c | 18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/gpu/drm/msm/dp/dp_display.c b/drivers/gpu/drm/msm/dp/dp_display.c
+index 6f21a60f251d..e781ce92ac28 100644
+--- a/drivers/gpu/drm/msm/dp/dp_display.c
++++ b/drivers/gpu/drm/msm/dp/dp_display.c
+@@ -862,6 +862,8 @@ enum drm_mode_status msm_dp_display_mode_valid(struct msm_dp *dp,
+ 	struct msm_dp_link_info *link_info;
+ 	u32 mode_rate_khz = 0, supported_rate_khz = 0, mode_bpp = 0;
+ 	int mode_pclk_khz = mode->clock;
++	int link_pclk_khz;
++	bool yuv420;
+ 
+ 	if (!dp || !mode_pclk_khz || !dp->connector) {
+ 		DRM_ERROR("invalid params\n");
+@@ -871,9 +873,15 @@ enum drm_mode_status msm_dp_display_mode_valid(struct msm_dp *dp,
+ 	msm_dp_display = container_of(dp, struct msm_dp_display_private, msm_dp_display);
+ 	link_info = &msm_dp_display->panel->link_info;
+ 
+-	if ((drm_mode_is_420_only(&dp->connector->display_info, mode) &&
+-	     msm_dp_display->panel->vsc_sdp_supported) ||
+-	     msm_dp_wide_bus_available(dp))
++	yuv420 = drm_mode_is_420_only(&dp->connector->display_info, mode) &&
++		 msm_dp_display->panel->vsc_sdp_supported;
++	/* Only yuv420 actually halves the link bandwidth as wide bus
++	 * only halves the pixel clock within the SoC but the link
++	 * bandwidth still remains the same.
++	 */
++	link_pclk_khz = yuv420 ? mode_pclk_khz / 2 : mode_pclk_khz;
++
++	if (yuv420 || msm_dp_wide_bus_available(dp))
+ 		mode_pclk_khz /= 2;
+ 
+ 	if (mode_pclk_khz > DP_MAX_PIXEL_CLK_KHZ)
+@@ -884,9 +892,9 @@ enum drm_mode_status msm_dp_display_mode_valid(struct msm_dp *dp,
+ 		mode_bpp = default_bpp;
+ 
+ 	mode_bpp = msm_dp_panel_get_mode_bpp(msm_dp_display->panel,
+-			mode_bpp, mode_pclk_khz);
++			mode_bpp, link_pclk_khz);
+ 
+-	mode_rate_khz = mode_pclk_khz * mode_bpp;
++	mode_rate_khz = link_pclk_khz * mode_bpp;
+ 	supported_rate_khz = link_info->num_lanes * link_info->rate * 8;
+ 
+ 	if (mode_rate_khz > supported_rate_khz)
+-- 
+2.43.0
+
