@@ -28,13 +28,8 @@ MACHINE_EXTRA_RRECOMMENDS += " \
 # Allow firmware-nxp-wifi to be used on our board
 MACHINEOVERRIDES:append = ":imx-generic-bsp"
 
-UBOOT_CONFIG_DEFAULT = "qcs8550-hdk"
-UBOOT_CONFIG = "sm8550"
-UBOOT_CONFIG[sm8550] = "qcom_defconfig"
-BOARD_MBN_HEADER[sm8550] = "v7"
-# Boot via systemd-boot (like imdt-6490-sbc). The BOOT.MXF UEFI does FIT DTB
-# selection, so u-boot no longer runs as the UEFI app (kept only as provider).
-PREFERRED_PROVIDER_virtual/bootloader = "u-boot-concept"
+# Boot via systemd-boot (like imdt-6490-sbc). The BOOT.MXF UEFI does the FIT
+# DTB selection, so u-boot is not part of the boot chain at all.
 EFI_PROVIDER = "systemd-boot"
 #Firmware binaries
 MACHINE_ESSENTIAL_EXTRA_RRECOMMENDS += " \
