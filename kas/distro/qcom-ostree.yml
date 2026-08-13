@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/siemens/kas/master/kas/schema-kas.json
+header:
+  version: 14
+  includes:
+    - repo: meta-qcom
+      file: ci/qcom-distro.yml
+
+distro: qcom-distro-sota
+
+repos:
+  meta-updater:
+    url: https://github.com/uptane/meta-updater.git
+    branch: master
+
+  meta-openembedded:
+    layers:
+      meta-python:
+      meta-filesystems:
+

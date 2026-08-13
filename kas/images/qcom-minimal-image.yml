@@ -2,8 +2,7 @@ header:
   version: 14
   # qcom-minimal-image and its ADB support come from qcom-distro.
   includes:
-    - kas/distro/qcom-distro.yml
+    - kas/distro/qcom-ostree.yml
 
 target:
   - qcom-minimal-image
-  - qcom-minimal-image.swu

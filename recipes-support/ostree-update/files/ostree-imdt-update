@@ -1,0 +1,25 @@
+#!/bin/sh
+# Pull and deploy the latest OSTree commit on the IMDT SBC. Rollback is handled
+# by OSTree BLS boot counting under systemd-boot, so no fw_setenv arming here.
+set -eu
+
+REMOTE="${OSTREE_REMOTE:-imdt}"
+BRANCH="${OSTREE_BRANCH:-}"
+OSNAME="${OSTREE_OSNAME:-imdt}"
+if [ -f /etc/default/ostree-imdt-update ]; then
+    # shellcheck disable=SC1091
+    . /etc/default/ostree-imdt-update
+fi
+
+if [ -z "${BRANCH}" ]; then
+    echo "ostree-imdt-update: no OSTree branch configured" >&2
+    exit 1
+fi
+
+echo "ostree-imdt-update: pulling ${REMOTE}:${BRANCH}"
+ostree pull "${REMOTE}" "${BRANCH}"
+
+echo "ostree-imdt-update: deploying ${OSNAME} from ${REMOTE}:${BRANCH}"
+ostree admin deploy --os="${OSNAME}" "${REMOTE}:${BRANCH}"
+
+echo "ostree-imdt-update: update staged (BLS boot-counting armed) — reboot to apply"
