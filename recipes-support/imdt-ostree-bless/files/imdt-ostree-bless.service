@@ -1,0 +1,17 @@
+[Unit]
+Description=IMDT: mark the running OSTree deployment good (clear systemd-boot BLS counter)
+Documentation=man:imdt-ostree-bless(8)
+ConditionPathExists=/run/ostree-booted
+# The ESP (systemd-boot + BLS entries) is mounted at /boot via fstab, wait for it.
+RequiresMountsFor=/boot
+After=basic.target local-fs.target
+# Only after a working userspace. A deployment that fails before this rolls back.
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/imdt-ostree-bless
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

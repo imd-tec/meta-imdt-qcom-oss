@@ -24,7 +24,9 @@ RDEPENDS:${PN} = " \
     lava-ssh-keys \
 "
 
-# OSTree on-target update helper; ostree itself comes from qcom-distro-sota.
+# OSTree update helper and the mark-good service. imdt-ostree-bless clears the
+# BLS counter on a good boot, which systemd-bless-boot can't here (no EFI vars).
 RDEPENDS:${PN}:append:qcs8550 = " \
     ostree-imdt-update \
+    imdt-ostree-bless \
 "

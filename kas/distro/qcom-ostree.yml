@@ -17,3 +17,9 @@ repos:
       meta-python:
       meta-filesystems:
 
+local_conf_header:
+  ostree-cmdline: |
+    # A failed boot must reboot (systemd-boot then rolls back via the BLS
+    # counter), not enter EDL, so drop download_mode and add a panic timeout.
+    KERNEL_CMDLINE_EXTRA:remove = "qcom_scm.download_mode=1"
+    KERNEL_CMDLINE_EXTRA:append = " panic=5"

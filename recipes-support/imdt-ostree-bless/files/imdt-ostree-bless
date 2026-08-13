@@ -1,0 +1,32 @@
+#!/bin/sh
+# Mark the running OSTree deployment good: strip the +tries suffix off its BLS
+# loader entry (keyed off /proc/cmdline ostree=), since systemd-bless-boot can't
+# (no EFI variable runtime). A failed update never runs this, so rollback holds.
+set -eu
+
+ENTRIES=/boot/loader/entries
+
+running=$(sed -n 's|.*[ ]ostree=\([^ ]*\).*|\1|p' /proc/cmdline)
+if [ -z "$running" ]; then
+    echo "imdt-ostree-bless: no ostree= in /proc/cmdline; nothing to do" >&2
+    exit 0
+fi
+if [ ! -d "$ENTRIES" ]; then
+    echo "imdt-ostree-bless: $ENTRIES missing (is the ESP mounted at /boot?)" >&2
+    exit 0
+fi
+
+cleared=0
+for f in "$ENTRIES"/*+*.conf; do
+    [ -e "$f" ] || continue
+    # Match the loader entry whose options boot the running deployment.
+    if grep -q "ostree=$running\([[:space:]]\|\$\)" "$f"; then
+        base=$(echo "$f" | sed 's/+[0-9][0-9-]*\.conf$/.conf/')
+        [ "$f" = "$base" ] && continue
+        mv -f "$f" "$base"
+        echo "imdt-ostree-bless: cleared boot counter $(basename "$f") -> $(basename "$base")"
+        cleared=1
+    fi
+done
+sync
+[ "$cleared" = 1 ] || echo "imdt-ostree-bless: running deployment already blessed"

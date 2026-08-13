@@ -1,14 +1,12 @@
 do_install:append:qcs8550() {
-    # Mount the u-boot env FAT partition at /media/env. nofail keeps boot
-    # going if the partition is missing.
+    # Mount the ESP at /boot so OSTree can manage systemd-boot + its BLS entries.
+    # nofail keeps boot going if the partition is missing.
     cat >> ${D}${sysconfdir}/fstab <<'EOF'
 
-# u-boot environment (FAT partition labelled 'env', read by fw_printenv)
-LABEL=UBOOT_ENV /media/env	vfat	defaults,noatime,nofail,umask=0022	0	0
+# EFI System Partition = /boot (systemd-boot + OSTree BLS entries)
+PARTLABEL=efi /boot	vfat	rw,noatime,nofail,umask=0077	0	2
 EOF
-    install -d ${D}/media/env
 
-    # /etc/hwrevision: matched by SWUpdate's hardware-compatibility list.
-    # Format is <board> <revision>.
+    # /etc/hwrevision: board identity (<board> <revision>).
     echo "imdt-8550-sbc 1.0" > ${D}${sysconfdir}/hwrevision
 }
