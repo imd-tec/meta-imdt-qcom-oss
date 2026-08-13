@@ -13,3 +13,4 @@ recipes-bsp/firmware/files/NON-HLOS.bin filter=lfs diff=lfs merge=lfs -text
 recipes-kernel/linux-firmware/linux-firmware/sdiouartiw416_combo_v0.bin.lf-6.1.22_2.0.0 filter=lfs diff=lfs merge=lfs -text
 recipes-kernel/linux-firmware/linux-firmware/CYPD6125-40LQXI_notebook_1.cyacd filter=lfs diff=lfs merge=lfs -text
 recipes-kernel/linux-firmware/linux-firmware/CYPD6125-40LQXI_notebook_2.cyacd filter=lfs diff=lfs merge=lfs -text
+recipes-bsp/firmware-boot/files/imdt-8550-sbc-fw-v2_1_3.zip filter=lfs diff=lfs merge=lfs -text

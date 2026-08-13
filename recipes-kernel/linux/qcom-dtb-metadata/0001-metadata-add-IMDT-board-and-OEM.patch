@@ -1,0 +1,51 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Mon, 3 Aug 2026 17:28:23 +0100
+Subject: [PATCH] metadata: add IMDT board, OEM and QCS8550 SoC
+
+Register the IMDT SBC board (board sbc, id 0x20), IMDT as an OEM (oem-id 1)
+and the QCS8550/Kailua SoC (qcs8550, msm-id 0x25b = CHIPINFO_ID_QCS_KAILUA
+603) so UEFI FIT selection can match imdt,qcs6490-sbc-imdt and
+imdt,qcs8550-sbc. Without the qcs8550 SoC node the 8550 board profile has no
+"qcs8550" token, so its FIT config never matches and DtPlatformDxe falls back
+to a bad DTB (kernel panics in mm init).
+
+Upstream-Status: Pending
+---
+ qcom-metadata.dts | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
+
+diff --git a/qcom-metadata.dts b/qcom-metadata.dts
+--- a/qcom-metadata.dts
++++ b/qcom-metadata.dts
+@@ -52,6 +52,10 @@
+ 			msm-id = <0x000002a2>;
+ 		};
+ 
++		qcs8550 {
++			msm-id = <0x0000025b>;
++		};
++
+ 		qcs9075 {
+ 			msm-id = <0x000002a4>;
+ 		};
+@@ -150,6 +154,10 @@
+ 		qrd {
+ 			board-id = <0x0000000b>;
+ 		};
++
++		sbc {
++			board-id = <0x00000020>;
++		};
+ 	};
+ 
+ 	boardrev {
+@@ -282,5 +290,8 @@
+ 
+ 	oem {
+ 
++		imdt {
++			oem-id = <0x00000001>;
++		};
+ 	};
+ };

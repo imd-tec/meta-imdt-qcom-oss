@@ -1,2 +1,3 @@
 SRC_URI = "git://github.com/imd-tec/imdt-qcom-ptool.git;branch=main;protocol=https"
-SRCREV = "384e437f4b43d40875427b94484cebbbc09fa72a"
+# Single otaroot rootfs, FIT (dtb.bin) + CDT (cdt.bin) flashed from the layout.
+SRCREV = "58e95dc841f6c3854fe9ea30f394442b6e927715"
