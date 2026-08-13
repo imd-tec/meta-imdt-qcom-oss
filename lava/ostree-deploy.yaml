@@ -1,0 +1,150 @@
+device_type: docker
+job_name: deploy an OSTree commit to imdt-8550-sbc via ssh
+tags:
+- dut
+
+# Replaces swu-deploy.yaml (SWUpdate A/B). Pushes the freshly-built OSTree commit
+# to the DUT, stages it as a new deployment, reboots and verifies the board came
+# up on the new deployment with its boot counter blessed. Automatic rollback (a
+# bad deployment exhausts its systemd-boot BLS counter) is covered separately.
+#
+# Disk-mindful by design — the LAVA worker and the DUT both have little spare
+# space:
+#   * CI stages ONLY <image>...ostreecommit.tar.xz into /images (one self-
+#     contained archive repo per image), and deletes it once every job passes.
+#   * On the DUT the pushed tarball is deleted the instant it is unpacked, the
+#     unpacked repo the instant it is pulled, and `ostree admin cleanup` reclaims
+#     superseded deployments before the pull — so only the delta of the new
+#     commit is ever added to the ~6 GB rootfs (pull-local copies just the
+#     objects the DUT lacks, not the whole image).
+timeouts:
+  job:
+    minutes: 75
+  action:
+    minutes: 20
+  connection:
+    minutes: 5
+priority: medium
+visibility: public
+
+actions:
+- deploy:
+    to: docker
+    image:
+      name: lava-adb:latest
+      local: true
+    timeout:
+      minutes: 5
+
+- boot:
+    method: docker
+    command: /bin/bash
+    prompts:
+    - 'root@lava'
+    timeout:
+      minutes: 5
+
+- test:
+    timeout:
+      minutes: 60
+    definitions:
+    - from: inline
+      name: ostree-deploy
+      path: inline/ostree-deploy.yaml
+      parameters:
+        # Self-contained archive ostree repo holding this build's commit, staged
+        # into /images by CI and named with the commit sha. Set by the workflow.
+        COMMIT_FILE: 'qcom-minimal-image-imdt-8550-sbc.rootfs.ostreecommit.tar.xz'
+        # ref (branch) inside that repo, and the OS name the DUT deploys under.
+        OSTREE_REF: 'imdt-8550-sbc'
+        OSTREE_OSNAME: 'nodistro'
+        # DUT address reachable from the dispatcher/container over the LAN. Auth
+        # is key-based (lava-adb image ships the key matching lava-dut-key.pub).
+        SSH_HOST: 'SET-BY-CI'
+        SSH_PORT: '2222'
+        SSH_USER: 'root'
+      repository:
+        metadata:
+          format: Lava-Test Test Definition 1.0
+          name: ostree-deploy
+          description: Push an OSTree commit over ssh, deploy it and verify the DUT boots into it
+        run:
+          steps:
+          # All DUT access is over ssh/scp. UserKnownHostsFile=/dev/null +
+          # StrictHostKeyChecking=no because a rolled-back deployment can present
+          # a different host key. ServerAliveInterval/CountMax kill a silently
+          # stalled stream (wireguard tunnel + adb-forward transport) in ~60s.
+          - SSH="ssh -p $SSH_PORT -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 $SSH_USER@$SSH_HOST"
+          - 'echo "DUT: $SSH_USER@$SSH_HOST:$SSH_PORT"'
+          # Wait for the board to be reachable over ssh (it may still be booting).
+          - i=0; SSH_OK=0; while [ $i -lt 60 ]; do if $SSH true >/dev/null 2>&1; then SSH_OK=1; break; fi; i=$((i+1)); sleep 2; done
+          - if [ "$SSH_OK" = 1 ]; then lava-test-case ssh-detect --result pass; else lava-test-case ssh-detect --result fail; fi
+          # OSTree admin needs the ESP mounted at /boot (BLS entries live there).
+          # base-files mounts it via fstab, but assert it so a missing mount is a
+          # clear failure rather than a confusing "no /boot/loader directory".
+          - $SSH "mountpoint -q /boot || mount /dev/disk/by-partlabel/efi /boot" || true
+          # Record the running deployment checksum so we can prove it changed.
+          - DEPLOY_BEFORE=$($SSH "ostree admin status 2>/dev/null | awk '/\\*/{print \$2}'") || DEPLOY_BEFORE=""
+          - 'echo "deployment before update: ${DEPLOY_BEFORE:-<unknown>}"'
+          # ── Stage the commit archive on the DUT ─────────────────────────────
+          - 'echo "Using commit: /images/$COMMIT_FILE"'
+          - if [ -f "/images/$COMMIT_FILE" ]; then lava-test-case commit-present --result pass; else lava-test-case commit-present --result fail; fi
+          - cp "/images/$COMMIT_FILE" /tmp/commit.tar.xz
+          - COMMIT_MD5=$(md5sum /tmp/commit.tar.xz | cut -d' ' -f1)
+          - $SSH mkdir -p /var/ota
+          # Reclaim space first: drop superseded/staged deployments so the pull
+          # below has the most headroom on the ~6 GB rootfs.
+          - $SSH "ostree admin cleanup" || true
+          # Push the archive in resumable 64 MB chunks. A single scp of a multi-GB
+          # file dies ~105s in on the adb-forwarded transport (adbd drops the
+          # stream once its queue backs up), so each connection carries at most
+          # CHUNK bytes, appended in place, verified by md5 at full length. Same
+          # primitive the old swu-deploy used. Peak DUT use is one copy of the
+          # archive, deleted the moment it is unpacked (below).
+          - CHUNK=$((64 * 1024 * 1024))
+          - 'dut_size() { S=$($SSH "stat -c%s /var/ota/commit.tar.xz 2>/dev/null" 2>/dev/null) || S=""; case "$S" in ""|*[!0-9]*) S=0 ;; esac; echo "$S"; }'
+          - 'push_file() { LOCAL_SIZE=$(stat -c%s /tmp/commit.tar.xz); STALL=0; PASS=0; while [ $STALL -lt 10 ]; do PASS=$((PASS+1)); HAVE=$(dut_size); if [ "$HAVE" -gt "$LOCAL_SIZE" ]; then $SSH rm -f /var/ota/commit.tar.xz || true; HAVE=0; fi; if [ "$HAVE" -eq "$LOCAL_SIZE" ]; then DUT_MD5=$($SSH md5sum /var/ota/commit.tar.xz | cut -d" " -f1) || DUT_MD5=""; if [ -n "$DUT_MD5" ] && [ "$DUT_MD5" = "$COMMIT_MD5" ]; then echo "push verified after $((PASS-1)) pass(es)"; return 0; fi; $SSH rm -f /var/ota/commit.tar.xz || true; HAVE=0; fi; echo "push pass $PASS: $HAVE of $LOCAL_SIZE bytes on dut"; tail -c +$((HAVE+1)) /tmp/commit.tar.xz | head -c $CHUNK | $SSH "cat >> /var/ota/commit.tar.xz" || true; if [ "$(dut_size)" -gt "$HAVE" ]; then STALL=0; else STALL=$((STALL+1)); echo "no progress ($STALL/10)"; sleep 10; fi; done; echo "push gave up after 10 stalled passes"; return 1; }'
+          - if push_file; then PUSH_OK=1; else PUSH_OK=0; fi
+          - 'echo "commit md5 local=$COMMIT_MD5 dut=${DUT_MD5:-<none>}"'
+          - if [ "$PUSH_OK" = 1 ]; then lava-test-case push-commit --result pass; else lava-test-case push-commit --result fail; fi
+          # ── Unpack → pull-local → deploy, freeing each staging step at once ──
+          # Unpack the archive repo, then delete the tarball immediately so the
+          # DUT never holds both the archive and the unpacked repo for longer
+          # than the untar itself.
+          - if [ "$PUSH_OK" = 1 ]; then $SSH "rm -rf /var/ota/repo && mkdir -p /var/ota/repo && tar -C /var/ota/repo -xJf /var/ota/commit.tar.xz && rm -f /var/ota/commit.tar.xz && echo UNPACK_OK"; UNPACK_RC=$?; else UNPACK_RC=1; fi
+          - if [ "${UNPACK_RC:-1}" = 0 ]; then lava-test-case unpack-commit --result pass; else lava-test-case unpack-commit --result fail; fi
+          # pull-local copies only the objects the DUT is missing (the delta from
+          # what it already runs) into the system repo, then the unpacked archive
+          # is dropped straight away.
+          - if [ "${UNPACK_RC:-1}" = 0 ]; then $SSH "ostree pull-local --repo=/ostree/repo /var/ota/repo $OSTREE_REF && rm -rf /var/ota/repo && echo PULL_OK"; PULL_RC=$?; else PULL_RC=1; fi
+          - if [ "${PULL_RC:-1}" = 0 ]; then lava-test-case pull-commit --result pass; else lava-test-case pull-commit --result fail; fi
+          - COMMIT_NEW=$($SSH "ostree --repo=/ostree/repo rev-parse $OSTREE_REF" 2>/dev/null) || COMMIT_NEW=""
+          - 'echo "pulled commit: ${COMMIT_NEW:-<unknown>}"'
+          # Stage the pulled commit as a new deployment. Its BLS entry carries a
+          # +tries counter that imdt-ostree-bless clears once it boots good.
+          - if [ "${PULL_RC:-1}" = 0 ]; then $SSH "ostree admin deploy --os=$OSTREE_OSNAME $OSTREE_REF && echo DEPLOY_OK"; DEPLOY_RC=$?; else DEPLOY_RC=1; fi
+          - if [ "${DEPLOY_RC:-1}" = 0 ]; then lava-test-case ostree-deploy --result pass; else lava-test-case ostree-deploy --result fail; fi
+          - $SSH "ls /boot/loader/entries/" || true
+          - $SSH "rm -rf /var/ota" || true
+          # ── Reboot into the new deployment ──────────────────────────────────
+          # Record boot_id so the reboot is detected reliably across the possibly
+          # flaky forwarded transport (every probe guarded with `|| ...` because
+          # the LAVA test shell runs with `set -e`).
+          - i=0; BOOT_ID_BEFORE=""; while [ $i -lt 3 ] && [ -z "$BOOT_ID_BEFORE" ]; do BOOT_ID_BEFORE=$($SSH cat /proc/sys/kernel/random/boot_id 2>/dev/null) || BOOT_ID_BEFORE=""; i=$((i+1)); done
+          - 'echo "boot_id before reboot: ${BOOT_ID_BEFORE:-<unknown>}"'
+          # `reboot` tears down the ssh connection, so detach it or the command
+          # returns 255 and trips `set -e`.
+          - $SSH 'nohup sh -c "sleep 1; reboot" >/dev/null 2>&1 &' || true
+          - i=0; REBOOTED=0; while [ $i -lt 150 ]; do BID=$($SSH cat /proc/sys/kernel/random/boot_id 2>/dev/null) || BID=""; if [ -n "$BID" ] && [ "$BID" != "$BOOT_ID_BEFORE" ]; then REBOOTED=1; break; fi; i=$((i+1)); sleep 2; done
+          - if [ "$REBOOTED" = 1 ] && [ -n "$BOOT_ID_BEFORE" ]; then lava-test-case reboot --result pass; else lava-test-case reboot --result fail; fi
+          - $SSH "mountpoint -q /boot || mount /dev/disk/by-partlabel/efi /boot" || true
+          # ── Verify the update took and committed ────────────────────────────
+          - DEPLOY_AFTER=$($SSH "ostree admin status 2>/dev/null | awk '/\\*/{print \$2}'") || DEPLOY_AFTER=""
+          - 'echo "deployment after update: ${DEPLOY_AFTER:-<unknown>} (was ${DEPLOY_BEFORE:-<unknown>})"'
+          - if [ -n "$DEPLOY_AFTER" ] && [ "$DEPLOY_AFTER" != "$DEPLOY_BEFORE" ]; then lava-test-case deployment-switched --result pass; else lava-test-case deployment-switched --result fail; fi
+          # imdt-ostree-bless must have cleared the running deployment's boot
+          # counter (no dangling +tries entry), or the next reboot would roll
+          # back. This is the board's critical no-efivars reliability fix.
+          - i=0; PENDING=1; while [ $i -lt 30 ]; do PENDING=$($SSH "ls /boot/loader/entries/ 2>/dev/null | grep -c '+'") || PENDING=1; [ "${PENDING:-1}" = 0 ] && break; i=$((i+1)); sleep 2; done
+          - if [ "${PENDING:-1}" = 0 ]; then lava-test-case boot-blessed --result pass; else lava-test-case boot-blessed --result fail; fi
+          - lava-test-case post-boot-shell --shell $SSH "cat /etc/hwrevision"

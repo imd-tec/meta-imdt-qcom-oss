@@ -12,7 +12,7 @@ _EPOCH = datetime.min.replace(tzinfo=timezone.utc)
 
 
 def suite_name(raw):
-    """Strip the leading numeric prefix LAVA adds (e.g. '0_swu-deploy' -> 'swu-deploy')."""
+    """Strip the leading numeric prefix LAVA adds (e.g. '0_ostree-deploy' -> 'ostree-deploy')."""
     return re.sub(r'^\d+_', '', raw)
 
 

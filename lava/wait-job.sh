@@ -3,9 +3,9 @@
 #
 # `lavacli jobs wait` issues XML-RPC polls with a hard-coded 20s HTTP read
 # timeout and aborts the whole wait (exit 1) on a single slow/timed-out poll.
-# Long-running jobs — e.g. deploying a multi-hundred-MB .swu over adb — poll
-# many times and reliably trip this, failing the step even though the job is
-# healthy and still running.
+# Long-running jobs — e.g. pushing a multi-hundred-MB OSTree commit archive over
+# adb — poll many times and reliably trip this, failing the step even though the
+# job is healthy and still running.
 #
 # Poll `jobs show` with short requests instead, tolerate transient query
 # failures, and only give up after a hard deadline. The job's health and test
