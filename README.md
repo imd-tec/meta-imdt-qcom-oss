@@ -16,7 +16,7 @@ The role of this meta layer is the following:
   - Provide an open source friendly BSP for IMDT Qualcomm boards
   - No qualcomm login needed
   - Track master branch Yocto/OpenEmbedded and [meta-qcom](https://github.com/qualcomm-linux/meta-qcom)
-  - Track upstream Linux and U-Boot
+  - Track upstream Linux
   - Easy-to-use kas based build process 
 
 The images are built on top of the [meta-qcom-distro](https://github.com/qualcomm-linux/meta-qcom-distro) distribution.
@@ -34,7 +34,7 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 - [Building release images](#building-release-images)
 - [Deploying images](#deploying-images)
 - [Working with the board](#working-with-the-board)
-- [SWUpdate](#swupdate)
+- [OS Updates](#os-updates)
 - [Appendix](#appendix)
 
 ## Feature Support
@@ -50,12 +50,11 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 > The QCS6490 SBC (4GB) column reflects early bring-up: the board boots to a
 > login prompt from eMMC, and most of its peripherals are only confirmed to
 > probe rather than being runtime-tested. That board boots from eMMC (there is
-> no UFS) and loads a systemd-boot UKI rather than the U-Boot UEFI stage. The
-> Hardware / Interface / Kernel Driver columns describe the QCS8550 SBC.
+> no UFS). The Hardware / Interface / Kernel Driver columns describe the
+> QCS8550 SBC.
 
 | Feature | Hardware | Interface | Kernel Driver | QCS8550 SBC Rev 2 (12GB) Status | QCS8550 SBC Rev 5 (8GB) Status | QCS6490 SBC (4GB) Status |
 |---|---|---|---|---|---|---|
-| A/B Rootfs Updates | — | — | — | ✅ | ✅ | 🚧 |
 | ADSP | Hexagon v73 DSP | — | remoteproc | 🚧 | 🚧 | 🚧 |
 | Android Debug Bridge (ADB) | — | USB | — | ✅ | ✅ | 🚧 |
 | Audio (LPASS) | — | — | — | 🚧 Planned | 🚧 Planned | 🚧 |
@@ -103,13 +102,13 @@ The boot chain used to boot into Linux is shown below.
 1. **PBL** (Primary Boot Loader) — BootROM that loads the next stage (XBL) from UFS.
 2. **XBL** (eXtensible Boot Loader) — Qualcomm firmware that initialises DDR, the PMIC and clocks, and sets up the early boot environment. The XBL is also responsible for implementing UEFI.
 3. **abl2esp** — our open source stand-in for Qualcomm's ABL (Application Boot Loader). It's a signed binary that transitions from bare metal into a UEFI app located within the EFI partition.
-4. **U-Boot** — built as an ARM64 **UEFI application** (`BOOTAA64.EFI`) on the EFI System Partition (ESP), which is what `abl2esp` finds and starts. Running U-Boot here lets us apply device tree fixups/overlays and select the A/B rootfs slot (with automatic rollback) before booting Linux.
-5. **Linux** — U-Boot loads the kernel and matching device tree and boots into the Yocto userspace.
+4. **systemd-boot** — built as an ARM64 **UEFI application** (`BOOTAA64.EFI`) on the EFI System Partition (ESP), which is what `abl2esp` finds and starts. It boots the Boot Loader Spec entry that OSTree writes to the ESP for each deployment (`loader/entries/ostree-N.conf`), and rolls back to the previous deployment if a new one exhausts its boot counter. The device tree is selected earlier, by the UEFI firmware in step 2.
+5. **Linux** — systemd-boot loads the selected deployment's UKI, which boots into the Yocto userspace on the OSTree rootfs.
 
 ## Device Tree Overlays
 
 The board boots a multi-DTB **FIT image** (`dtb.bin`). The UEFI firmware
-(`DtPlatformDxe`, boot-chain step 4) picks the FIT configuration for this board
+(`DtPlatformDxe`, boot-chain step 2) picks the FIT configuration for this board
 from its CDT identity, loads the base DTB and **applies a fixed set of overlays**
 before handing the device tree to the kernel. By default that set is the
 **display** panel and the **AR1335 camera on CSI0**.
@@ -165,7 +164,7 @@ in [`imdt-qcom-ptool`](https://github.com/imd-tec/imdt-qcom-ptool) and flashed b
 
 Every commit is automatically tested on a physical IMDT 8550 SBC via [LAVA](https://lava.readthedocs.io/). Both the `qcom-minimal-image` and `qcom-multimedia-image` builds are deployed and tested in turn. Each run executes these jobs in sequence:
 
-1. **SWUpdate deploy** — flashes the image under test over ADB and verifies the A/B rootfs slot switches
+1. **OSTree deploy** — pushes the freshly built OSTree commit to the board over ssh, stages it as a new deployment, reboots and verifies the board came up on it with its boot counter cleared
 2. **System tests** — checks kernel health, systemd state, hardware subsystems (GPU, BT, RTC, IOMMU, I2C, hwrng), Wi-Fi, camera streaming, and SD card over SSH
 3. **AR1335 frame capture** — captures a raw frame from the CSI0 camera and de-mosaics it to a 1080p PNG
 
@@ -210,8 +209,8 @@ tar --zstd -xf "$name" -C images
 To grab a specific release instead of the latest, replace `latest/download`
 with `download/<tag>` (e.g. `download/v1.2.3`).
 
-You can then flash the extracted images with [QDL](#qdl) or push the `.swu`
-package with [SWUpdate](#swupdate).
+You can then flash the extracted images with [QDL](#qdl), or update a board
+that is already flashed with an [OSTree update](#os-updates).
 
 ## Prerequisites
 
@@ -707,45 +706,64 @@ adb shell lspci
 ### USB Type-C Role Detection and DisplayPort Alt Mode
 
 On Rev 5 and newer QCS8550 SBCs, the onboard CYPD6125 Type-C controller can
-handle role, orientation and DisplayPort Alt Mode detection. It is enabled with
-a device tree overlay:
+handle role, orientation and DisplayPort Alt Mode detection. It is enabled with the
+`qcs8550-imdt-sbc-cypd6125` device tree overlay, which is built but not applied by
+default. Append its stem to the `FIT_DTB_COMPATIBLE[imdt_qcs8550-sbc]` line as
+described in [Device Tree Overlays](#device-tree-overlays), then rebuild and
+reflash — the FIT lives in the ESP, so the `efi` partition has to be rewritten.
 
-```bash
-# Check the current overlay list
-adb shell fw_printenv overlays
-
-# Enable the CYPD6125 overlay
-adb shell "fw_setenv overlays 'qcs8550-imdt-sbc-display.dtbo qcs8550-imdt-sbc-ar1335-csi0.dtbo qcs8550-imdt-sbc-cypd6125.dtbo'"
-adb reboot
-```
-
-After rebooting you can connect a USB-C hub — [this UGREEN hub](https://uk.ugreen.com/products/75244)
+With that overlay applied, connect a USB-C hub — [this UGREEN hub](https://uk.ugreen.com/products/75244)
 has been tested — and drive an external DisplayPort-compatible monitor from it.
 
-## SWUpdate
+## OS Updates
 
-[SWUpdate](https://sbabic.github.io/swupdate/swupdate.html) is supported with A/B partitions for the rootfs (which also includes the Linux kernel image, kernel modules and the DTB/DTBO files) with automatic rollback supported. An automatic rollback will occur via U-Boot if there are three failed boots after performing a SWUpdate.
+Rootfs updates are managed by [OSTree](https://ostreedev.github.io/ostree/). The
+board runs a single filesystem (`otaroot`) holding `/ostree/repo` and the
+hard-linked deployments, and an update stages a **new deployment** beside the
+running one — there is no second rootfs partition to write. Each deployment gets
+its own systemd-boot entry, and rollback is automatic: a deployment that fails to
+boot exhausts its Boot Loader Spec boot counter and systemd-boot falls back to the
+previous one. The `imdt-ostree-bless` service clears that counter once the new
+deployment has booted successfully.
 
-### Performing a SWUpdate
+### Performing an update
 
-The ADB daemon runs unprivileged by default, so first restart it as root to allow writing to `/root/` and running `swupdate`:
+The ADB daemon runs unprivileged by default, so first restart it as root:
 
 ```bash
 adb root
 ```
 
-From your host, you will need to push the `.swu` file to the target using ADB:
+Images ship the `ostree-imdt-update` helper, which pulls the latest commit from
+the configured remote and stages it as a new deployment:
 
 ```bash
-adb push qcom-minimal-image.swu-imdt-8550-sbc.rootfs.swu /root/
-```
-
-And then you can perform a SWUpdate using the following commands on your host:
-
-```bash
-adb shell "cd /root/ && swupdate -i qcom-minimal-image.swu-imdt-8550-sbc.rootfs.swu"
+adb shell ostree-imdt-update
 adb reboot
 ```
+
+The remote and branch are baked in at build time by the `ostree-imdt-update`
+recipe (`OSTREE_UPDATE_URL`, `OSTREE_UPDATE_REMOTE` and `OSTREE_BRANCHNAME`,
+defaulting to the machine name); on the board they live in
+`/etc/default/ostree-imdt-update` and `/etc/ostree/remotes.d/<remote>.conf`.
+
+To deploy a locally built commit without an update server, push the build's
+self-contained archive repo (`<image>-<machine>.rootfs.ostreecommit.tar.xz`) to
+the board and pull from it — this copies only the objects the board is missing:
+
+```bash
+adb shell "mkdir -p /var/ota/repo"
+adb push qcom-minimal-image-imdt-8550-sbc.rootfs.ostreecommit.tar.xz /var/ota/
+adb shell "tar -C /var/ota/repo -xJf /var/ota/*.ostreecommit.tar.xz && rm -f /var/ota/*.tar.xz"
+adb shell "ostree pull-local --repo=/ostree/repo /var/ota/repo imdt-8550-sbc && rm -rf /var/ota"
+adb shell "ostree admin deploy imdt-8550-sbc"
+adb reboot
+```
+
+`ostree admin status` lists the deployments, marks the running one and names the
+OS to pass as `--os=` if the board carries more than one. `ostree admin cleanup`
+reclaims superseded deployments, which is worth running before a pull if the
+rootfs is tight on space.
 
 ## Appendix
 
