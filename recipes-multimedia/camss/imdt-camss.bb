@@ -16,15 +16,15 @@ inherit systemd
 # Configure the CSI0 AR1335 media pipeline automatically at boot.
 SYSTEMD_SERVICE:${PN} = "qcs8550-csi0-ar1335.service"
 
+# ${sbindir}, not /opt: /opt is /var on an OSTree system, which no deployment populates.
 do_install() {
-    install -d ${D}/opt/imdt/camss
-    install -m 0755 ${S}/qcs8550-csi0-ar1335.sh ${D}/opt/imdt/camss/
+    install -D -m 0755 ${S}/qcs8550-csi0-ar1335.sh \
+        ${D}${sbindir}/qcs8550-csi0-ar1335.sh
 
     install -D -m 0644 ${S}/qcs8550-csi0-ar1335.service \
         ${D}${systemd_system_unitdir}/qcs8550-csi0-ar1335.service
 }
 
-FILES:${PN} += "/opt/imdt/camss"
 
 # The pipeline setup script relies on media-ctl and v4l2-ctl at runtime
 # (media-ctl is split into its own package by the v4l-utils recipe).

@@ -14,11 +14,8 @@ header:
 
 # kas merges `target` by override — including the two per-image configs would
 # otherwise leave only the last one's target. Enumerate the full set here so a
-# single build produces every image (and its .swu bundle).
+# single build produces every image.
 target:
   - qcom-minimal-image
-  - qcom-minimal-image.swu
   - qcom-multimedia-image
-  - qcom-multimedia-image.swu
   - qcom-multimedia-proprietary-image
-  - qcom-multimedia-proprietary-image.swu

@@ -7,7 +7,7 @@ ConditionPathExists=/dev/media0
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/opt/imdt/camss/qcs8550-csi0-ar1335.sh
+ExecStart=/usr/sbin/qcs8550-csi0-ar1335.sh
 
 [Install]
 WantedBy=multi-user.target

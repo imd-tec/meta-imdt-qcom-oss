@@ -110,7 +110,7 @@ actions:
         run:
           steps:
           - if [ "$CAMERA_PRESENT" != "yes" ]; then echo "No AR1335 on this board - skipping camera suite"; lava-test-case pipeline-setup --result skip; lava-test-case sensor-enumerated --result skip; lava-test-case video-node --result skip; lava-test-case stream-30-frames --result skip; exit 0; fi
-          - SETUP_OUT=$(sh /opt/imdt/camss/qcs8550-csi0-ar1335.sh 2>&1) && SETUP_RC=0 || SETUP_RC=$?
+          - SETUP_OUT=$(sh /usr/sbin/qcs8550-csi0-ar1335.sh 2>&1) && SETUP_RC=0 || SETUP_RC=$?
           - 'echo "$SETUP_OUT"'
           - if [ "$SETUP_RC" = "0" ]; then lava-test-case pipeline-setup --result pass; else lava-test-case pipeline-setup --result fail; fi
           - lava-test-case sensor-enumerated --shell sh -c "media-ctl -d /dev/media0 -p | grep -q ar1335"
@@ -167,15 +167,23 @@ actions:
           - if [ "$HWRNG_BYTES" -ge 16 ]; then lava-test-case hwrng-readable --result pass; else lava-test-case hwrng-readable --result fail; fi
 
     - from: inline
-      name: gbe
-      path: inline/gbe.yaml
+      name: pcie-gbe
+      path: inline/pcie-gbe.yaml
       repository:
         metadata:
           format: Lava-Test Test Definition 1.0
-          name: gbe
-          description: LAN7430 GbE PHY presence checks (PCIe enumeration and driver bind)
+          name: pcie-gbe
+          description: PCIe root complex enumeration and default LAN7430 GbE routing
         run:
           steps:
+          # PCIe0 feeds the M.2 Key-E slot, PCIe1 the on-board switch.
+          - PCIE0_RC=$(lspci -n 2>/dev/null | grep '^0000:00:00' || true)
+          - 'echo "PCIe0 root complex: ${PCIE0_RC:-not found}"'
+          - if [ -n "$PCIE0_RC" ]; then lava-test-case pcie0-root-complex --result pass; else lava-test-case pcie0-root-complex --result fail; fi
+          - PCIE1_RC=$(lspci -n 2>/dev/null | grep '^0001:00:00' || true)
+          - 'echo "PCIe1 root complex: ${PCIE1_RC:-not found}"'
+          - if [ -n "$PCIE1_RC" ]; then lava-test-case pcie1-root-complex --result pass; else lava-test-case pcie1-root-complex --result fail; fi
+          # UEFI applies the FIT's fixed overlays, so CI images take the GbE path.
           - lava-test-case lan7430-present --shell sh -c "lspci -n | grep -q '1055:7430'"
           - LAN743X_BOUND=$(ls /sys/bus/pci/drivers/lan743x/ 2>/dev/null | grep -v 'bind\|unbind\|new_id\|remove_id\|uevent\|module' || true)
           - if [ -n "$LAN743X_BOUND" ]; then lava-test-case lan743x-driver-bound --result pass; else lava-test-case lan743x-driver-bound --result fail; fi

@@ -7,7 +7,7 @@ and tested on **both board variants** as separate CI runs:
 
 | Board tag | Variant | DUT ssh endpoint | Camera |
 |-----------|---------|------------------|--------|
-| `8550-8gb` | 8 GB IMDT 8550 SBC | pi-tester-2, port 2222 (`DUT_SSH_HOST_8GB` secret) | yes |
+| `8550-8gb` | 8 GB IMDT 8550 SBC | pi-tester-3, port 2222 (`DUT_SSH_HOST_8GB` secret) | yes |
 | `8550-12gb` | 12 GB IMDT 8550 SBC | original Pi, port 2222 (`DUT_SSH_HOST_12GB` secret) | yes |
 
 The two boards' pipelines run in parallel (one CI job per image × board
@@ -17,33 +17,36 @@ defined in the `setup` job of `build-imdt-base-image.yml` and applied to the
 generic job definitions in `lava/` by the "Prepare board-specific LAVA job
 definitions" step of `lava-tests.yml`.
 
-Within a run the LAVA jobs execute sequentially: the SWUpdate deploy must
-succeed (and flashes the image under test onto the inactive A/B slot) before the
+Within a run the LAVA jobs execute sequentially: the OSTree deploy must
+succeed (and boots the board into the deployment under test) before the
 SSH/camera jobs run against the freshly-deployed rootfs.
 
-## Job 1 — SWUpdate Deploy (`swu-deploy`)
+## Job 1 — OSTree Deploy (`ostree-deploy`)
 
-Pushes a `.swu` image over ssh/scp and verifies that the A/B rootfs slot switches on
-reboot. In the same job it also updates the u-boot UEFI binary: the new
-`BOOTAA64.EFI` is pushed over scp and written over the copy on the EFI System
-Partition (`/efi/EFI/BOOT/BOOTAA64.EFI`) that the SoC firmware boots from. The
-update takes effect on the reboot below, so the board coming back online
-confirms the new u-boot booted successfully.
+Pushes the build's OSTree commit archive (`*.ostreecommit.tar.xz`) to the DUT
+over ssh/scp in resumable 64 MB chunks, unpacks it, exposes it as a throwaway
+`file://` OSTree remote and then runs the on-target `ostree-imdt-update` helper
+to pull and stage it — the same script a fielded board runs, so CI covers the
+real update path rather than open-coded `ostree` calls. The board's production
+`imdt` remote is left untouched, and the CI-only remote is removed at the end.
+Each staging copy is freed as soon as it is consumed, so the ~6 GB rootfs only
+ever grows by the delta of the new commit. After the reboot the job checks the
+running deployment changed and that `imdt-ostree-bless` cleared the systemd-boot
+BLS boot counter — without that the next reboot would roll back, since the board
+has no EFI variables.
 
 | Test Case | Description |
 |-----------|-------------|
 | `ssh-detect` | DUT is reachable over ssh |
-| `fetch-swu` / `copy-swu` | `.swu` file is fetched from URL or copied from local storage |
-| `push-swu` | `.swu` file is pushed to the device via scp |
-| `swupdate` | `swupdate` runs without error and prints `SWUPDATE_OK` |
-| `fetch-uboot` / `copy-uboot` | new `BOOTAA64.EFI` is fetched from URL or copied from local storage |
-| `push-uboot` | `BOOTAA64.EFI` is pushed to the device via scp |
-| `install-uboot` | `BOOTAA64.EFI` is written to the ESP and prints `UBOOT_INSTALL_OK` |
-| `uboot-verify` | Installed `BOOTAA64.EFI` md5 matches the pushed binary |
-| `reboot` | Device reboots cleanly via ssh |
-| `wait-reboot` | Device comes back after reboot with a **new** `boot_id` (a genuine reboot under the new u-boot, immune to transient ssh drops) |
-| `uboot-booted` | `BOOTAA64.EFI` on the ESP persisted unchanged across the reboot |
-| `slot-switched` | Active rootfs partition changes (A→B or B→A) after update |
+| `commit-present` | commit archive is staged in `/images` on the LAVA worker |
+| `push-commit` | archive is pushed to the device and its md5 matches |
+| `unpack-commit` | archive unpacks into a local ostree repo on the DUT |
+| `update-remote` | unpacked repo is registered as the throwaway `lava-local` remote |
+| `ostree-deploy` | `ostree-imdt-update` pulls the commit and stages it as a new deployment |
+| `root-unlocked` | ostree's immutable bit is cleared from the deployment roots, so `ssh-tests` can scp its overlay into `/lava-<id>` |
+| `reboot` | Device reboots and comes back with a **new** `boot_id` (a genuine reboot, immune to transient ssh drops) |
+| `deployment-switched` | Running deployment checksum differs from the pre-update one |
+| `boot-blessed` | No `+tries` BLS entry remains, i.e. the boot counter was blessed and the deployment will not roll back |
 | `post-boot-shell` | Post-update shell is accessible; `/etc/hwrevision` readable |
 
 ## Job 2 — System Tests (`ssh-tests`)
@@ -86,7 +89,7 @@ camera attached.
 
 | Test Case | Description |
 |-----------|-------------|
-| `pipeline-setup` | `/opt/imdt/camss/qcs8550-csi0-ar1335.sh` exits 0 |
+| `pipeline-setup` | `/usr/sbin/qcs8550-csi0-ar1335.sh` exits 0 |
 | `sensor-enumerated` | `ar1335` appears in `media-ctl -d /dev/media0 -p` output |
 | `video-node` | A `/dev/videoN` node is reported by the setup script |
 | `stream-30-frames` | `v4l2-ctl --stream-mmap --stream-count=30` completes within 60 s |
@@ -101,10 +104,12 @@ Currently skipped on the 8 GB fixture (no card fitted).
 |-----------|-------------|
 | `sdcard-present` | `/dev/mmcblk0` is present |
 
-### `gbe` — Gigabit Ethernet (LAN7430)
+### `pcie-gbe` — PCIe routing and Gigabit Ethernet (LAN7430)
 
 | Test Case | Description |
 |-----------|-------------|
+| `pcie0-root-complex` | PCIe0 root complex (`0000:00:00.0`) appears in `lspci` — feeds the M.2 Key-E slot |
+| `pcie1-root-complex` | PCIe1 root complex (`0001:00:00.0`) appears in `lspci` — feeds the on-board switch |
 | `lan7430-present` | Microchip LAN7430 (`1055:7430`) appears in `lspci` — confirms PCIe switch is in default GbE routing |
 | `lan743x-driver-bound` | `lan743x` driver has at least one bound PCI device |
 
@@ -131,16 +136,18 @@ Captures a raw frame from the AR1335 camera over ssh and de-mosaics it to a PNG,
 | `capture-raw-frame` | `v4l2-ctl --stream-to` captures one raw frame to `/tmp/ar1335_frame.raw` |
 | `demosaic` | `demosaic.py` converts the raw frame to `/images/ar1335_<board-tag>.png` |
 
-## Optional — PCIe Key-B Overlay (`pcie-keyb-test`)
+## PCIe M.2 Key-B — not covered by CI
 
-Verifies that the `qcs8550-imdt-sbc-pcie-keyb.dtbo` overlay is active and has correctly routed the on-board PCIe switch to the M.2 Key-B slot (J46) instead of the default LAN7430 path.
+There is no Key-B job any more. Routing PCIe1 to the M.2 Key-B slot (J46)
+instead of the LAN7430 needs the `qcs8550-imdt-sbc-pcie-keyb` overlay, and
+overlays are applied by the **UEFI firmware** from the FIT image at boot (see
+[Device Tree Overlays](../README.md#device-tree-overlays)) — the old U-Boot
+`fw_setenv overlays` runtime switch does not exist on a systemd-boot board, so a
+LAVA job cannot flip the routing between test runs.
 
-This job runs automatically in CI. The CI enables the Key-B overlay via `fw_setenv overlays '... qcs8550-imdt-sbc-pcie-keyb.dtbo'` and reboots before running the test, then restores the default overlay list afterwards. See [PCIe Switch — LAN7430 and M.2 Key-B](../README.md#pcie-switch--lan7430-and-m2-key-b) for manual `fw_setenv` instructions.
-
-| Test Case | Description |
-|-----------|-------------|
-| `dtb-readable` | `/proc/device-tree/model` is accessible (DTB is loaded) |
-| `pcie1-root-complex` | PCIe1 root complex (`0001:00:00.0`) appears in `lspci` — confirms PCIe1 probed correctly |
-| `no-lan7430` | Microchip LAN7430 (`1055:7430`) is **absent** from `lspci` — confirms Key-B routing is active |
-| `no-lan743x-driver` | `lan743x` driver has no bound PCI devices — no LAN7430 enumerated |
-| `pcie-keyb-complete` | Informational: reports any M.2 Key-B device found on `0001:01:00.0` (pass regardless) |
+The images CI builds therefore always take the GbE path, which `ssh-tests`
+asserts in [`pcie-gbe`](#pcie-gbe--pcie-routing-and-gigabit-ethernet-lan7430).
+Key-B is verified by hand against an image built with the overlay added to
+`FIT_DTB_COMPATIBLE`; the checks that job used to make were `no-lan7430` and
+`no-lan743x-driver` (the LAN7430 disappears from `lspci` once PCIe1 is routed
+away from it) plus any device appearing on `0001:01:00.0`.

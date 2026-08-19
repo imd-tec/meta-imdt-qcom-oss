@@ -17,7 +17,8 @@ OSTREE_UPDATE_URL ?= "http://update.example.com/ostree"
 OSTREE_UPDATE_REMOTE ?= "imdt"
 OSTREE_UPDATE_GPG_VERIFY ?= "false"
 
-OSTREE_OSNAME ?= "imdt"
+# sota.bbclass sets this; the fallback matches its default for a non-sota build.
+OSTREE_OSNAME ?= "nodistro"
 OSTREE_BRANCHNAME ?= "${MACHINE}"
 
 do_install() {

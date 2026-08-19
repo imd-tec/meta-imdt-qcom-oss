@@ -14,4 +14,4 @@ header:
     - kas/includes/base.yml
     - kas/includes/imdt.yml
     - kas/machine/imdt-8550-sbc.yml
-    - kas/distro/qcom-distro.yml
+    - kas/distro/qcom-ostree.yml

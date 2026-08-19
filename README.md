@@ -520,7 +520,7 @@ Currently only CSI0 has been tested on the open source release.
 
 The CSI0 media pipeline is configured automatically at boot by the
 `qcs8550-csi0-ar1335.service` systemd service, which runs the
-`/opt/imdt/camss/qcs8550-csi0-ar1335.sh` `media-ctl` setup script once the
+`/usr/sbin/qcs8550-csi0-ar1335.sh` `media-ctl` setup script once the
 camss media device is available. No manual setup step is required.
 
 You can check that the pipeline came up with:
@@ -764,6 +764,12 @@ adb reboot
 OS to pass as `--os=` if the board carries more than one. `ostree admin cleanup`
 reclaims superseded deployments, which is worth running before a pull if the
 rootfs is tight on space.
+
+### Unlocking the deployment root
+
+OSTree marks each deployment's root directory immutable, so creating anything
+directly at `/` (as the LAVA ssh jobs do) needs `adb shell "chattr -i /"` first —
+per deployment, and `/usr` stays read-only regardless.
 
 ## Appendix
 

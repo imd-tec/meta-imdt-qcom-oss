@@ -3,13 +3,19 @@
 # by OSTree BLS boot counting under systemd-boot, so no fw_setenv arming here.
 set -eu
 
-REMOTE="${OSTREE_REMOTE:-imdt}"
-BRANCH="${OSTREE_BRANCH:-}"
-OSNAME="${OSTREE_OSNAME:-imdt}"
+# Source the defaults before reading them, but let the environment win.
+env_remote="${OSTREE_REMOTE:-}"
+env_branch="${OSTREE_BRANCH:-}"
+env_osname="${OSTREE_OSNAME:-}"
+
 if [ -f /etc/default/ostree-imdt-update ]; then
     # shellcheck disable=SC1091
     . /etc/default/ostree-imdt-update
 fi
+
+REMOTE="${env_remote:-${OSTREE_REMOTE:-imdt}}"
+BRANCH="${env_branch:-${OSTREE_BRANCH:-}}"
+OSNAME="${env_osname:-${OSTREE_OSNAME:-nodistro}}"
 
 if [ -z "${BRANCH}" ]; then
     echo "ostree-imdt-update: no OSTree branch configured" >&2

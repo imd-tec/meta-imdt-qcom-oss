@@ -1,0 +1,94 @@
+From b2116708da587fc6378b181bb22fb6b8cd93e6ed Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Tue, 11 Aug 2026 06:48:41 +0100
+Subject: [PATCH] drivers: usb: typec: ussci: Add missing type C mux switching
+
+If a system has a type C mux (for example for switching the SS lines
+between super-speed and display port), the mux was only switching on a
+hotplug and not a cold boot.
+Now under both a hotplug and a cold boot, the type C mux will be set to
+the correct mode.
+
+Tested on the IMDT QCS8550 SBC.
+
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+---
+ drivers/usb/typec/ucsi/ucsi.c | 41 +++++++++++++++++++++++++----------
+ 1 file changed, 30 insertions(+), 11 deletions(-)
+
+diff --git a/drivers/usb/typec/ucsi/ucsi.c b/drivers/usb/typec/ucsi/ucsi.c
+index 2a83bee71772..8bf8f167031e 100644
+--- a/drivers/usb/typec/ucsi/ucsi.c
++++ b/drivers/usb/typec/ucsi/ucsi.c
+@@ -1066,6 +1066,11 @@ static int ucsi_check_connector_capability(struct ucsi_connector *con)
+ 
+ static void ucsi_orientation(struct ucsi_connector *con)
+ {
++	dev_info(con->ucsi->dev,
++		 "SSDBG con%d: orientation: connected=%llu ornt=%llu\n",
++		 con->num, UCSI_CONSTAT(con, CONNECTED),
++		 UCSI_CONSTAT(con, ORIENTATION));
++
+ 	if (con->ucsi->version < UCSI_VERSION_2_0)
+ 		return;
+ 
+@@ -1187,6 +1192,29 @@ static void ucsi_unregister_partner(struct ucsi_connector *con)
+ 	con->partner = NULL;
+ }
+ 
++static void ucsi_set_mode(struct ucsi_connector *con)
++{
++	switch (UCSI_CONSTAT(con, PARTNER_TYPE)) {
++	case UCSI_CONSTAT_PARTNER_TYPE_DEBUG:
++		typec_set_mode(con->port, TYPEC_MODE_DEBUG);
++		break;
++	case UCSI_CONSTAT_PARTNER_TYPE_AUDIO:
++		typec_set_mode(con->port, TYPEC_MODE_AUDIO);
++		break;
++	default:
++		if (UCSI_CONSTAT(con, PARTNER_FLAG_USB))
++			typec_set_mode(con->port, TYPEC_STATE_USB);
++		break;
++	}
++
++	dev_info(con->ucsi->dev,
++		 "SSDBG con%d: set_mode: connected=%llu partner_type=%llu flag_usb=%llu flag_altmode=%llu\n",
++		 con->num, UCSI_CONSTAT(con, CONNECTED),
++		 UCSI_CONSTAT(con, PARTNER_TYPE),
++		 UCSI_CONSTAT(con, PARTNER_FLAG_USB),
++		 UCSI_CONSTAT(con, PARTNER_FLAG_ALT_MODE));
++}
++
+ static void ucsi_partner_change(struct ucsi_connector *con)
+ {
+ 	enum usb_role u_role = USB_ROLE_NONE;
+@@ -1209,17 +1237,7 @@ static void ucsi_partner_change(struct ucsi_connector *con)
+ 	}
+ 
+ 	if (UCSI_CONSTAT(con, CONNECTED)) {
+-		switch (UCSI_CONSTAT(con, PARTNER_TYPE)) {
+-		case UCSI_CONSTAT_PARTNER_TYPE_DEBUG:
+-			typec_set_mode(con->port, TYPEC_MODE_DEBUG);
+-			break;
+-		case UCSI_CONSTAT_PARTNER_TYPE_AUDIO:
+-			typec_set_mode(con->port, TYPEC_MODE_AUDIO);
+-			break;
+-		default:
+-			if (UCSI_CONSTAT(con, PARTNER_FLAG_USB))
+-				typec_set_mode(con->port, TYPEC_STATE_USB);
+-		}
++		ucsi_set_mode(con);
+ 
+ 		if (((con->ucsi->version >= UCSI_VERSION_3_0 &&
+ 		    UCSI_CONSTAT(con, PARTNER_FLAG_USB4_GEN4)) ||
+@@ -1805,6 +1823,7 @@ static int ucsi_register_port(struct ucsi *ucsi, struct ucsi_connector *con)
+ 		ucsi_register_partner(con);
+ 		ucsi_pwr_opmode_change(con);
+ 		ucsi_orientation(con);
++		ucsi_set_mode(con);
+ 		ucsi_port_psy_changed(con);
+ 		if (con->ucsi->cap.features & UCSI_CAP_GET_PD_MESSAGE)
+ 			ucsi_get_partner_identity(con);
+-- 
+2.34.1
+

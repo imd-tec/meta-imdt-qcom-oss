@@ -67,7 +67,7 @@ actions:
           # when the job starts).
           - i=0; SSH_OK=0; while [ $i -lt 60 ]; do if $SSH true >/dev/null 2>&1; then SSH_OK=1; break; fi; i=$((i+1)); sleep 2; done
           - if [ "$SSH_OK" = 1 ]; then lava-test-case ssh-detect --result pass; else lava-test-case ssh-detect --result fail; fi
-          - SETUP_OUT=$($SSH "sh /opt/imdt/camss/qcs8550-csi0-ar1335.sh" 2>&1) && SETUP_RC=0 || SETUP_RC=$?
+          - SETUP_OUT=$($SSH "sh /usr/sbin/qcs8550-csi0-ar1335.sh" 2>&1) && SETUP_RC=0 || SETUP_RC=$?
           - 'echo "$SETUP_OUT"'
           - lava-test-case pipeline-setup --result $([ "$SETUP_RC" = "0" ] && echo pass || echo fail)
           - VIDEO_DEV=$(echo "$SETUP_OUT" | grep -o '/dev/video[0-9]*' | head -n1)

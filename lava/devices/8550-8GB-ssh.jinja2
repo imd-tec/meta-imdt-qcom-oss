@@ -1,11 +1,7 @@
 {# Device dictionary for the 8550-8GB-ssh LAVA device (device-type: ssh) —
-   the 8 GB IMDT 8550 SBC.
+   the 8 GB IMDT 8550 SBC, attached to rpi-tester-3.
 
-   ssh_host is the IP of the host that forwards the DUT's sshd (adb forward
-   + relay, set up by the lava-forwarding service). Both boards now sit
-   behind the SAME relay address and are told apart by port: 2222 is the
-   12 GB board, 2223 is this 8 GB one. The 8 GB board used to have its own
-   LAN address; it does not any more.
+   ssh_host is the relay forwarding the DUT's sshd — rpi-tester-3, port 2222.
 
    ssh_host must NOT be 'localhost': the ssh client runs inside the
    lava-dispatcher container on the compose bridge network, where
@@ -27,6 +23,6 @@
    connection — see ssh-keepalive.jinja2 for why it has its own name. #}
 {% extends 'ssh-keepalive.jinja2' %}
 {% set ssh_host = 'DUT-SSH-RELAY-IP' %}
-{% set ssh_port = 2223 %}
+{% set ssh_port = 2222 %}
 {% set ssh_user = 'root' %}
 {% set ssh_identity_file = '/var/lib/lava/dispatcher/worker/lava-dut-key' %}

@@ -21,10 +21,6 @@ repos:
     # qcom-multimedia-proprietary-image now installs. Still held short of
     # 26179804, where master drops hexagon-dspso and breaks packagegroup-core-boot.
     commit: 96ce479f9467cdf954b20602a472b76398b5aaac
-  meta-swupdate:
-    url: https://github.com/sbabic/meta-swupdate.git
-    # Temporary solution until poky gets updated in meta-qcom
-    commit: 30b8bb07bde140ed9579395037d4cfa213178857
 
 
 

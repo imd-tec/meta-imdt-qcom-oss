@@ -84,7 +84,7 @@ jobs:
       machine: 'imdt-8550-sbc imdt-6490-sbc'
       artifact-name: 'qcom-imdt-images'
       # Nothing in this repo downloads the per-machine tarballs: LAVA gets the
-      # .swu and BOOTAA64.EFI by rsync below, and tag builds still attach the
+      # OSTree commit archive by rsync below, and tag builds still attach the
       # tarballs to the GitHub release (packing stays on for tags). Skipping the
       # zstd pack + upload of two multi-GB deploy dirs takes a large chunk off
       # every master/PR build.
