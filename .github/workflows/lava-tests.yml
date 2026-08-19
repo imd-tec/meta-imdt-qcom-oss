@@ -194,7 +194,10 @@ jobs:
       # ── Job 1: ostree-deploy (SSH) ──────────────────────────────────────
       - name: Submit ostree-deploy LAVA job
         run: |
-          COMMIT_FILE="${{ inputs.image-name }}-imdt-8550-sbc.rootfs-${{ github.sha }}.ostreecommit.tar.xz"
+          # kas-gh-ci stages each artifact as <stem>-<sha>.<ext>, splitting on the last
+          # dot, so mirror that here rather than assume where the sha lands.
+          ARTIFACT="${{ inputs.image-name }}-imdt-8550-sbc.rootfs.ostreecommit.tar.xz"
+          COMMIT_FILE="${ARTIFACT%.*}-${{ github.sha }}.${ARTIFACT##*.}"
           sed -e "s|COMMIT_FILE: '.*'|COMMIT_FILE: '${COMMIT_FILE}'|" \
               /tmp/lava-jobs/ostree-deploy.yaml > /tmp/lava-ostree-deploy.yaml
           JOB_ID=$(lavacli --identity lava-ci jobs submit /tmp/lava-ostree-deploy.yaml)
