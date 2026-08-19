@@ -8,6 +8,12 @@ header:
 distro: qcom-distro-sota
 
 repos:
+  # Pinned short of 5496193 ("weston-init: add sysusers.d/tmpfiles.d entries
+  # for OTA safety"), which broke the build. url and branch come from
+  # meta-qcom's ci/qcom-distro.yml included above.
+  meta-qcom-distro:
+    commit: 69196510d3335af7daba48ab43002fae61d6ba08
+
   meta-updater:
     url: https://github.com/uptane/meta-updater.git
     branch: master
