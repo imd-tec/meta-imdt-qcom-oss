@@ -192,8 +192,11 @@ the parts back together, verifies the checksum and extracts everything into
 base="https://github.com/imd-tec/meta-imdt-qcom-oss/releases/latest/download"
 name="qcom-imdt-images-imdt-8550-sbc.tar.zst"
 
-# Download every part plus the checksum (v1.1.1 has eight: part00 … part07).
-for n in 00 01 02 03 04 05 06 07; do wget "$base/$name.part$n"; done
+# Download every part plus the checksum (currently ten: part00 … part09).
+# A part that a release does not have just 404s and is skipped, so an
+# over-long list is harmless; a short one silently truncates the tarball,
+# which the checksum below then catches.
+for n in 00 01 02 03 04 05 06 07 08 09; do wget "$base/$name.part$n" || true; done
 wget "$base/$name.sha256"
 
 # Reassemble, verify and extract into ./images (needs zstd installed).
@@ -203,8 +206,9 @@ mkdir -p images
 tar --zstd -xf "$name" -C images
 ```
 
-> The release page lists how many parts a given release has — adjust the loop
-> to match. The 6490 tarball is under the limit and downloads in one piece.
+> The part count moves with the image sizes, so the release page is the
+> authority — adjust the loop to match. The 6490 tarball is under the limit
+> and downloads in one piece.
 
 To grab a specific release instead of the latest, replace `latest/download`
 with `download/<tag>` (e.g. `download/v1.2.3`).
