@@ -89,6 +89,12 @@ jobs:
       # zstd pack + upload of two multi-GB deploy dirs takes a large chunk off
       # every master/PR build.
       upload-artifacts: false
+      # ostree_repo is the shared archive repo bitbake commits every image into,
+      # and each image's .ostreecommit.tar.xz is itself a tar of that same repo
+      # (meta-updater sets TAR_IMAGE_ROOTFS:task-image-ostreecommit =
+      # ${OSTREE_REPO}). Shipping the directory as well added ~1.7 GB of
+      # duplicate objects to the 8550 release asset for nothing.
+      pack-exclude: 'ostree_repo'
       rsync-enabled: true
       # Only the 8550 has LAVA coverage. Stage just the self-contained per-image
       # OSTree commit archive, ostree-deploy pulls the new commit from it. The
