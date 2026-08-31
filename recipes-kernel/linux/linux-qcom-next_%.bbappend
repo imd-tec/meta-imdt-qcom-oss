@@ -30,6 +30,7 @@ SRC_URI:append = " \
     file://0018-drivers-usb-typec-ucsi-ccg-Register-a-DP-HPD-bridge-.patch \
     file://0019-arm64-dts-qcom-qcs8550-imdt-sbc-Stop-the-display-ove.patch \
     file://0020-drm-msm-dp-fix-link-bandwidth-check-when-wide-bus-is.patch \
+    file://0021-Revert-media-iris-enable-sm8550-context-banks-via-in.patch \
     file://configs/imdt.cfg \
 "
 
