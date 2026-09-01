@@ -82,6 +82,8 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 | UFS Storage | — | UFS | ufshcd | ✅ | ✅ | — |
 | eMMC Storage | on-SoM 32 GB eMMC | SDHC1 | sdhci-msm | — | — | ✅ |
 | USB 3.0 Type-C | NXP PTN3222 eUSB2 redriver | DWC3 (QCOM) | dwc3-qcom | ✅ Peripheral mode | ✅ Host or peripheral mode | 🚧 |
+| Video Encode (Iris VPU) | Qualcomm Iris VPU | — | qcom-iris | ✅ H.264 / HEVC | ✅ H.264 / HEVC | 🚧 |
+| Video Decode (Iris VPU) | Qualcomm Iris VPU | — | qcom-iris | ✅ H.264 / HEVC | ✅ H.264 / HEVC | 🚧 |
 | Wi-Fi 802.11a/b/g/n/ac | NXP IW416 | SDIO (SDHC4) | mwifiex_sdio | ✅ | 🚧 Planned | 🚧 |
 | Yocto / OpenEmbedded Master branch | — | — | — | ✅ | ✅ | ✅ |
 
@@ -599,6 +601,79 @@ python3 lava/demosaic.py frame.raw frame.png
 ```
 
 Pass `--width`, `--height` and `--bpl` to override the sensor defaults, or `--out-size 1920x1080` to downscale the output.
+
+### Hardware Video Encode and Decode
+
+The Iris VPU provides hardware H.264 and HEVC encode and decode through two
+V4L2 memory-to-memory devices:
+
+| Role | Device name | Accepts | Produces |
+|---|---|---|---|
+| Encoder | `qcom-iris-encoder` | NV12, Q08C | H.264, HEVC |
+| Decoder | `qcom-iris-decoder` | H.264, HEVC, VP9, AV1 | NV12, Q08C, P010, Q10C |
+
+#### Finding the video nodes
+
+Use the below script to find the /dev/ video encoder/decoder nodes.
+
+```bash
+for v in /sys/bus/platform/devices/aa00000.video-codec/video4linux/*; do
+    echo "/dev/$(basename "$v") -> $(cat "$v/name")"
+done
+```
+
+```
+/dev/video17 -> qcom-iris-decoder
+/dev/video18 -> qcom-iris-encoder
+```
+
+The examples below use `$ENC` and `$DEC`:
+
+```bash
+cd /sys/bus/platform/devices/aa00000.video-codec/video4linux
+ENC=/dev/$(grep -l encoder */name | cut -d/ -f1)
+DEC=/dev/$(grep -l decoder */name | cut -d/ -f1)
+```
+
+GStreamer finds the nodes by itself, so the pipelines below need no device
+path. It exposes them as `v4l2h264enc` / `v4l2h264dec`, plus the `h265`
+equivalents. These elements are only registered if the VPU had probed when the
+plugin registry was last built, so clear the cache after a kernel or firmware
+change:
+
+```bash
+rm -rf ~/.cache/gstreamer-1.0
+```
+
+#### Encoding
+
+Encode 60 frames of 1080p test pattern:
+
+```bash
+gst-launch-1.0 -q videotestsrc num-buffers=60 ! \
+  video/x-raw,format=NV12,width=1920,height=1080,framerate=30/1,colorimetry=bt709 ! \
+  v4l2h264enc ! h264parse ! filesink location=/tmp/out.h264
+```
+
+`colorimetry=bt709` is required. Without it the encoder writes a VUI the
+hardware decoder rejects, and decoding the result fails to negotiate.
+
+Encoder controls (bitrate, GOP size, QP limits) are listed by
+`v4l2-ctl -d "$ENC" --list-ctrls` and set with:
+
+```bash
+v4l2h264enc extra-controls="controls,video_bitrate=8000000,video_gop_size=30"
+```
+
+#### Decoding
+
+Decode the stream back to JPEG stills:
+
+```bash
+mkdir -p /tmp/frames
+gst-launch-1.0 -q filesrc location=/tmp/out.h264 ! h264parse ! v4l2h264dec ! \
+  videoconvert ! jpegenc ! multifilesink location=/tmp/frames/f%03d.jpg
+```
 
 ### Onboard WiFi
 
