@@ -8,5 +8,7 @@ require conf/machine/include/fit-dtb-compatible-linux-qcom.inc
 FIT_DTB_COMPATIBLE[qcom_qcs6490-iot] = "qcs6490-imdt-sbc"
 
 # UEFI matches the hyphen-separated suffix tokens (registered by the
-# qcom-dtb-metadata bbappend). Default config = base DTB + display + ar1335-csi0.
+# qcom-dtb-metadata bbappend). Base config = base DTB + display + ar1335-csi0.
+FIT_DTB_COMPATIBLE[imdt_qcs8550-sbc-subtype5] = "qcs8550-imdt-sbc \
+    qcs8550-imdt-sbc-display qcs8550-imdt-sbc-ar1335-csi0 qcs8550-imdt-sbc-cypd6125"
 FIT_DTB_COMPATIBLE[imdt_qcs8550-sbc] = "qcs8550-imdt-sbc qcs8550-imdt-sbc-display qcs8550-imdt-sbc-ar1335-csi0"

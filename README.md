@@ -63,7 +63,7 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 | CDSP | Hexagon DSP | — | remoteproc | 🚧 | 🚧 | ✅ |
 | Debug Serial Console (J19)| — | UART7 (115200 baud) | qcom-geni-serial | ✅ | ✅ | ✅ |
 | DDR Memory | 8GB / 12GB LPDDR5 | — | — | ✅ 12GB | ✅ 8GB | ✅ 4GB |
-| DisplayPort over USB Type-C | Cypress CYPD6125 | DWC3 (QCOM) / USB-C DP Alt Mode | ucsi_ccg | ❌ | ✅ Requires CYPD6125 DTBO overlay | 🚧 |
+| DisplayPort over USB Type-C | Cypress CYPD6125 | DWC3 (QCOM) / USB-C DP Alt Mode | ucsi_ccg | ❌ | ✅ | 🚧 |
 | Gigabit Ethernet | Microchip LAN7430 | PCIe1 (default) | lan743x | ✅ | ✅ | 🚧 |
 | PCIe Expansion (M.2 Key-B) | PCIe switch downstream Key-B port | PCIe1 (overlay) | qcom-pcie | ✅ Requires Key-B DTBO overlay | ✅ Requires Key-B DTBO overlay | 🚧 |
 | GPIO | PM8550 GPIO bank | SPMI | qcom-spmi-gpio | ✅ | ✅ | 🚧 |
@@ -112,8 +112,9 @@ The boot chain used to boot into Linux is shown below.
 The board boots a multi-DTB **FIT image** (`dtb.bin`). The UEFI firmware
 (`DtPlatformDxe`, boot-chain step 2) picks the FIT configuration for this board
 from its CDT identity, loads the base DTB and **applies a fixed set of overlays**
-before handing the device tree to the kernel. By default that set is the
-**display** panel and the **AR1335 camera on CSI0**.
+before handing the device tree to the kernel. That set is the **display** panel
+and the **AR1335 camera on CSI0**, plus the **CYPD6125 Type-C controller** on
+Rev 5 boards, which are the only ones that have it fitted.
 
 Which overlays are applied is defined in two places that must agree:
 
@@ -125,6 +126,18 @@ Which overlays are applied is defined in two places that must agree:
    FIT_DTB_COMPATIBLE[imdt_qcs8550-sbc] = "qcs8550-imdt-sbc qcs8550-imdt-sbc-display qcs8550-imdt-sbc-ar1335-csi0"
    #                                       └ base DTB      └ overlay ───────────┘ └ overlay ────────────────┘
    ```
+
+   A board can match more than one entry, and the extra hyphen-separated tokens
+   narrow which boards a line applies to. Rev 5 is picked out by the `subtype5`
+   token, which UEFI matches against the platform-info subtype byte in the CDT
+   (3 on the rev3 CDT, 5 on the rev5 one):
+
+   ```
+   FIT_DTB_COMPATIBLE[imdt_qcs8550-sbc-subtype5] = "... qcs8550-imdt-sbc-cypd6125"
+   ```
+
+   Rev 5 boards match both lines, so the narrower one is listed first — config
+   nodes are written to the FIT in the order the flags are set.
 
 2. **The built device trees** — `KERNEL_DEVICETREE` in
    [`conf/machine/imdt-8550-sbc.conf`](conf/machine/imdt-8550-sbc.conf), which must
@@ -784,16 +797,12 @@ adb shell lspci
 
 ### USB Type-C Role Detection and DisplayPort Alt Mode
 
-On Rev 5 and newer QCS8550 SBCs, the onboard CYPD6125 Type-C controller can
-handle role, orientation and DisplayPort Alt Mode detection. It is enabled with the
-`qcs8550-imdt-sbc-cypd6125` device tree overlay, which is built but not applied by
-default. Append its stem to the `FIT_DTB_COMPATIBLE[imdt_qcs8550-sbc]` line as
-described in [Device Tree Overlays](#device-tree-overlays), then rebuild and
-reflash — the FIT lives in the ESP, so the `efi` partition has to be rewritten.
-
-With that overlay applied, connect a USB-C hub — [this UGREEN hub](https://uk.ugreen.com/products/75244)
-has been tested — and drive an external DisplayPort-compatible monitor from it.
-
+On Rev 5 and newer QCS8550 SBCs, the onboard CYPD6125 Type-C controller handles
+role, orientation and DisplayPort Alt Mode detection. It is enabled by the
+`qcs8550-imdt-sbc-cypd6125` device tree overlay, which the UEFI firmware applies automatically
+when a rev5 CDT is detected.
+With the rev5 CDT flashed, connect a USB-C hub for example [this UGREEN hub](https://uk.ugreen.com/products/75244)
+has been tested and proven to work.
 ## OS Updates
 
 Rootfs updates are managed by [OSTree](https://ostreedev.github.io/ostree/). The
