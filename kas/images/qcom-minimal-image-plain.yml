@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/siemens/kas/master/kas/schema-kas.json
+header:
+  version: 14
+  # qcom-minimal-image on plain qcom-distro (no OSTree/OTA). Use this instead
+  # of images/qcom-minimal-image.yml for boot firmware that will run a rootfs
+  # not managed by OSTree, e.g. the plain Ubuntu rootfs from
+  # scripts/build-ubuntu-rootfs.sh.
+  includes:
+    - kas/distro/qcom-distro.yml
+
+target:
+  - qcom-minimal-image

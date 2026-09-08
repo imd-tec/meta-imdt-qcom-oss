@@ -428,6 +428,31 @@ image name and your board revision (`rev3` or `rev5`):
 flash_qcs8550_sbc qcom-minimal-image rev5
 ```
 
+### Flashing a plain Ubuntu rootfs
+
+[`scripts/build-ubuntu-rootfs.sh`](scripts/build-ubuntu-rootfs.sh) builds a
+stock Ubuntu Server 26.04 arm64 rootfs as an ext4 image labelled `otaroot` —
+a drop-in replacement for the `rootfs.img` a `qcomflash` build produces, for
+testing against a non-Yocto userspace. Root password defaults to
+`oelinux123`, matching the Yocto images.
+
+> [!IMPORTANT]
+> Build with `imdt-8550-minimal-plain.yml`, not the usual
+> `imdt-8550-minimal.yml`. The OTA build's `/boot` is OSTree's hard-linked
+> deployment layout, and a plain rootfs won't boot under it.
+
+Build the plain image, then the Ubuntu one, and swap it into the
+`qcomflash` output before flashing:
+
+```bash
+kas-container build meta-imdt-qcom-oss/kas/imdt-8550-minimal-plain.yml
+./meta-imdt-qcom-oss/scripts/build-ubuntu-rootfs.sh
+
+dir=qcom-minimal-image-imdt-8550-sbc.rootfs.qcomflash
+cp rootfs.img "$dir/rootfs.img"
+flash_qcs8550_sbc qcom-minimal-image rev5
+```
+
 ### Flashing the QCS6490 SBC
 
 The QCS6490 SBC boots from **eMMC** (there is no UFS), so it is flashed with the
