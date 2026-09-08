@@ -154,6 +154,31 @@ without applying it). Add a new overlay by putting its `.dtbo` in
 rebuild and reflash (or ship an OSTree update — the FIT lives in the ESP, so a
 DTB/overlay change needs the `efi` partition reflashed).
 
+### Changing overlays on a running board
+
+`qcom-metadata-editor` (in the default image) edits the same FIT config
+directly on the board, picking from overlays already packed into the FIT —
+no rebuild or reflash needed. The FIT lives on the `dtb` partition, mounted
+at `/mnt/dtb`.
+
+Read the current config:
+
+```bash
+adb shell qcom-metadata-editor /mnt/dtb/qclinux_fit.img
+```
+
+Drop the camera overlay from config entry 1, leaving just the display one:
+
+```bash
+adb shell qcom-metadata-editor -u -i 1 \
+    -f "fdt-qcs8550-imdt-sbc.dtb fdt-qcs8550-imdt-sbc-display.dtbo" \
+    /mnt/dtb/qclinux_fit.img
+adb reboot
+```
+
+`-c`/`--compatible` updates the compatible string the same way. The change
+takes effect on next boot.
+
 ## UFS Layout
 
 Everything lives on a single onboard UFS device, partitioned across
