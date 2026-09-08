@@ -7,6 +7,12 @@ do_install:append:qcs8550() {
 PARTLABEL=efi /boot	vfat	rw,noatime,nofail,umask=0077	0	2
 EOF
 
+    cat >> ${D}${sysconfdir}/fstab <<'EOF'
+
+# Multi-DTB FIT partition (qclinux_fit.img), reachable as /mnt/dtb
+PARTLABEL=dtb /var/rootdirs/mnt/dtb	vfat	rw,noatime,nofail,umask=0077	0	2
+EOF
+
     # /etc/hwrevision: board identity (<board> <revision>).
     echo "imdt-8550-sbc 1.0" > ${D}${sysconfdir}/hwrevision
 }

@@ -22,6 +22,7 @@ RDEPENDS:${PN} = " \
     imdt-camss \
     coreutils \
     lava-ssh-keys \
+    qcom-metadata-editor \
 "
 
 # OSTree update helper and the mark-good service. imdt-ostree-bless clears the
