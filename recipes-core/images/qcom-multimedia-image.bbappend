@@ -9,3 +9,10 @@ require imdt-image-common.inc
 IMAGE_INSTALL:append = " \
     libcamera-pycamera \
 "
+
+# Remote desktop by default: Weston runs on the local display, over VNC, or
+# both, selected at runtime from /etc/default/remote-desktop. Only added to
+# images that have Weston. See docs/remote-desktop.md.
+IMAGE_INSTALL:append = " \
+    imdt-remote-desktop \
+"

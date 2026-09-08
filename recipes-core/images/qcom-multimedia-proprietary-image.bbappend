@@ -10,3 +10,10 @@ require imdt-image-common.inc
 # the packagegroup also drops audioreach-kernel's asoc-blacklist.conf, so the
 # image falls back to the mainline q6apm path qcom-multimedia-image uses.
 CORE_IMAGE_BASE_INSTALL:remove = "packagegroup-audioreach"
+
+# Remote desktop by default: Weston runs on the local display, over VNC, or
+# both, selected at runtime from /etc/default/remote-desktop. Only added to
+# images that have Weston. See docs/remote-desktop.md.
+IMAGE_INSTALL:append = " \
+    imdt-remote-desktop \
+"

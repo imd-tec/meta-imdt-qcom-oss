@@ -1,0 +1,23 @@
+[Unit]
+Description=Remote desktop (Weston VNC server)
+Documentation=man:weston-vnc(7)
+
+[Service]
+Type=notify
+EnvironmentFile=-/etc/default/remote-desktop
+
+# Runs as the unprivileged compositor user, with its own runtime directory and
+# Wayland socket, so it is independent of weston.service and of whatever is on
+# the local display.
+User=weston
+Group=weston
+RuntimeDirectory=remote-desktop
+Environment=XDG_RUNTIME_DIR=/run/remote-desktop
+
+ExecStart=/usr/bin/weston --modules=systemd-notify.so -B vnc --renderer=gl \
+    --socket=wayland-rd $REMOTE_DESKTOP_ARGS
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

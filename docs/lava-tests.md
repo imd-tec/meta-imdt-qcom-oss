@@ -126,6 +126,30 @@ Currently skipped on the 8 GB fixture (no card fitted).
 | `iommu-groups` | At least one IOMMU group present under `/sys/kernel/iommu_groups/` |
 | `hwrng-readable` | `/dev/hwrng` yields at least 16 bytes |
 
+### `remote-desktop` — Remote desktop (VNC)
+
+Checks that the remote desktop service serves VNC, that a client can complete
+the opening exchange of a VNC login, and that stopping and starting it works
+without affecting `weston.service`. The connection check is a minimal stand-in
+for a VNC client: it reads the server's greeting, sends one back, and reads how
+many login methods are offered. `weston.service` is never restarted.
+
+Skipped in full on images without the service, i.e. `qcom-minimal-image`.
+
+| Test Case | Description |
+|-----------|-------------|
+| `remote-desktop-enabled` | Service is enabled, so a board with no display is reachable without enabling it first |
+| `remote-desktop-active` | Service is running |
+| `serves-vnc` | A VNC server answers on port 5900 within `VNC_WAIT` seconds and offers at least one login method |
+| `survives-client` | Service is still running after a client has connected |
+| `gpu-in-use` | The service's compositor has `/dev/dri/renderD128` open, so it is drawn by the GPU and not in software |
+| `vnc-absent-when-stopped` | Nothing answers on the port once the service is stopped |
+| `weston-unaffected-by-stop` | `weston.service` is still running after the remote desktop is stopped |
+| `vnc-returns-when-started` | The VNC server answers again once the service is started |
+
+Parameters: `VNC_PORT` (default `5900`) and `VNC_WAIT` (default `15`, seconds
+allowed for the service to start before the VNC server answers).
+
 ## Job 3 — AR1335 Frame Capture (`ar1335-capture`)
 
 Captures a raw frame from the AR1335 camera over ssh and de-mosaics it to a PNG, which is uploaded as a CI artifact. This job only runs on boards with the camera module attached (currently both). The output PNG is board-specific (`/images/ar1335_<board-tag>.png`) so parallel board runs don't overwrite each other's frame.

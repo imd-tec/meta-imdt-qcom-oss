@@ -78,6 +78,7 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 | MIPI DSI Display | Team Source TST070WSBE-196C 7" | DSI0 | drm/msm | ✅ | 🚧 Not supported yet | 🚧 |
 | OTA Rootfs Updates | — | — | — | ✅ | ✅ | 🚧 |
 | PCIe Expansion (M.2 Key-E) | M.2 Key-E slot | PCIe0 | qcom-pcie | ✅ | ✅ | 🚧 |
+| Remote Desktop (VNC) | — | Network | — | ✅ Multimedia images | ✅ Multimedia images | ❌ Minimal image only |
 | systemd-boot as ARM64 UEFI App| — | — | — | ✅ | ✅ | ✅ |
 | UFS Storage | — | UFS | ufshcd | ✅ | ✅ | — |
 | eMMC Storage | on-SoM 32 GB eMMC | SDHC1 | sdhci-msm | — | — | ✅ |
@@ -520,6 +521,34 @@ echo 20 > /sys/class/backlight/backlight/brightness
 ```
 
 The maximum supported value can be read from `/sys/class/backlight/backlight/max_brightness`. Note that the panel draws a significant amount of power at high brightness levels, so it is recommended to keep the brightness low (under 30) unless higher brightness is required.
+
+### Remote Desktop
+
+Every image with Weston can be used with **no display attached**: a full
+desktop over VNC, keyboard and mouse included, served by a systemd service that
+is enabled by default. It behaves like the VNC server on a desktop Linux
+machine independent of `weston.service` and the physical display.
+
+```sh
+# on the board, once
+passwd weston
+
+# from your PC
+vncviewer <board-ip>:5900          # log in as user 'weston'
+```
+
+Sessions are authenticated and encrypted with RSA-AES, whose key is generated
+in memory at start-up, so no certificate is stored on the board. Clients too
+old for RSA-AES can use TLS instead.
+
+> [!NOTE]
+> The remote desktop is a **second, independent desktop**, not a copy of the
+> local screen. Mirroring or extending the local display needs a single 
+> compositor serving both outputs;
+
+See **[docs/remote-desktop.md](docs/remote-desktop.md)** for configuration, the
+login and encryption model, and how it is assembled.
+
 
 ### Streaming from MIPI Cameras
 

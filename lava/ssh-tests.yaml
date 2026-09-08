@@ -252,3 +252,60 @@ actions:
           - if [ "$READBACK" = "$TEST_BRIGHTNESS" ]; then lava-test-case get-brightness --result pass; else lava-test-case get-brightness --result fail; fi
           # Restore the original brightness so we leave the panel as we found it
           - if [ -n "$ORIG_BRIGHTNESS" ]; then echo "$ORIG_BRIGHTNESS" > "$BL/brightness" || true; fi
+
+    - from: inline
+      name: remote-desktop
+      path: inline/remote-desktop.yaml
+      parameters:
+        # The port the VNC server listens on, matching the shipped default.
+        VNC_PORT: '5900'
+        # Time allowed for the service to start before the VNC server answers.
+        VNC_WAIT: '15'
+      repository:
+        metadata:
+          format: Lava-Test Test Definition 1.0
+          name: remote-desktop
+          description: Remote desktop serves VNC, independently of weston.service
+        run:
+          steps:
+          # Check whether the remote desktop is installed - it is only on the
+          # multimedia images - and skip every case if it is not.
+          - if ! systemctl cat remote-desktop >/dev/null 2>&1; then echo "No remote-desktop service on this image - skipping suite"; for c in remote-desktop-enabled remote-desktop-active serves-vnc survives-client gpu-in-use vnc-absent-when-stopped weston-unaffected-by-stop vnc-returns-when-started; do lava-test-case $c --result skip; done; exit 0; fi
+
+          # Define a stand-in for a VNC client: connects to the VNC port, reads
+          # the server's 12-byte greeting, sends the same greeting back, then
+          # reads how many login methods are offered. Succeeds if the greeting is
+          # VNC and at least one method is offered.
+          - VNC_CHECK="import socket,sys; s=socket.create_connection(('127.0.0.1',$VNC_PORT),5); b=s.recv(12); s.sendall(b'RFB 003.008\n'); n=s.recv(1); print('banner',b,'auth types',n[0] if n else 0); sys.exit(0 if b.startswith(b'RFB') and n and n[0]>0 else 1)"
+
+          # Check that the service is enabled, so a board with no display
+          # attached is reachable without anyone enabling it first.
+          - lava-test-case remote-desktop-enabled --shell sh -c "systemctl is-enabled --quiet remote-desktop"
+          # Check that the service is running.
+          - lava-test-case remote-desktop-active --shell sh -c "systemctl is-active --quiet remote-desktop"
+
+          # Retry the client check once a second until it succeeds or time runs out.
+          - VNC_UP=0; W=0; while [ "$W" -lt "$VNC_WAIT" ]; do if python3 -c "$VNC_CHECK" 2>/dev/null; then VNC_UP=1; break; fi; W=$((W+1)); sleep 1; done
+          # Log how long the VNC server took to answer.
+          - echo "VNC answered after ${W}s (limit ${VNC_WAIT}s)"
+          # Verify that a VNC server answers. On failure, repeat the check with
+          # errors shown.
+          - if [ "$VNC_UP" = 1 ]; then lava-test-case serves-vnc --result pass; else python3 -c "$VNC_CHECK" || true; lava-test-case serves-vnc --result fail; fi
+          # Check that the service is still running after a client has connected.
+          - lava-test-case survives-client --shell sh -c "systemctl is-active --quiet remote-desktop"
+          # Verify that the remote desktop has the GPU render device open, so it
+          # is drawn by the GPU and not in software.
+          - RD_PID=$(systemctl show remote-desktop -p MainPID --value)
+          - lava-test-case gpu-in-use --shell sh -c "ls -l /proc/$RD_PID/fd | grep -q renderD128"
+
+          # Stop the remote desktop and verify that nothing answers on the port,
+          # and that the local compositor is unaffected by it stopping.
+          - systemctl stop remote-desktop && sleep 3
+          - if python3 -c "$VNC_CHECK" 2>/dev/null; then lava-test-case vnc-absent-when-stopped --result fail; else lava-test-case vnc-absent-when-stopped --result pass; fi
+          - lava-test-case weston-unaffected-by-stop --shell sh -c "systemctl is-active --quiet weston"
+
+          # Start it again and verify the VNC server comes back.
+          - systemctl start remote-desktop
+          - VNC_UP=0; W=0; while [ "$W" -lt "$VNC_WAIT" ]; do if python3 -c "$VNC_CHECK" 2>/dev/null; then VNC_UP=1; break; fi; W=$((W+1)); sleep 1; done
+          - echo "VNC returned after ${W}s"
+          - if [ "$VNC_UP" = 1 ]; then lava-test-case vnc-returns-when-started --result pass; else lava-test-case vnc-returns-when-started --result fail; fi

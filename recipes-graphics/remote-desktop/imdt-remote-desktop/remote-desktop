@@ -1,0 +1,16 @@
+# Arguments for the remote desktop's Weston instance.
+#
+# Apply a change with:  systemctl restart remote-desktop
+# Turn it off with:     systemctl disable --now remote-desktop
+#
+# Log in as user 'weston', the user the desktop runs as; the VNC server accepts
+# no other username. Set its password with 'passwd weston'. For a root shell,
+# run 'su -' in a terminal on the desktop.
+#
+# --disable-transport-layer-security is less bare than it sounds: the session is
+# still authenticated and encrypted, with RSA-AES, whose key is generated in
+# memory at start-up - so no certificate is stored on the device. Clients too
+# old for RSA-AES (TigerVNC before 1.12, noVNC) need TLS instead: drop that
+# option and add
+#   --vnc-tls-cert=/path/to/cert.pem --vnc-tls-key=/path/to/key.pem
+REMOTE_DESKTOP_ARGS="--width=1920 --height=1080 --port=5900 --disable-transport-layer-security"

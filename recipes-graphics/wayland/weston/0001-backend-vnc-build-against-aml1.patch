@@ -1,0 +1,63 @@
+From: IMDT <support@imd-tec.com>
+Date: Wed, 3 Sep 2026 00:00:00 +0000
+Subject: [PATCH] backend-vnc: build against aml 1.x (aml1)
+
+Weston 15.0.1 wants aml 0.3.x, whose pkg-config module is named "aml" and
+whose loop accessors are aml_get_fd()/aml_unref(). aml 1.0.0 renamed the
+module to "aml1" (headers move to <prefix>/include/aml1) and the accessors
+to aml_loop_get_fd()/aml_loop_unref().
+
+Only aml 1.0.0 is available in meta-openembedded, and neatvnc there is
+already patched to build against it (see meta-oe's 0001-Use-aml-v1.patch),
+so weston must follow or the VNC backend cannot be enabled at all: meson
+fails with "VNC backend requires libaml which was not found".
+
+Weston 16.0.0 does exactly this upstream — it asks for aml1 >= 1.0.0 in
+libweston/backend-vnc/meson.build — so this patch is only needed while the
+image is on weston 15.x. DROP IT when oe-core upgrades weston to >= 16;
+the build will fail loudly (patch does not apply) rather than silently
+losing the VNC backend.
+
+Upstream-Status: Inappropriate [fixed differently upstream in weston 16.0.0]
+Signed-off-by: IMDT <support@imd-tec.com>
+---
+--- a/libweston/backend-vnc/meson.build
++++ b/libweston/backend-vnc/meson.build
+@@ -8,7 +8,7 @@
+ 	error('VNC backend requires neatvnc which was not found. Or, you can use \'-Dbackend-vnc=false\'.')
+ endif
+ 
+-dep_aml = dependency('aml', version: ['>= 0.3.0', '< 0.4.0'], required: false, fallback: ['aml', 'aml_dep'])
++dep_aml = dependency('aml1', version: ['>= 1.0.0', '< 2.0.0'], required: false, fallback: ['aml', 'aml_dep'])
+ if not dep_aml.found()
+ 	error('VNC backend requires libaml which was not found. Or, you can use \'-Dbackend-vnc=false\'.')
+ endif
+--- a/libweston/backend-vnc/vnc.c
++++ b/libweston/backend-vnc/vnc.c
+@@ -972,7 +972,7 @@
+ 
+ 	wl_event_source_remove(backend->aml_event);
+ 
+-	aml_unref(backend->aml);
++	aml_loop_unref(backend->aml);
+ 
+ 	wl_list_for_each_safe(head, next, &ec->head_list, compositor_link)
+ 		vnc_head_destroy(head);
+@@ -1272,7 +1272,7 @@
+ 		goto err_output;
+ 	aml_set_default(backend->aml);
+ 
+-	fd = aml_get_fd(backend->aml);
++	fd = aml_loop_get_fd(backend->aml);
+ 
+ 	backend->aml_event = wl_event_loop_add_fd(loop, fd, WL_EVENT_READABLE,
+ 						  vnc_aml_dispatch,
+@@ -1354,7 +1354,7 @@
+ err_nvnc:
+ 	nvnc_close(backend->server);
+ err_aml:
+-	aml_unref(backend->aml);
++	aml_loop_unref(backend->aml);
+ err_output:
+ 	wl_list_for_each_safe(base, next, &compositor->head_list, compositor_link)
+ 		vnc_head_destroy(base);
