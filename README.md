@@ -343,11 +343,12 @@ QDL can be used as a replacement for PCAT for customers without access to Qualco
 Run these commands on your host machine outside of Docker:
 
 ```bash
-sudo apt install libxml2-dev libusb-1.0-0-dev help2man
+sudo apt install libxml2-dev libusb-1.0-0-dev help2man meson libzip-dev
 git clone https://github.com/danielkutik/qdl.git 
 cd qdl
-make
-sudo make install
+meson setup build
+meson compile -C build
+sudo cp build/qdl /usr/bin/
 ```
 
 #### QDL bash function 
