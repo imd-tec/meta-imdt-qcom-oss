@@ -6,7 +6,7 @@ require firmware-qcom-boot-qcs8550.inc
 SRC_URI = " \
     file://imdt-8550-sbc-fw-v2_1_3.zip;name=bootbinaries \
 "
-SRC_URI[bootbinaries.sha256sum] = "c053746417185db1b01794351d42968ac7226fe0a0d04f8f1b7a9185c147c58d"
+SRC_URI[bootbinaries.sha256sum] = "2f506b0b58e392bcf6ecff0f08d653b29413bc96203dc6a6cf57e91cdbd02925"
 
 BOOTBINARIES = "imdt-8550-sbc"
 # QCOM_BOOT_IMG_SUBDIR left default ("") so boot binaries deploy flat into
