@@ -38,12 +38,15 @@ actions:
       name: ar1335-capture
       path: inline/ar1335-capture.yaml
       parameters:
-        # DUT address reachable from the dispatcher/container over the LAN
-        # (GbE/Wi-Fi). Auth is key-based: the lava-adb image ships the private
-        # key matching lava-dut-key.pub in root's authorized_keys on the DUT.
+        # Harness host (pi-tester-3/6) reachable from the dispatcher/container
+        # over the LAN, not the DUT itself (which has no network of its own).
+        # adb-shell-relay.sh, forced for the lava-dut key on that host, relays
+        # every command (and the scp file pull below) through to the board
+        # over USB/adb. Auth is key-based (lava-adb image ships the key
+        # matching lava-dut-key.pub).
         SSH_HOST: 'SET-BY-CI'
-        SSH_PORT: '2222'
-        SSH_USER: 'root'
+        SSH_PORT: '22'
+        SSH_USER: 'pi'
         # Output PNG on the LAVA host (/images is bind-mounted by the dut0
         # device dict from the LAVA images dir on the server). The CI
         # workflow makes this board-specific so parallel board runs don't

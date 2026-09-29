@@ -1,14 +1,23 @@
 {# Device dictionary for the 8550-8GB-ssh LAVA device (device-type: ssh) —
-   the 8 GB IMDT 8550 SBC, attached to rpi-tester-3.
+   the 8 GB IMDT 8550 SBC, attached via USB/adb to pi-tester-3.
 
-   ssh_host is the relay forwarding the DUT's sshd — rpi-tester-3, port 2222.
+   The board has no network of its own (no cable, no sshd reachable over IP):
+   ssh_host/ssh_port are pi-tester-3's OWN sshd, a normal Debian host on the
+   lab LAN. The lava-dut key's authorized_keys entry on pi-tester-3 forces
+   every session through lava/adb-shell-relay.sh, which transparently relays
+   both one-shot commands and the interactive test shell into `adb shell` on
+   the DUT attached over USB — see that script for how each case is handled
+   (plain exec, the sftp-server subsystem scp defaults to, and the
+   root@-prompted interactive shell ssh-tests.yaml's boot action expects).
 
    ssh_host must NOT be 'localhost': the ssh client runs inside the
    lava-dispatcher container on the compose bridge network, where
    localhost is the container itself.
 
    The identity file is the private key matching
-   recipes-core/lava-ssh-keys/files/lava-dut-key.pub, installed into the
+   recipes-core/lava-ssh-keys/files/lava-dut-key.pub, which must be added to
+   pi-tester-3's ~/.ssh/authorized_keys (as the 'pi' user, forced through
+   adb-shell-relay.sh — see that script's own header) and installed into the
    dispatcher's worker-state volume:
 
      docker compose cp lava-dut-key lava-dispatcher:/var/lib/lava/dispatcher/worker/lava-dut-key
@@ -22,7 +31,7 @@
 {# ssh-keepalive, not stock ssh: adds ServerAlive keepalive to the primary
    connection — see ssh-keepalive.jinja2 for why it has its own name. #}
 {% extends 'ssh-keepalive.jinja2' %}
-{% set ssh_host = 'DUT-SSH-RELAY-IP' %}
-{% set ssh_port = 2222 %}
-{% set ssh_user = 'root' %}
+{% set ssh_host = '192.168.50.205' %}
+{% set ssh_port = 22 %}
+{% set ssh_user = 'pi' %}
 {% set ssh_identity_file = '/var/lib/lava/dispatcher/worker/lava-dut-key' %}

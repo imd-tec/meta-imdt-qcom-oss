@@ -5,14 +5,25 @@ These tests run automatically on real hardware (IMDT 8550 SBC) via [LAVA](https:
 Each built image (`qcom-minimal-image` and `qcom-multimedia-image`) is deployed
 and tested on **both board variants** as separate CI runs:
 
-| Board tag | Variant | DUT ssh endpoint | Camera |
-|-----------|---------|------------------|--------|
-| `8550-8gb` | 8 GB IMDT 8550 SBC | pi-tester-3, port 2222 (`DUT_SSH_HOST_8GB` secret) | yes |
-| `8550-12gb` | 12 GB IMDT 8550 SBC | original Pi, port 2222 (`DUT_SSH_HOST_12GB` secret) | yes |
+| Board tag | Variant | Harness host | Camera |
+|-----------|---------|--------------|--------|
+| `8550-8gb` | 8 GB IMDT 8550 SBC | pi-tester-3, port 22 (`DUT_SSH_HOST_8GB` secret) | yes |
+| `8550-12gb` | 12 GB IMDT 8550 SBC | pi-tester-6, port 22 (`DUT_SSH_HOST_12GB` secret) | yes |
+
+Neither board has a network of its own — each is attached over USB to its
+harness host (a normal Debian machine on the lab LAN) and reached only via
+`adb`. The ssh endpoint above is the *harness host's* own sshd, not the
+board's: the `lava-dut` key's `authorized_keys` entry on that host forces
+every session through [`lava/adb-shell-relay.sh`](../lava/adb-shell-relay.sh),
+which transparently relays both one-shot commands and LAVA's persistent
+interactive test shell into `adb shell` on the attached board. See that
+script's own header for exactly how each case (plain exec, the `sftp-server`
+subsystem `scp` defaults to, and the `root@`-prompted interactive shell) is
+handled.
 
 The two boards' pipelines run in parallel (one CI job per image × board
 combination); runs against the *same* board serialise. The per-board
-parameters (device tag, ssh endpoint, memory threshold, camera presence) are
+parameters (device tag, harness host, memory threshold, camera presence) are
 defined in the `setup` job of `build-imdt-base-image.yml` and applied to the
 generic job definitions in `lava/` by the "Prepare board-specific LAVA job
 definitions" step of `lava-tests.yml`.

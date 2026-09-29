@@ -56,11 +56,14 @@ actions:
         OSTREE_OSNAME: 'nodistro'
         # Throwaway remote for the pushed repo; the production 'imdt' one is untouched.
         OSTREE_TEST_REMOTE: 'lava-local'
-        # DUT address reachable from the dispatcher/container over the LAN. Auth
-        # is key-based (lava-adb image ships the key matching lava-dut-key.pub).
+        # Harness host (pi-tester-3/6) reachable from the dispatcher/container
+        # over the LAN, not the DUT itself (which has no network of its own).
+        # adb-shell-relay.sh, forced for the lava-dut key on that host, relays
+        # every command through to the board over USB/adb. Auth is key-based
+        # (lava-adb image ships the key matching lava-dut-key.pub).
         SSH_HOST: 'SET-BY-CI'
-        SSH_PORT: '2222'
-        SSH_USER: 'root'
+        SSH_PORT: '22'
+        SSH_USER: 'pi'
       repository:
         metadata:
           format: Lava-Test Test Definition 1.0

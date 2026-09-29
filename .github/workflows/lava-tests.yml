@@ -154,10 +154,12 @@ jobs:
       #  * the memory threshold and camera presence match the board variant.
       - name: Prepare board-specific LAVA job definitions
         run: |
-          # Both boards now sit behind the same relay address, distinguished
-          # only by port, so the port is board-specific too. It defaults to
-          # 2222 (the historic value, and still the 12 GB board's) when the
-          # secret is unset, so a repo that has not set it keeps working.
+          # Each board is a harness host (pi-tester-3/6) with the DUT attached
+          # over USB/adb, not the DUT's own IP — it has no network of its own.
+          # See lava/adb-shell-relay.sh for how ssh sessions to that host relay
+          # through to the board. Port defaults to 22 (the harness host's own
+          # sshd) when the secret is unset, so a repo that has not set it
+          # keeps working.
           case "${{ inputs.board-tag }}" in
             8550-8gb)
               DUT_SSH_HOST="${{ secrets.DUT_SSH_HOST_8GB }}"
@@ -173,7 +175,7 @@ jobs:
             echo "DUT ssh host secret for '${{ inputs.board-tag }}' is not set"
             exit 1
           fi
-          DUT_SSH_PORT="${DUT_SSH_PORT:-2222}"
+          DUT_SSH_PORT="${DUT_SSH_PORT:-22}"
           mkdir -p /tmp/lava-jobs
           CAMERA_PRESENT="${{ inputs.has-camera && 'yes' || 'no' }}"
           SDCARD_PRESENT="${{ inputs.has-sdcard && 'yes' || 'no' }}"
