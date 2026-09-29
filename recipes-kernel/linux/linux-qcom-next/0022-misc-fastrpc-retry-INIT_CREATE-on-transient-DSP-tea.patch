@@ -1,0 +1,85 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Tue, 29 Sep 2026 11:00:00 +0100
+Subject: [PATCH] misc: fastrpc: retry INIT_CREATE on transient DSP teardown
+ race
+
+client_id (session slot) reuse can race the async tail of the DSP's
+own teardown for the previous occupant of that same slot:
+fastrpc_device_release() blocks until the DSP acks
+FASTRPC_RMID_INIT_RELEASE, but internal cleanup on the DSP side for
+that client_id can still be finishing when a new process is handed
+the same slot moments later by fastrpc_session_alloc().
+
+Observed on QCS8550 cdsp: back-to-back FASTRPC_IOCTL_INIT_CREATE
+calls (fresh open()/close() per call, unsigned PD) intermittently
+fail with AEE_ERESOURCENOTFOUND (0x80000416) or AEE_EALREADY
+(0x8000041a) even though the same call reliably succeeds when spaced
+out by a second, or on a second attempt moments later. This is a
+timing race, not a real rejection.
+
+Retry the INIT_CREATE invoke a bounded number of times with a short
+backoff when the DSP returns one of these two specific transient
+statuses, before giving up and returning the error to userspace as
+before.
+
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+---
+ drivers/misc/fastrpc.c | 33 +++++++++++++++++++++++++++++----
+ 1 file changed, 29 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/misc/fastrpc.c b/drivers/misc/fastrpc.c
+--- a/drivers/misc/fastrpc.c
++++ b/drivers/misc/fastrpc.c
+@@ -27,6 +27,7 @@
+ #include <linux/bitops.h>
+ #include <linux/compiler.h>
+ #include <linux/iopoll.h>
++#include <linux/delay.h>
+
+ #define ADSP_DOMAIN_ID (0)
+ #define MDSP_DOMAIN_ID (1)
+@@ -108,6 +109,15 @@
+ #define FASTRPC_RMID_INIT_MEM_MAP      10
+ #define FASTRPC_RMID_INIT_MEM_UNMAP    11
+
++/*
++ * DSP-side statuses (AEEStdErr.h) seen transiently when a create races the
++ * async tail of a just-completed release for the same client_id/PID slot.
++ */
++#define AEE_ERESOURCENOTFOUND		0x80000416
++#define AEE_EALREADY			0x8000041a
++#define FASTRPC_INIT_CREATE_RETRIES	10
++#define FASTRPC_INIT_CREATE_RETRY_DELAY_MS	5
++
+ /* Protection Domain(PD) ids */
+ #define ROOT_PD		(0)
+ #define USER_PD		(1)
+@@ -1759,8 +1769,23 @@
+ 	if (init.attrs)
+ 		sc = FASTRPC_SCALARS(FASTRPC_RMID_INIT_CREATE_ATTR, 4, 0);
+
+-	err = fastrpc_internal_invoke(fl, true, FASTRPC_INIT_HANDLE,
+-				      sc, args);
++	{
++		int attempt;
++
++		for (attempt = 0; attempt < FASTRPC_INIT_CREATE_RETRIES; attempt++) {
++			err = fastrpc_internal_invoke(fl, true, FASTRPC_INIT_HANDLE,
++						      sc, args);
++			if (err != AEE_ERESOURCENOTFOUND && err != AEE_EALREADY)
++				break;
++			/*
++			 * The client_id slot we were just handed can still be
++			 * finishing async DSP-side teardown from its previous
++			 * occupant's release. Back off briefly and retry rather
++			 * than failing a legitimate create.
++			 */
++			msleep(FASTRPC_INIT_CREATE_RETRY_DELAY_MS);
++		}
++	}
+ 	if (err)
+ 		goto err_invoke;
+
+--
+2.41.0

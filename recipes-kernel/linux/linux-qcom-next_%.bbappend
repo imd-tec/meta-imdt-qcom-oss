@@ -31,6 +31,7 @@ SRC_URI:append = " \
     file://0019-arm64-dts-qcom-qcs8550-imdt-sbc-Stop-the-display-ove.patch \
     file://0020-drm-msm-dp-fix-link-bandwidth-check-when-wide-bus-is.patch \
     file://0021-Revert-media-iris-enable-sm8550-context-banks-via-in.patch \
+    file://0022-misc-fastrpc-retry-INIT_CREATE-on-transient-DSP-tea.patch \
     file://configs/imdt.cfg \
 "
 
