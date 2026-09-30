@@ -26,7 +26,10 @@ RDEPENDS:${PN} = " \
 
 # OSTree update helper and the mark-good service. imdt-ostree-bless clears the
 # BLS counter on a good boot, which systemd-bless-boot can't here (no EFI vars).
+# cdsp-htp-test is qcs8550-only for now: its hexagon-v73 skel dependency is
+# board-arch-specific (see docs/lava-tests.md's dsp-htp suite).
 RDEPENDS:${PN}:append:qcs8550 = " \
     ostree-imdt-update \
     imdt-ostree-bless \
+    cdsp-htp-test \
 "

@@ -215,6 +215,29 @@ actions:
           - if dmesg | grep -q "IPA driver setup completed successfully"; then lava-test-case ipa-setup-complete --result pass; else lava-test-case ipa-setup-complete --result fail; fi
 
     - from: inline
+      name: dsp-htp
+      path: inline/dsp-htp.yaml
+      parameters:
+        # How long to keep running inference for. 30s is enough to catch a
+        # session that wedges shortly after a successful first inference,
+        # without meaningfully lengthening the suite.
+        HTP_DURATION_S: '30'
+      repository:
+        metadata:
+          format: Lava-Test Test Definition 1.0
+          name: dsp-htp
+          description: Run MobileNetV2 on the cDSP's HTP (NPU) via onnxruntime-qnn for a sustained period
+        run:
+          steps:
+          # cdsp-htp-test is qcs8550-only (see packagegroup-imdt-bsp-support.bb);
+          # skip cleanly on boards/images that don't have it.
+          - if ! command -v cdsp-htp-test >/dev/null 2>&1; then echo "cdsp-htp-test not installed on this image - skipping"; lava-test-case htp-sustained-inference --result skip; exit 0; fi
+          - MODEL=/usr/share/cdsp-htp-test/mobilenet_v2.onnx
+          - HTP_OUT=$(cdsp-htp-test "$MODEL" "$HTP_DURATION_S" 2>&1) && HTP_RC=0 || HTP_RC=$?
+          - 'echo "$HTP_OUT"'
+          - if [ "$HTP_RC" = 0 ] && echo "$HTP_OUT" | grep -q "RESULT: PASS"; then lava-test-case htp-sustained-inference --result pass; else lava-test-case htp-sustained-inference --result fail; fi
+
+    - from: inline
       name: gpu-dmesg
       path: inline/gpu-dmesg.yaml
       repository:

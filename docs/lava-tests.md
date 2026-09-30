@@ -137,6 +137,20 @@ Currently skipped on the 8 GB fixture (no card fitted).
 | `iommu-groups` | At least one IOMMU group present under `/sys/kernel/iommu_groups/` |
 | `hwrng-readable` | `/dev/hwrng` yields at least 16 bytes |
 
+### `dsp-htp` — cDSP HTP (NPU) sustained inference
+
+Runs a real MobileNetV2 model on the cDSP's Hexagon Tensor Processor via
+onnxruntime-qnn (`cdsp-htp-test`, see `recipes-test/cdsp-htp-test`) repeatedly
+for `HTP_DURATION_S` seconds (default 30), so a session that wedges shortly
+after a successful first inference doesn't pass undetected. Reports a skip if
+the image doesn't have `cdsp-htp-test` installed (qcs8550-only for now).
+
+| Test Case | Description |
+|-----------|-------------|
+| `htp-sustained-inference` | Repeated MobileNetV2 inference on the HTP succeeds for the full duration |
+
+Parameters: `HTP_DURATION_S` (default `30`, seconds to keep running inference for).
+
 ### `remote-desktop` — Remote desktop (VNC)
 
 Checks that the remote desktop service serves VNC, that a client can complete

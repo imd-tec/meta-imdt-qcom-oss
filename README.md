@@ -39,10 +39,11 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 
 ## Feature Support
 > [!NOTE]
-> ADSP, CDSP and IPA have only been proven to probe successfully in
-> Linux. However its been found that the cDSP firmware isn't mainline
-> compatible and fails the fastrpc-test so all three DSPs are marked as
-> WiP.
+> CDSP FastRPC works on the QCS8550 SBC: unsigned-PD module loading and
+> real NPU inference (via onnxruntime-qnn's HTP backend) both run
+> reliably, covered by the `dsp-htp` LAVA suite (see
+> [docs/lava-tests.md](docs/lava-tests.md)). ADSP and IPA have only been
+> proven to probe successfully in Linux and remain WiP.
 >
 > Bluetooth is not supported at the moment due to an issue with RTS/CTS
 > lines.
@@ -60,7 +61,7 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 | Audio (LPASS) | — | — | — | 🚧 Planned | 🚧 Planned | 🚧 |
 | Bluetooth | NXP IW416 | UART14 | btnxpuart | ❌ | ❌ | ❌ |
 | Camera (AR1335 - 13MP) | ON Semiconductor AR1335 | CSI0 | ar1335 | ✅ | ✅ | 🚧 |
-| CDSP | Hexagon DSP | — | remoteproc | 🚧 | 🚧 | ✅ |
+| CDSP | Hexagon DSP | — | remoteproc | ✅ | ✅ | ✅ |
 | Debug Serial Console (J19)| — | UART7 (115200 baud) | qcom-geni-serial | ✅ | ✅ | ✅ |
 | DDR Memory | 8GB / 12GB LPDDR5 | — | — | ✅ 12GB | ✅ 8GB | ✅ 4GB |
 | DisplayPort over USB Type-C | Cypress CYPD6125 | DWC3 (QCOM) / USB-C DP Alt Mode | ucsi_ccg | ❌ | ✅ | 🚧 |
