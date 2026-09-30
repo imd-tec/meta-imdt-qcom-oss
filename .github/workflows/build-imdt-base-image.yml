@@ -153,12 +153,14 @@ jobs:
     with:
       image-name: ${{ matrix.image-name }}
       board-tag: '8550-12gb'
-      # 8500 not 9000: this board idles at ~9.2GB available, so 9000 was within
-      # noise of a fresh boot's memory usage (false failures).
-      mem-min-mb: '8500'
-      has-camera: true
-      has-sdcard: true
-      has-wifi: true
+      # This tag now points at pi-tester-6's board (see lava/adb-shell-relay.sh),
+      # which is the same class of hardware as the 8 GB fixture, not a genuine
+      # 12 GB unit: it idles at ~5.5GB available, has no SD card, and its IW416
+      # enumerates on SDIO but no driver binds, same as the 8 GB board.
+      mem-min-mb: '4000'
+      has-camera: false
+      has-sdcard: false
+      has-wifi: false
       wg-slot: ${{ needs.setup.outputs.wg-slot-12gb }}
       is-pr: ${{ github.event_name == 'pull_request' }}
       pr-number: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || 0 }}
