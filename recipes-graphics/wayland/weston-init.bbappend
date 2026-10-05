@@ -9,7 +9,7 @@ SRC_URI += "file://weston-home-tmpfiles.conf"
 
 do_install:append() {
     install -d ${D}${nonarch_libdir}/tmpfiles.d
-    install -m 0644 ${WORKDIR}/weston-home-tmpfiles.conf \
+    install -m 0644 ${UNPACKDIR}/weston-home-tmpfiles.conf \
         ${D}${nonarch_libdir}/tmpfiles.d/weston-home.conf
 }
 
