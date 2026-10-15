@@ -218,45 +218,32 @@ See [docs/lava-tests.md](docs/lava-tests.md) for the full list of test cases.
 
 ## Downloading prebuilt release images
 
-If you don't need to build from source, every tagged release publishes the full
-set of deploy images as one compressed tarball per board on the
-[GitHub Releases page](../../releases):
-`qcom-imdt-images-imdt-8550-sbc.tar.zst` and
-`qcom-imdt-images-imdt-6490-sbc.tar.zst`.
+If you don't need to build from source, every tagged release publishes one
+self-contained flash tarball per image on the
+[GitHub Releases page](../../releases), holding the partition images, boot
+firmware, flash XMLs and QDL programmer:
 
-Because the 8550 tarball is larger than GitHub's 2 GiB per-file limit, it is
-split into numbered parts (`...tar.zst.part00`, `.part01`, …).
-The snippet below pulls the latest release, stitches
-the parts back together, verifies the checksum and extracts everything into
-`./images`:
+| Board | Image | Asset |
+|---|---|---|
+| QCS8550 | minimal | `qcom-minimal-image-imdt-8550-sbc.rootfs.qcomflash.tar.gz` |
+| QCS8550 | multimedia | `qcom-multimedia-image-imdt-8550-sbc.rootfs.qcomflash.tar.gz` |
+| QCS8550 | multimedia with proprietary components | `qcom-multimedia-proprietary-image-imdt-8550-sbc.rootfs.qcomflash.tar.gz` |
+| QCS6490 | minimal | `qcom-minimal-image-imdt-6490-sbc.rootfs.qcomflash.tar.gz` |
+
+Each image also has a `.rootfs.manifest` asset listing its packages.
 
 ```bash
 base="https://github.com/imd-tec/meta-imdt-qcom-oss/releases/latest/download"
-name="qcom-imdt-images-imdt-8550-sbc.tar.zst"
-
-# Download every part plus the checksum (currently ten: part00 … part09).
-# A part that a release does not have just 404s and is skipped, so an
-# over-long list is harmless; a short one silently truncates the tarball,
-# which the checksum below then catches.
-for n in 00 01 02 03 04 05 06 07 08 09; do wget "$base/$name.part$n" || true; done
-wget "$base/$name.sha256"
-
-# Reassemble, verify and extract into ./images (needs zstd installed).
-cat "$name".part* > "$name"
-sha256sum -c "$name.sha256"
-mkdir -p images
-tar --zstd -xf "$name" -C images
+name="qcom-minimal-image-imdt-8550-sbc.rootfs.qcomflash.tar.gz"
+wget "$base/$name"
+tar -xzf "$name"
 ```
 
-> The part count moves with the image sizes, so the release page is the
-> authority — adjust the loop to match. The 6490 tarball is under the limit
-> and downloads in one piece.
+This extracts to `qcom-minimal-image-imdt-8550-sbc/`. To grab a specific
+release instead of the latest, replace `latest/download` with
+`download/<tag>` (e.g. `download/v1.2.3`).
 
-To grab a specific release instead of the latest, replace `latest/download`
-with `download/<tag>` (e.g. `download/v1.2.3`).
-
-You can then flash the extracted images with [QDL](#qdl), or update a board
-that is already flashed with an [OSTree update](#os-updates).
+You can then flash the extracted images with [QDL](#qdl).
 
 ## Prerequisites
 
@@ -393,6 +380,8 @@ flash_qcs8550_sbc() {
     local image="${1:?Usage: flash_qcs8550_sbc <image-name> <rev3|rev5>}"
     local rev="${2:?Usage: flash_qcs8550_sbc <image-name> <rev3|rev5>}"
     local dir="${image}-imdt-8550-sbc.rootfs.qcomflash"
+    # A release tarball extracts without the .rootfs.qcomflash suffix.
+    [ -d "$dir" ] || dir="${image}-imdt-8550-sbc"
     # Program the CDT for this board revision (written to the cdt partition).
     cp "${dir}/cdt_imdt_8550_sbc_${rev}.bin" "${dir}/cdt.bin"
     qdl -i "${dir}/" xbl_s_devprg_ns.melf "${dir}/rawprogram"*.xml "${dir}/patch"*.xml
@@ -466,6 +455,8 @@ Append the below bash function to your `.bashrc` file:
 flash_qcs6490_sbc() {
     local image="${1:?Usage: flash_qcs6490_sbc <image-name>}"
     local dir="${image}-imdt-6490-sbc.rootfs.qcomflash"
+    # A release tarball extracts without the .rootfs.qcomflash suffix.
+    [ -d "$dir" ] || dir="${image}-imdt-6490-sbc"
     qdl -s emmc -i "${dir}/" prog_firehose_ddr.elf "${dir}/rawprogram"*.xml "${dir}/patch"*.xml
 }
 ```

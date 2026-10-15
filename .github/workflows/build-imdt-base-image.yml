@@ -84,11 +84,15 @@ jobs:
       machine: 'imdt-8550-sbc imdt-6490-sbc'
       artifact-name: 'qcom-imdt-images'
       # Nothing in this repo downloads the per-machine tarballs: LAVA gets the
-      # OSTree commit archive by rsync below, and tag builds still attach the
-      # tarballs to the GitHub release (packing stays on for tags). Skipping the
-      # zstd pack + upload of two multi-GB deploy dirs takes a large chunk off
-      # every master/PR build.
+      # OSTree commit archive by rsync below. Skipping the zstd pack + upload
+      # of two multi-GB deploy dirs takes a large chunk off every build.
       upload-artifacts: false
+      # Tag releases publish one self-contained flash tarball per image (see
+      # classes/imdt-qcomflash.bbclass) instead of the whole deploy dir.
+      release-files: >-
+        qcom-minimal-image-*.rootfs.qcomflash.tar.gz
+        qcom-multimedia-image-*.rootfs.qcomflash.tar.gz
+        qcom-multimedia-proprietary-image-*.rootfs.qcomflash.tar.gz
       # ostree_repo is the shared archive repo bitbake commits every image into,
       # and each image's .ostreecommit.tar.xz is itself a tar of that same repo
       # (meta-updater sets TAR_IMAGE_ROOTFS:task-image-ostreecommit =
