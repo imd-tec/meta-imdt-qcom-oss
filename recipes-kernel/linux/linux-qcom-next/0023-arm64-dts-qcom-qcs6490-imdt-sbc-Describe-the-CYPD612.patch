@@ -1,0 +1,141 @@
+From a60d202f8c019208e17b1c91139c5dd50e20636c Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Fri, 16 Oct 2026 13:55:52 +0100
+Subject: [PATCH] arm64: dts: qcom: qcs6490-imdt-sbc: Describe the CYPD6125
+ Type-C controller
+
+The CYPD6125 PD controller on APPS_I2C was not described, so usb_1
+was pinned to peripheral mode. Add it at 0x08 with its host
+interrupt on gpio101, and wire its connector to the EUD and the QMP
+PHY so UCSI can switch the usb_1 data role.
+
+Assisted-by: Claude:claude-opus-5-5
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+---
+ arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts | 75 ++++++++++++++++---
+ 1 file changed, 66 insertions(+), 9 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
+index 6f41f4c9d24b..9b8dcae606ff 100644
+--- a/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
++++ b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
+@@ -6,6 +6,7 @@
+ /dts-v1/;
+ 
+ #include <dt-bindings/gpio/gpio.h>
++#include <dt-bindings/interrupt-controller/irq.h>
+ #include <dt-bindings/leds/common.h>
+ #include "qcs6490-imdt-som.dtsi"
+ 
+@@ -446,6 +447,10 @@ regulators-1 {
+ 	};
+ };
+ 
++&eud_con {
++	remote-endpoint = <&cypd6125_hs_in>;
++};
++
+ &gcc {
+ 	/* Clocks owned by TZ / a peer VM; the HLOS must not touch them. */
+ 	protected-clocks = <GCC_CFG_NOC_LPASS_CLK>,
+@@ -499,14 +504,56 @@ imu@6a {
+ };
+ 
+ /*
+- * APPS_I2C: also hosts the CYPD6125 USB-C port controller at 0x08
+- * (not described; usb_1 is hard-wired to peripheral mode), a
+- * TLV320AIC3101 audio codec at 0x18 (audio bring-up pending), an
+- * ECC204 authentication IC and an SLG47528 GreenPAK (no bindings).
++ * APPS_I2C: also hosts a TLV320AIC3101 audio codec at 0x18 (audio
++ * bring-up pending), an ECC204 authentication IC and an SLG47528
++ * GreenPAK (no bindings).
+  */
+ &i2c1 {
+ 	clock-frequency = <400000>;
+ 	status = "okay";
++
++	/* CYPD6125 USB-C PD controller running CCGx UCSI firmware */
++	typec@8 {
++		compatible = "cypress,cypd4226";
++		reg = <0x08>;
++
++		interrupts-extended = <&tlmm 101 IRQ_TYPE_LEVEL_LOW>;
++
++		pinctrl-0 = <&ccg_irq_default>;
++		pinctrl-names = "default";
++
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		connector@0 {
++			compatible = "usb-c-connector";
++			reg = <0>;
++			label = "USB-C";
++			power-role = "dual";
++			data-role = "dual";
++
++			ports {
++				#address-cells = <1>;
++				#size-cells = <0>;
++
++				port@0 {
++					reg = <0>;
++
++					cypd6125_hs_in: endpoint {
++						remote-endpoint = <&eud_con>;
++					};
++				};
++
++				port@1 {
++					reg = <1>;
++
++					cypd6125_ss_in: endpoint {
++						remote-endpoint = <&usb_dp_qmpphy_out>;
++					};
++				};
++			};
++		};
++	};
+ };
+ 
+ /* Expansion-header I2C (J1/J52, "CHARGER_I2C") */
+@@ -675,6 +722,13 @@ &tlmm {
+ 	/* Reserved I/Os: 32-33 ADSP, 48-51 NFC (trustzone-protected) */
+ 	gpio-reserved-ranges = <32 2>, <48 4>;
+ 
++	ccg_irq_default: ccg-irq-default-state {
++		pins = "gpio101";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-disable;
++	};
++
+ 	dsi_5v_en_default: dsi-5v-en-default-state {
+ 		pins = "gpio35";
+ 		function = "gpio";
+@@ -854,13 +908,12 @@ bluetooth {
+ };
+ 
+ /*
+- * USB0 (HS + SS) is routed to the USB-C connector J53. The port is
+- * managed by a CYPD6125 PD controller that is not visible to Linux;
+- * the controller is hard-wired to peripheral/device operation.
++ * USB0 (HS + SS) is routed to the USB-C connector J53, managed by the
++ * CYPD6125 on APPS_I2C, which switches the data role.
+  */
+ &usb_1 {
+-	/delete-property/ usb-role-switch;
+-	dr_mode = "peripheral";
++	dr_mode = "otg";
++	usb-role-switch;
+ 
+ 	status = "okay";
+ };
+@@ -894,3 +947,7 @@ &usb_2_hsphy {
+ 
+ 	status = "okay";
+ };
++
++&usb_dp_qmpphy_out {
++	remote-endpoint = <&cypd6125_ss_in>;
++};

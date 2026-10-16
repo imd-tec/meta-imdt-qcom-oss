@@ -32,6 +32,7 @@ SRC_URI:append = " \
     file://0020-drm-msm-dp-fix-link-bandwidth-check-when-wide-bus-is.patch \
     file://0021-Revert-media-iris-enable-sm8550-context-banks-via-in.patch \
     file://0022-misc-fastrpc-retry-INIT_CREATE-on-transient-DSP-tea.patch \
+    file://0023-arm64-dts-qcom-qcs6490-imdt-sbc-Describe-the-CYPD612.patch \
     file://configs/imdt.cfg \
 "
 
