@@ -79,8 +79,8 @@ actions:
       name: resources
       path: inline/resources.yaml
       parameters:
-        # Minimum available memory in MB expected on this board variant
-        # (8 GB board ~6 GB visible after carveouts, 12 GB board ~10 GB).
+        # Minimum available memory in MB expected on this board
+        # (an 8 GB board shows ~6 GB after carveouts).
         # Overridden per board by the CI workflow.
         MEM_MIN_MB: '9000'
       repository:

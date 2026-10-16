@@ -3,12 +3,12 @@
 These tests run automatically on real hardware (IMDT 8550 SBC) via [LAVA](https://lava.readthedocs.io/) on every commit to `master` and on every pull request.
 
 Each built image (`qcom-minimal-image` and `qcom-multimedia-image`) is deployed
-and tested on **both board variants** as separate CI runs:
+and tested on **both boards** as separate CI runs:
 
-| Board tag | Variant | Harness host | Camera |
-|-----------|---------|--------------|--------|
-| `8550-8gb` | 8 GB IMDT 8550 SBC | pi-tester-3, port 22 (`DUT_SSH_HOST_8GB` secret) | yes |
-| `8550-12gb` | 12 GB IMDT 8550 SBC | pi-tester-6, port 22 (`DUT_SSH_HOST_12GB` secret) | yes |
+| Board tag | Board | Harness host | Camera |
+|-----------|-------|--------------|--------|
+| `8550-8gb-1` | 8 GB IMDT 8550 SBC | pi-tester-3, port 22 (`DUT_SSH_HOST_8GB_1` secret) | yes |
+| `8550-8gb-2` | 8 GB IMDT 8550 SBC | pi-tester-9, port 22 (`DUT_SSH_HOST_8GB_2` secret) | no |
 
 Neither board has a network of its own — each is attached over USB to its
 harness host (a normal Debian machine on the lab LAN) and reached only via
@@ -78,7 +78,7 @@ Runs over SSH on the updated rootfs. Groups of tests are submitted as independen
 |-----------|-------------|
 | `disk-free` | `df -h /` succeeds (rootfs is mounted and readable) |
 | `mem-free` | `free -m` succeeds (memory stats available) |
-| `mem-avail-min` | Available memory (`free -m` available column) meets the per-board minimum: ≥8500 MB on the 12 GB board, ≥4500 MB on the 8 GB board (`MEM_MIN_MB` parameter) |
+| `mem-avail-min` | Available memory (`free -m` available column) meets the per-board minimum: ≥4500 MB on both 8 GB boards (`MEM_MIN_MB` parameter) |
 
 ### `wifi` — Wireless interface
 

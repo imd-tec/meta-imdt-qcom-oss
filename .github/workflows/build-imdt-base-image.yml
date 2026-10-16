@@ -28,8 +28,8 @@ jobs:
     outputs:
       kas-config: ${{ steps.cfg.outputs.kas-config }}
       images: ${{ steps.cfg.outputs.images }}
-      wg-slot-8gb: ${{ steps.cfg.outputs.wg-slot-8gb }}
-      wg-slot-12gb: ${{ steps.cfg.outputs.wg-slot-12gb }}
+      wg-slot-8gb-1: ${{ steps.cfg.outputs.wg-slot-8gb-1 }}
+      wg-slot-8gb-2: ${{ steps.cfg.outputs.wg-slot-8gb-2 }}
     steps:
       - id: cfg
         run: |
@@ -54,8 +54,8 @@ jobs:
             echo "WG_SLOT_BASE repo variable is unset or not numeric" >&2
             exit 1
           fi
-          echo "wg-slot-8gb=$((WG_SLOT_BASE))" >> "$GITHUB_OUTPUT"
-          echo "wg-slot-12gb=$((WG_SLOT_BASE+1))" >> "$GITHUB_OUTPUT"
+          echo "wg-slot-8gb-1=$((WG_SLOT_BASE))" >> "$GITHUB_OUTPUT"
+          echo "wg-slot-8gb-2=$((WG_SLOT_BASE+1))" >> "$GITHUB_OUTPUT"
           # The multimedia images (open-source and proprietary) are only built
           # and tested on tag releases. On master pushes and PRs we build/test
           # the minimal image alone, keeping CI fast.
@@ -120,11 +120,12 @@ jobs:
   # any further one.
   #
   # Everything that differs between the two DUTs lives here. The DUT ssh
-  # endpoint is a secret (DUT_SSH_HOST_8GB / DUT_SSH_HOST_12GB) resolved inside
+  # endpoint is a secret (DUT_SSH_HOST_8GB_1 / DUT_SSH_HOST_8GB_2) resolved inside
   # lava-tests.yml from the board tag. Flags are always explicit: GHA loose
   # equality coerces null and false both to 0, so an absent key can't be
   # defaulted with `!= false` at the call site.
-  lava-8gb:
+  # 8550-8gb-1 is pi-tester-3's board, with the AR1335 on CSI0.
+  lava-8gb-1:
     needs: [setup, build]
     if: needs.build.result == 'success'
     strategy:
@@ -134,20 +135,21 @@ jobs:
     uses: ./.github/workflows/lava-tests.yml
     with:
       image-name: ${{ matrix.image-name }}
-      board-tag: '8550-8gb'
+      board-tag: '8550-8gb-1'
       mem-min-mb: '4500'
       has-camera: true
       # No SD card inserted in this fixture — flip once a card is fitted.
       has-sdcard: false
       # IW416 enumerates on SDIO but no driver binds with the current image.
       has-wifi: false
-      wg-slot: ${{ needs.setup.outputs.wg-slot-8gb }}
+      wg-slot: ${{ needs.setup.outputs.wg-slot-8gb-1 }}
       is-pr: ${{ github.event_name == 'pull_request' }}
       pr-number: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || 0 }}
       expected-version: ${{ needs.build.outputs.version }}
     secrets: inherit
 
-  lava-12gb:
+  # 8550-8gb-2 is pi-tester-9's board. It has no camera on CSI0.
+  lava-8gb-2:
     needs: [setup, build]
     if: needs.build.result == 'success'
     strategy:
@@ -157,16 +159,13 @@ jobs:
     uses: ./.github/workflows/lava-tests.yml
     with:
       image-name: ${{ matrix.image-name }}
-      board-tag: '8550-12gb'
-      # This tag now points at pi-tester-6's board (see lava/adb-shell-relay.sh),
-      # which is the same class of hardware as the 8 GB fixture, not a genuine
-      # 12 GB unit: it idles at ~5.5GB available, has no SD card, and its IW416
-      # enumerates on SDIO but no driver binds, same as the 8 GB board.
-      mem-min-mb: '4000'
+      board-tag: '8550-8gb-2'
+      mem-min-mb: '4500'
       has-camera: false
       has-sdcard: false
+      # IW416 enumerates on SDIO but no driver binds with the current image.
       has-wifi: false
-      wg-slot: ${{ needs.setup.outputs.wg-slot-12gb }}
+      wg-slot: ${{ needs.setup.outputs.wg-slot-8gb-2 }}
       is-pr: ${{ github.event_name == 'pull_request' }}
       pr-number: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || 0 }}
       expected-version: ${{ needs.build.outputs.version }}
@@ -181,8 +180,8 @@ jobs:
   # kept) if any LAVA job failed or was skipped, so a red run's image stays
   # available for debugging and re-runs.
   cleanup-lava-ostree:
-    needs: [lava-8gb, lava-12gb]
-    if: ${{ needs.lava-8gb.result == 'success' && needs.lava-12gb.result == 'success' }}
+    needs: [lava-8gb-1, lava-8gb-2]
+    if: ${{ needs.lava-8gb-1.result == 'success' && needs.lava-8gb-2.result == 'success' }}
     runs-on: imx-runner
     steps:
       - name: Delete this commit's staged OSTree archives on the LAVA server

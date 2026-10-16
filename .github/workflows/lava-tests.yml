@@ -8,7 +8,7 @@ on:
         type: string
         default: qcom-minimal-image
       board-tag:
-        description: LAVA device tag selecting the board variant (e.g. 8550-8gb, 8550-12gb)
+        description: LAVA device tag selecting the board (8550-8gb-1 or 8550-8gb-2)
         type: string
         required: true
       mem-min-mb:
@@ -151,27 +151,27 @@ jobs:
       # ── Board-specific job definitions ──────────────────────────────────
       # Every submitted job targets one specific board:
       #  * ssh-device jobs (ssh-tests) are pinned by replacing the generic
-      #    dut-ssh tag with the board tag (8550-8gb / 8550-12gb);
+      #    dut-ssh tag with the board tag (8550-8gb-1 / 8550-8gb-2);
       #  * docker-device jobs (ostree-deploy, ar1335-capture)
       #    reach the board over ssh, so SSH_HOST/SSH_PORT are set to the relay
       #    forwarding this board — the endpoint is a repo secret per board tag;
-      #  * the memory threshold and camera presence match the board variant.
+      #  * the memory threshold and camera presence match the board.
       - name: Prepare board-specific LAVA job definitions
         run: |
-          # Each board is a harness host (pi-tester-3/6) with the DUT attached
+          # Each board is a harness host (pi-tester-3/9) with the DUT attached
           # over USB/adb, not the DUT's own IP — it has no network of its own.
           # See lava/adb-shell-relay.sh for how ssh sessions to that host relay
           # through to the board. Port defaults to 22 (the harness host's own
           # sshd) when the secret is unset, so a repo that has not set it
           # keeps working.
           case "${{ inputs.board-tag }}" in
-            8550-8gb)
-              DUT_SSH_HOST="${{ secrets.DUT_SSH_HOST_8GB }}"
-              DUT_SSH_PORT="${{ secrets.DUT_SSH_PORT_8GB }}"
+            8550-8gb-1)
+              DUT_SSH_HOST="${{ secrets.DUT_SSH_HOST_8GB_1 }}"
+              DUT_SSH_PORT="${{ secrets.DUT_SSH_PORT_8GB_1 }}"
               ;;
-            8550-12gb)
-              DUT_SSH_HOST="${{ secrets.DUT_SSH_HOST_12GB }}"
-              DUT_SSH_PORT="${{ secrets.DUT_SSH_PORT_12GB }}"
+            8550-8gb-2)
+              DUT_SSH_HOST="${{ secrets.DUT_SSH_HOST_8GB_2 }}"
+              DUT_SSH_PORT="${{ secrets.DUT_SSH_PORT_8GB_2 }}"
               ;;
             *) echo "Unknown board-tag '${{ inputs.board-tag }}'"; exit 1 ;;
           esac

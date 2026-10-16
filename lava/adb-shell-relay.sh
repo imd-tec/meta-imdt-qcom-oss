@@ -10,7 +10,7 @@
 #   shell) drops into an interactive DUT shell with a prompt containing
 #   'root@', matching what ssh-tests.yaml's boot action waits for.
 #
-# Install on each harness host (pi-tester-3, pi-tester-6):
+# Install on each harness host (pi-tester-3, pi-tester-9):
 #   scp lava/adb-shell-relay.sh pi-tester-N:~/adb-shell-relay.sh
 #   ssh pi-tester-N chmod 755 ~/adb-shell-relay.sh
 #   ssh pi-tester-N 'echo "command=\"/home/pi/adb-shell-relay.sh\",no-agent-forwarding,no-X11-forwarding,no-user-rc,no-port-forwarding $(cat lava-dut-key.pub)" >> ~/.ssh/authorized_keys'

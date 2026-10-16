@@ -1,5 +1,5 @@
-{# Device dictionary for the 8550-8GB-ssh LAVA device (device-type: ssh) —
-   the 8 GB IMDT 8550 SBC, attached via USB/adb to pi-tester-3.
+{# Device dictionary for the 8550-8GB-1-ssh LAVA device (device-type: ssh) —
+   the first 8 GB IMDT 8550 SBC, attached via USB/adb to pi-tester-3.
 
    The board has no network of its own (no cable, no sshd reachable over IP):
    ssh_host/ssh_port are pi-tester-3's OWN sshd, a normal Debian host on the
@@ -24,9 +24,9 @@
 
    Install on the server with:
 
-     lava-server manage devices add 8550-8GB-ssh --device-type ssh --worker worker0 --tags dut-ssh 8550-8gb
+     lava-server manage devices add 8550-8GB-1-ssh --device-type ssh --worker worker0 --tags dut-ssh 8550-8gb-1
      # then place this file at
-     # /etc/lava-server/dispatcher-config/devices/8550-8GB-ssh.jinja2 (owner lavaserver)
+     # /etc/lava-server/dispatcher-config/devices/8550-8GB-1-ssh.jinja2 (owner lavaserver)
 #}
 {# ssh-keepalive, not stock ssh: adds ServerAlive keepalive to the primary
    connection — see ssh-keepalive.jinja2 for why it has its own name. #}

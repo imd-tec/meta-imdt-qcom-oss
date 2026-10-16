@@ -1,0 +1,21 @@
+{# Device dictionary for the 8550-8GB-2-ssh LAVA device (device-type: ssh) —
+   the second 8 GB IMDT 8550 SBC, attached via USB/adb to pi-tester-9.
+
+   Same adb-relay design as 8550-8GB-1-ssh.jinja2 (see that file's header for
+   the full explanation) — pi-tester-9 is just another normal Debian host on
+   the lab LAN, reached directly, with the lava-dut key's authorized_keys
+   entry forcing every session through lava/adb-shell-relay.sh.
+
+   Install on the server with:
+
+     lava-server manage devices add 8550-8GB-2-ssh --device-type ssh --worker worker0 --tags dut-ssh 8550-8gb-2
+     # then place this file at
+     # /etc/lava-server/dispatcher-config/devices/8550-8GB-2-ssh.jinja2 (owner lavaserver)
+#}
+{# ssh-keepalive, not stock ssh: adds ServerAlive keepalive to the primary
+   connection — see ssh-keepalive.jinja2 for why it has its own name. #}
+{% extends 'ssh-keepalive.jinja2' %}
+{% set ssh_host = '192.168.50.20' %}
+{% set ssh_port = 22 %}
+{% set ssh_user = 'pi' %}
+{% set ssh_identity_file = '/var/lib/lava/dispatcher/worker/lava-dut-key' %}
