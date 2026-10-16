@@ -1,0 +1,33 @@
+From 606b66fdc3cd64a1a99aa11f1b44bf390b5d3c4b Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Fri, 16 Oct 2026 15:46:35 +0100
+Subject: [PATCH] gbm_msm: Allow the backend without KGSL
+
+The backend allocates buffers with the msm DRM GEM ioctls, but only
+created a device when KGSL was present. With the GPU on the mainline
+msm DRM driver there is no KGSL, so libgbm fell back to Mesa's dri
+backend, whose buffers the Adreno EGL cannot use.
+
+Upstream-Status: Inappropriate [IMDT uses mainline msm DRM, not KGSL]
+Assisted-by: Claude:claude-opus-5-5
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+---
+ src/gbm_msm.c | 5 -----
+ 1 file changed, 5 deletions(-)
+
+diff --git a/src/gbm_msm.c b/src/gbm_msm.c
+index 1b62403..4a2449e 100644
+--- a/src/gbm_msm.c
++++ b/src/gbm_msm.c
+@@ -728,11 +728,6 @@ gbm_msm_surface_create(struct gbm_device *gbm,
+ static struct gbm_device *
+ msm_device_create(int fd, uint32_t gbm_backend_version)
+ {
+-   const char *gpu_path = "/sys/class/kgsl/kgsl-3d0/";
+-   if (access(gpu_path, F_OK) != 0) {
+-      return NULL;
+-   }
+-
+    struct gbm_msm_device *msm;
+ 
+    assert(gbm_core_->v0.core_version == GBM_BACKEND_ABI_VERSION);
