@@ -320,7 +320,7 @@ actions:
           # The steps run as one script, so skip by guarding the rest rather
           # than with 'exit': exiting stops LAVA seeing the suite finish and
           # it is marked failed.
-          - if systemctl cat remote-desktop >/dev/null 2>&1; then RD_PRESENT=1; else RD_PRESENT=0; echo "No remote-desktop service on this image - skipping suite"; for c in remote-desktop-enabled remote-desktop-active serves-vnc survives-client gpu-in-use vnc-absent-when-stopped weston-unaffected-by-stop vnc-returns-when-started; do lava-test-case $c --result skip; done; fi
+          - if systemctl cat remote-desktop >/dev/null 2>&1; then RD_PRESENT=1; else RD_PRESENT=0; echo "No remote-desktop service on this image - skipping suite"; for c in remote-desktop-enabled remote-desktop-active serves-vnc survives-client gpu-in-use weston-active vnc-absent-when-stopped weston-unaffected-by-stop vnc-returns-when-started; do lava-test-case $c --result skip; done; fi
           - if [ "$RD_PRESENT" = 1 ]; then
 
           # Define a stand-in for a VNC client: connects to the VNC port, reads
@@ -349,11 +349,18 @@ actions:
           - RD_PID=$(systemctl show remote-desktop -p MainPID --value)
           - lava-test-case gpu-in-use --shell sh -c "ls -l /proc/$RD_PID/fd | grep -q renderD128"
 
+          # Check that the local compositor is running on its own.
+          - WESTON_BEFORE=$(systemctl is-active weston)
+          - echo "weston before stop: $WESTON_BEFORE"
+          - if [ "$WESTON_BEFORE" = active ]; then lava-test-case weston-active --result pass; else lava-test-case weston-active --result fail; fi
+
           # Stop the remote desktop and verify that nothing answers on the port,
-          # and that the local compositor is unaffected by it stopping.
+          # and that the local compositor's state does not change.
           - systemctl stop remote-desktop && sleep 3
           - if python3 -c "$VNC_CHECK" 2>/dev/null; then lava-test-case vnc-absent-when-stopped --result fail; else lava-test-case vnc-absent-when-stopped --result pass; fi
-          - lava-test-case weston-unaffected-by-stop --shell sh -c "systemctl is-active --quiet weston"
+          - WESTON_AFTER=$(systemctl is-active weston)
+          - echo "weston after stop: $WESTON_AFTER"
+          - if [ "$WESTON_AFTER" = "$WESTON_BEFORE" ]; then lava-test-case weston-unaffected-by-stop --result pass; else lava-test-case weston-unaffected-by-stop --result fail; fi
 
           # Start it again and verify the VNC server comes back.
           - systemctl start remote-desktop

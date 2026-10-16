@@ -168,8 +168,9 @@ Skipped in full on images without the service, i.e. `qcom-minimal-image`.
 | `serves-vnc` | A VNC server answers on port 5900 within `VNC_WAIT` seconds and offers at least one login method |
 | `survives-client` | Service is still running after a client has connected |
 | `gpu-in-use` | The service's compositor has `/dev/dri/renderD128` open, so it is drawn by the GPU and not in software |
+| `weston-active` | `weston.service` is running before the remote desktop is stopped |
 | `vnc-absent-when-stopped` | Nothing answers on the port once the service is stopped |
-| `weston-unaffected-by-stop` | `weston.service` is still running after the remote desktop is stopped |
+| `weston-unaffected-by-stop` | `weston.service` is in the same state after the remote desktop is stopped |
 | `vnc-returns-when-started` | The VNC server answers again once the service is started |
 
 Parameters: `VNC_PORT` (default `5900`) and `VNC_WAIT` (default `15`, seconds
