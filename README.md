@@ -86,7 +86,7 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 | USB 3.0 Type-C | NXP PTN3222 eUSB2 redriver | DWC3 (QCOM) | dwc3-qcom | ✅ Peripheral mode | ✅ Host or peripheral mode | ✅ Peripheral mode |
 | Video Encode (Iris VPU) | Qualcomm Iris VPU | — | qcom-iris | ✅ H.264 / HEVC | ✅ H.264 / HEVC | ❌ |
 | Video Decode (Iris VPU) | Qualcomm Iris VPU | — | qcom-iris | ✅ H.264 / HEVC | ✅ H.264 / HEVC | ❌ |
-| Wi-Fi 802.11a/b/g/n/ac | NXP IW416 | SDIO (SDHC4) | mwifiex_sdio | ✅ | 🚧 Planned | ❌ |
+| Wi-Fi 802.11a/b/g/n/ac | NXP IW416 | SDIO (SDHC4) | mwifiex_sdio | ✅ | 🚧 Planned | ✅ |
 | Yocto / OpenEmbedded Master branch | — | — | — | ✅ | ✅ | ✅ |
 
 ## Upstreaming Status
@@ -770,6 +770,10 @@ gst-launch-1.0 -q filesrc location=/tmp/out.h264 ! h264parse ! v4l2h264dec ! \
 ### Onboard WiFi
 
 The onboard WiFi (NXP [IW416](https://www.nxp.com/products/IW416), `mlan0`) is managed by systemd services, so it is configured once and connects automatically on every boot. No manual `ip link` / `udhcpc` steps are required.
+
+On the QCS6490 SBC the onboard WiFi is an NXP IW610 (Murata LBES0ZZ2LL),
+driven by NXP's `moal` driver with firmware from `nxp-imx/imx-firmware`. It
+also registers as `mlan0`, so the same steps apply.
 
 All commands below run on the target board.
 
