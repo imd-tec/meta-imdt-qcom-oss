@@ -56,37 +56,37 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 
 | Feature | Hardware | Interface | Kernel Driver | QCS8550 SBC Rev 2 (12GB) Status | QCS8550 SBC Rev 5 (8GB) Status | QCS6490 SBC (4GB) Status |
 |---|---|---|---|---|---|---|
-| ADSP | Hexagon v73 DSP | — | remoteproc | 🚧 | 🚧 | 🚧 |
-| Android Debug Bridge (ADB) | — | USB | — | ✅ | ✅ | 🚧 |
-| Audio (LPASS) | — | — | — | 🚧 Planned | 🚧 Planned | 🚧 |
-| Bluetooth | NXP IW416 | UART14 | btnxpuart | ❌ | ❌ | ❌ |
-| Camera (AR1335 - 13MP) | ON Semiconductor AR1335 | CSI0 | ar1335 | ✅ | ✅ | 🚧 |
-| CDSP | Hexagon DSP | — | remoteproc | ✅ | ✅ | ✅ |
+| ADSP | Hexagon v73 DSP | — | remoteproc | 🚧 | 🚧 | ✅ Boots, FastRPC up |
+| Android Debug Bridge (ADB) | — | USB | — | ✅ | ✅ | ✅ |
+| Audio (LPASS) | — | — | — | 🚧 Planned | 🚧 Planned | ❌ LPASS audio clock controller fails to probe |
+| Bluetooth | NXP IW416 | UART14 | btnxpuart | ❌ | ❌ | ❌ hci0 registers, HCI reset times out |
+| Camera (AR1335 - 13MP) | ON Semiconductor AR1335 | CSI0 | ar1335 | ✅ | ✅ | ❌ CAMSS not enabled in DT |
+| CDSP | Hexagon DSP | — | remoteproc | ✅ | ✅ | ✅ Boots, FastRPC up |
 | Debug Serial Console (J19)| — | UART7 (115200 baud) | qcom-geni-serial | ✅ | ✅ | ✅ |
 | DDR Memory | 8GB / 12GB LPDDR5 | — | — | ✅ 12GB | ✅ 8GB | ✅ 4GB |
-| DisplayPort over USB Type-C | Cypress CYPD6125 | DWC3 (QCOM) / USB-C DP Alt Mode | ucsi_ccg | ❌ | ✅ | 🚧 |
-| Gigabit Ethernet | Microchip LAN7430 | PCIe1 (default) | lan743x | ✅ | ✅ | 🚧 |
+| DisplayPort over USB Type-C | Cypress CYPD6125 | DWC3 (QCOM) / USB-C DP Alt Mode | ucsi_ccg | ❌ | ✅ | ❌ Display subsystem not enabled in DT |
+| Gigabit Ethernet | Microchip LAN7430 | PCIe1 (default) | lan743x | ✅ | ✅ | ✅ Enumerates and binds (link not tested) |
 | PCIe Expansion (M.2 Key-B) | PCIe switch downstream Key-B port | PCIe1 (overlay) | qcom-pcie | ✅ Requires Key-B DTBO overlay | ✅ Requires Key-B DTBO overlay | 🚧 |
-| GPIO | PM8550 GPIO bank | SPMI | qcom-spmi-gpio | ✅ | ✅ | 🚧 |
-| GPU (Adreno) | Adreno | — | msm drm | ✅ | ✅ | 🚧 |
-| HDMI Display | DSI-to-HDMI adapter | DSI0 | drm/msm | ❌ | ❌ | 🚧 |
+| GPIO | PM8550 GPIO bank | SPMI | qcom-spmi-gpio | ✅ | ✅ | ✅ |
+| GPU (Adreno) | Adreno | — | msm drm | ✅ | ✅ | ❌ No DRM device, display subsystem not enabled in DT |
+| HDMI Display | DSI-to-HDMI adapter | DSI0 | drm/msm | ❌ | ❌ | ❌ Display subsystem not enabled in DT |
 | I2C | QupV3 I2C hub | I2C | geni-i2c | ✅ | ✅ | ✅ |
-| IPA | Qualcomm IP Accelerator | — | ipa | ✅ | ✅ | 🚧 |
-| ISP (CAMX) | Qualcomm proprietary camera framework | — | — | ❌ | ❌ | 🚧 |
-| libcamera (AR1335) | ON Semiconductor AR1335 | CSI0 | ar1335 | ✅ | ✅ | 🚧 |
-| libcamera tuning (AR1335) | ON Semiconductor AR1335 | CSI0 | ar1335 | 🚧 WiP | 🚧 WiP | 🚧 |
+| IPA | Qualcomm IP Accelerator | — | ipa | ✅ | ✅ | ❌ Not enabled in DT |
+| ISP (CAMX) | Qualcomm proprietary camera framework | — | — | ❌ | ❌ | ❌ |
+| libcamera (AR1335) | ON Semiconductor AR1335 | CSI0 | ar1335 | ✅ | ✅ | ❌ CAMSS not enabled in DT |
+| libcamera tuning (AR1335) | ON Semiconductor AR1335 | CSI0 | ar1335 | 🚧 WiP | 🚧 WiP | ❌ |
 | microSD Card | — | SDHC2 | sdhci | ✅ | ✅ | — |
-| MIPI DSI Display | Team Source TST070WSBE-196C 7" | DSI0 | drm/msm | ✅ | 🚧 Not supported yet | 🚧 |
-| OTA Rootfs Updates | — | — | — | ✅ | ✅ | 🚧 |
-| PCIe Expansion (M.2 Key-E) | M.2 Key-E slot | PCIe0 | qcom-pcie | ✅ | ✅ | 🚧 |
+| MIPI DSI Display | Team Source TST070WSBE-196C 7" | DSI0 | drm/msm | ✅ | 🚧 Not supported yet | ❌ Display subsystem not enabled in DT |
+| OTA Rootfs Updates | — | — | — | ✅ | ✅ | 🚧 OSTree deploys, no ostree-imdt-update or boot blessing yet |
+| PCIe Expansion (M.2 Key-E) | M.2 Key-E slot | PCIe0 | qcom-pcie | ✅ | ✅ | 🚧 Root complex up, no card tested |
 | Remote Desktop (VNC) | — | Network | — | ✅ Multimedia images | ✅ Multimedia images | ❌ Minimal image only |
 | systemd-boot as ARM64 UEFI App| — | — | — | ✅ | ✅ | ✅ |
 | UFS Storage | — | UFS | ufshcd | ✅ | ✅ | — |
 | eMMC Storage | on-SoM 32 GB eMMC | SDHC1 | sdhci-msm | — | — | ✅ |
-| USB 3.0 Type-C | NXP PTN3222 eUSB2 redriver | DWC3 (QCOM) | dwc3-qcom | ✅ Peripheral mode | ✅ Host or peripheral mode | 🚧 |
-| Video Encode (Iris VPU) | Qualcomm Iris VPU | — | qcom-iris | ✅ H.264 / HEVC | ✅ H.264 / HEVC | 🚧 |
-| Video Decode (Iris VPU) | Qualcomm Iris VPU | — | qcom-iris | ✅ H.264 / HEVC | ✅ H.264 / HEVC | 🚧 |
-| Wi-Fi 802.11a/b/g/n/ac | NXP IW416 | SDIO (SDHC4) | mwifiex_sdio | ✅ | 🚧 Planned | 🚧 |
+| USB 3.0 Type-C | NXP PTN3222 eUSB2 redriver | DWC3 (QCOM) | dwc3-qcom | ✅ Peripheral mode | ✅ Host or peripheral mode | ✅ Peripheral mode (CYPD6125, host untested) |
+| Video Encode (Iris VPU) | Qualcomm Iris VPU | — | qcom-iris | ✅ H.264 / HEVC | ✅ H.264 / HEVC | ❌ Video codec not enabled in DT |
+| Video Decode (Iris VPU) | Qualcomm Iris VPU | — | qcom-iris | ✅ H.264 / HEVC | ✅ H.264 / HEVC | ❌ Video codec not enabled in DT |
+| Wi-Fi 802.11a/b/g/n/ac | NXP IW416 | SDIO (SDHC4) | mwifiex_sdio | ✅ | 🚧 Planned | ❌ SDIO module enumerates, no driver binds |
 | Yocto / OpenEmbedded Master branch | — | — | — | ✅ | ✅ | ✅ |
 
 ## Upstreaming Status
