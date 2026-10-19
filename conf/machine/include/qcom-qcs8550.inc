@@ -34,6 +34,7 @@ EFI_PROVIDER = "systemd-boot"
 #Firmware binaries
 MACHINE_ESSENTIAL_EXTRA_RRECOMMENDS += " \
     packagegroup-sm8550-hdk-firmware \
-    packagegroup-sm8550-hdk-hexagon-dsp-binaries  \
+    hexagon-dsp-binaries-qcom-sm8550-imdt-sbc-adsp \
+    hexagon-dsp-binaries-qcom-sm8550-imdt-sbc-cdsp \
     qairt-sdk-hexagon-v73 \
 "
