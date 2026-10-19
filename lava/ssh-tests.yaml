@@ -259,7 +259,7 @@ actions:
           - MODEL=/usr/share/cdsp-htp-test/mobilenet_v2.onnx
           - HTP_OUT=$(cdsp-htp-test "$MODEL" "$HTP_DURATION_S" 2>&1) && HTP_RC=0 || HTP_RC=$?
           - 'echo "$HTP_OUT"'
-          - if [ "$HTP_RC" = 0 ] && echo "$HTP_OUT" | grep -q "RESULT: PASS"; then lava-test-case htp-sustained-inference --result pass; else lava-test-case htp-sustained-inference --result fail; fi
+          - 'if [ "$HTP_RC" = 0 ] && echo "$HTP_OUT" | grep -q "RESULT: PASS"; then lava-test-case htp-sustained-inference --result pass; else lava-test-case htp-sustained-inference --result fail; fi'
 
     - from: inline
       name: gpu-dmesg
@@ -351,7 +351,7 @@ actions:
 
           # Check that the local compositor is running on its own.
           - WESTON_BEFORE=$(systemctl is-active weston)
-          - echo "weston before stop: $WESTON_BEFORE"
+          - 'echo "weston before stop: $WESTON_BEFORE"'
           - if [ "$WESTON_BEFORE" = active ]; then lava-test-case weston-active --result pass; else lava-test-case weston-active --result fail; fi
 
           # Stop the remote desktop and verify that nothing answers on the port,
@@ -359,7 +359,7 @@ actions:
           - systemctl stop remote-desktop && sleep 3
           - if python3 -c "$VNC_CHECK" 2>/dev/null; then lava-test-case vnc-absent-when-stopped --result fail; else lava-test-case vnc-absent-when-stopped --result pass; fi
           - WESTON_AFTER=$(systemctl is-active weston)
-          - echo "weston after stop: $WESTON_AFTER"
+          - 'echo "weston after stop: $WESTON_AFTER"'
           - if [ "$WESTON_AFTER" = "$WESTON_BEFORE" ]; then lava-test-case weston-unaffected-by-stop --result pass; else lava-test-case weston-unaffected-by-stop --result fail; fi
 
           # Start it again and verify the VNC server comes back.
