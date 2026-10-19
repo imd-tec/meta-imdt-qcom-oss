@@ -11,6 +11,12 @@ require imdt-image-common.inc
 # image falls back to the mainline q6apm path qcom-multimedia-image uses.
 CORE_IMAGE_BASE_INSTALL:remove = "packagegroup-audioreach"
 
+# Drop the Qualcomm sensors stack. It ships SC8380 sensor configs, which make
+# the ADSP sensors registry assert (sns_registry_sensor.c) and crash-loop the
+# ADSP. While it does, the cDSP never answers glink, so /dev/fastrpc-cdsp is
+# never created and the HTP cannot be used. The SBC has no ADSP sensors.
+CORE_IMAGE_BASE_INSTALL:remove = "qcom-sensors-binaries"
+
 # Remote desktop by default: Weston runs on the local display, over VNC, or
 # both, selected at runtime from /etc/default/remote-desktop. Only added to
 # images that have Weston. See docs/remote-desktop.md.
