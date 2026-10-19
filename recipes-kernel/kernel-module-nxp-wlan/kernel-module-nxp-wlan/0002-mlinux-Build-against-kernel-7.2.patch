@@ -1,0 +1,293 @@
+From 91c4316b754e0cc37acc879cb7ba8c767374a490 Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Mon, 19 Oct 2026 14:00:20 +0100
+Subject: [PATCH] mlinux: Build against kernel 7.2
+
+Kernel 7.2 removed strncpy() and struct sockaddr's sa_data_min, and
+passes the wireless_dev instead of the net_device to
+cfg80211_new_sta(), cfg80211_del_sta() and several cfg80211_ops.
+remain_on_channel also gained an rx_addr argument. In struct
+ieee80211_mgmt the action code moved next to the category, so the
+TDLS discovery response is built from the new layout at the same
+length. Add shims in moal_main.h and thin wireless_dev wrappers for
+the changed ops.
+
+Upstream-Status: Inappropriate [IMDT kernel compatibility]
+Assisted-by: Claude:claude-opus-5-5
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+---
+ mlinux/moal_main.h         |  28 +++++++++
+ mlinux/moal_shim.c         |   4 +-
+ mlinux/moal_sta_cfg80211.c | 125 ++++++++++++++++++++++++++++++++-----
+ mlinux/moal_uap_cfg80211.c |   2 +-
+ 4 files changed, 140 insertions(+), 19 deletions(-)
+
+diff --git a/mlinux/moal_main.h b/mlinux/moal_main.h
+index 8153bf5..e9bd9c4 100644
+--- a/mlinux/moal_main.h
++++ b/mlinux/moal_main.h
+@@ -38,6 +38,34 @@ Change log:
+ #include <linux/module.h>
+ #include <linux/init.h>
+ #include <linux/version.h>
++
++/* Kernel 7.2 compatibility */
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 2, 0)
++#include <linux/string.h>
++/* cfg80211_new_sta() and cfg80211_del_sta() take the wireless_dev */
++#define MOAL_WDEV(ndev) ((ndev)->ieee80211_ptr)
++/* tdls_discover_resp moved up a level and its action_code joined category */
++#define MOAL_TDLS_DISC_RESP(m) ((m)->u.action.tdls_discover_resp)
++#define MOAL_TDLS_DISC_ACTION(m) ((m)->u.action.action_code)
++#define MOAL_TDLS_DISC_RESP_LEN(m) (2 + sizeof(MOAL_TDLS_DISC_RESP(m)))
++/* struct sockaddr lost sa_data_min, sa_data is fixed size again */
++#define sa_data_min sa_data
++/* strncpy() was removed; keep its zero padding semantics */
++static inline char *moal_strncpy(char *dst, const char *src, size_t n)
++{
++	size_t len = strnlen(src, n);
++
++	memcpy(dst, src, len);
++	memset(dst + len, 0, n - len);
++	return dst;
++}
++#define strncpy moal_strncpy
++#else
++#define MOAL_WDEV(ndev) (ndev)
++#define MOAL_TDLS_DISC_RESP(m) ((m)->u.action.u.tdls_discover_resp)
++#define MOAL_TDLS_DISC_ACTION(m) (MOAL_TDLS_DISC_RESP(m).action_code)
++#define MOAL_TDLS_DISC_RESP_LEN(m) (1 + sizeof(MOAL_TDLS_DISC_RESP(m)))
++#endif
+ #include <linux/param.h>
+ #include <linux/delay.h>
+ #include <linux/slab.h>
+diff --git a/mlinux/moal_shim.c b/mlinux/moal_shim.c
+index 7aebbdf..abc286c 100644
+--- a/mlinux/moal_shim.c
++++ b/mlinux/moal_shim.c
+@@ -5038,7 +5038,7 @@ mlan_status moal_recv_event(t_void *pmoal, pmlan_event pmevent)
+ 				}
+ #endif /* KERNEL_VERSION */
+ 				if (priv->netdev && priv->wdev)
+-					cfg80211_new_sta(priv->netdev,
++					cfg80211_new_sta(MOAL_WDEV(priv->netdev),
+ 							 (t_u8 *)addr, sinfo,
+ 							 GFP_KERNEL);
+ 				kfree(sinfo);
+@@ -5101,7 +5101,7 @@ mlan_status moal_recv_event(t_void *pmoal, pmlan_event pmevent)
+ 			} else
+ #endif
+ 				if (priv->netdev && priv->wdev)
+-				cfg80211_del_sta(priv->netdev,
++				cfg80211_del_sta(MOAL_WDEV(priv->netdev),
+ 						 pmevent->event_buf + 2,
+ 						 GFP_KERNEL);
+ 
+diff --git a/mlinux/moal_sta_cfg80211.c b/mlinux/moal_sta_cfg80211.c
+index 58d4592..6b8b32a 100644
+--- a/mlinux/moal_sta_cfg80211.c
++++ b/mlinux/moal_sta_cfg80211.c
+@@ -404,6 +404,99 @@ static mlan_status woal_cfg80211_dump_station_info(moal_private *priv,
+ 						   struct station_info *sinfo);
+ 
+ /** cfg80211 operations */
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 2, 0)
++/* Kernel 7.2 passes the wireless_dev to these ops */
++static int woal_cfg80211_get_station_wdev(struct wiphy *wiphy,
++					  struct wireless_dev *wdev,
++					  const u8 *mac,
++					  struct station_info *sinfo)
++{
++	return woal_cfg80211_get_station(wiphy, wdev->netdev, mac, sinfo);
++}
++
++static int woal_cfg80211_dump_station_wdev(struct wiphy *wiphy,
++					   struct wireless_dev *wdev, int idx,
++					   u8 *mac, struct station_info *sinfo)
++{
++	return woal_cfg80211_dump_station(wiphy, wdev->netdev, idx, mac,
++					  sinfo);
++}
++
++static int woal_cfg80211_add_key_wdev(struct wiphy *wiphy,
++				      struct wireless_dev *wdev, int link_id,
++				      u8 key_index, bool pairwise,
++				      const u8 *mac_addr,
++				      struct key_params *params)
++{
++	return woal_cfg80211_add_key(wiphy, wdev->netdev, link_id, key_index,
++				     pairwise, mac_addr, params);
++}
++
++static int woal_cfg80211_del_key_wdev(struct wiphy *wiphy,
++				      struct wireless_dev *wdev, int link_id,
++				      u8 key_index, bool pairwise,
++				      const u8 *mac_addr)
++{
++	return woal_cfg80211_del_key(wiphy, wdev->netdev, link_id, key_index,
++				     pairwise, mac_addr);
++}
++
++static int woal_cfg80211_set_default_mgmt_key_wdev(struct wiphy *wiphy,
++						   struct wireless_dev *wdev,
++						   int link_id, u8 key_index)
++{
++	return woal_cfg80211_set_default_mgmt_key(wiphy, wdev->netdev, link_id,
++						  key_index);
++}
++
++static int woal_cfg80211_set_default_beacon_key_wdev(struct wiphy *wiphy,
++						     struct wireless_dev *wdev,
++						     int link_id, u8 key_index)
++{
++	return woal_cfg80211_set_default_beacon_key(wiphy, wdev->netdev,
++						    link_id, key_index);
++}
++
++static int woal_cfg80211_change_station_wdev(struct wiphy *wiphy,
++					     struct wireless_dev *wdev,
++					     const u8 *mac,
++					     struct station_parameters *params)
++{
++	return woal_cfg80211_change_station(wiphy, wdev->netdev, mac, params);
++}
++
++#ifdef UAP_CFG80211
++static int woal_cfg80211_add_station_wdev(struct wiphy *wiphy,
++					  struct wireless_dev *wdev,
++					  const u8 *mac,
++					  struct station_parameters *params)
++{
++	return woal_cfg80211_add_station(wiphy, wdev->netdev, mac, params);
++}
++
++static int
++woal_cfg80211_del_station_wdev(struct wiphy *wiphy, struct wireless_dev *wdev,
++			       struct station_del_parameters *params)
++{
++	return woal_cfg80211_del_station(wiphy, wdev->netdev, params);
++}
++#endif
++
++static int woal_cfg80211_remain_on_channel_wdev(struct wiphy *wiphy,
++						struct wireless_dev *wdev,
++						struct ieee80211_channel *chan,
++						unsigned int duration,
++						u64 *cookie, const u8 *rx_addr)
++{
++	return woal_cfg80211_remain_on_channel(wiphy, wdev, chan, duration,
++					       cookie);
++}
++
++#define MOAL_OP(op) woal_cfg80211_##op##_wdev
++#else
++#define MOAL_OP(op) woal_cfg80211_##op
++#endif
++
+ static struct cfg80211_ops woal_cfg80211_ops = {
+ 	.change_virtual_intf = woal_cfg80211_change_virtual_intf,
+ 	.scan = woal_cfg80211_scan,
+@@ -416,8 +509,8 @@ static struct cfg80211_ops woal_cfg80211_ops = {
+ 	.deauth = woal_cfg80211_deauthenticate,
+ 	.disassoc = woal_cfg80211_disassociate,
+ #endif
+-	.get_station = woal_cfg80211_get_station,
+-	.dump_station = woal_cfg80211_dump_station,
++	.get_station = MOAL_OP(get_station),
++	.dump_station = MOAL_OP(dump_station),
+ 	.dump_survey = woal_cfg80211_dump_survey,
+ 	.set_wiphy_params = woal_cfg80211_set_wiphy_params,
+ #if CFG80211_VERSION_CODE < KERNEL_VERSION(3, 5, 0)
+@@ -426,14 +519,14 @@ static struct cfg80211_ops woal_cfg80211_ops = {
+ #if CFG80211_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)
+ 	.get_channel = woal_cfg80211_get_channel,
+ #endif
+-	.add_key = woal_cfg80211_add_key,
+-	.del_key = woal_cfg80211_del_key,
++	.add_key = MOAL_OP(add_key),
++	.del_key = MOAL_OP(del_key),
+ 	.set_default_key = woal_cfg80211_set_default_key,
+ #if CFG80211_VERSION_CODE >= KERNEL_VERSION(2, 6, 30)
+-	.set_default_mgmt_key = woal_cfg80211_set_default_mgmt_key,
++	.set_default_mgmt_key = MOAL_OP(set_default_mgmt_key),
+ #endif
+ #if CFG80211_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+-	.set_default_beacon_key = woal_cfg80211_set_default_beacon_key,
++	.set_default_beacon_key = MOAL_OP(set_default_beacon_key),
+ #endif
+ 
+ #if CFG80211_VERSION_CODE >= KERNEL_VERSION(3, 1, 0)
+@@ -475,7 +568,7 @@ static struct cfg80211_ops woal_cfg80211_ops = {
+ #endif
+ #endif
+ #if CFG80211_VERSION_CODE >= KERNEL_VERSION(3, 2, 0)
+-	.change_station = woal_cfg80211_change_station,
++	.change_station = MOAL_OP(change_station),
+ #endif
+ #if CFG80211_VERSION_CODE >= KERNEL_VERSION(3, 10, 0)
+ 	.update_ft_ies = woal_cfg80211_update_ft_ies,
+@@ -502,9 +595,9 @@ static struct cfg80211_ops woal_cfg80211_ops = {
+ 	.change_bss = woal_cfg80211_change_bss,
+ #endif
+ #if CFG80211_VERSION_CODE >= KERNEL_VERSION(3, 2, 0)
+-	.add_station = woal_cfg80211_add_station,
++	.add_station = MOAL_OP(add_station),
+ #endif
+-	.del_station = woal_cfg80211_del_station,
++	.del_station = MOAL_OP(del_station),
+ #if CFG80211_VERSION_CODE >= KERNEL_VERSION(3, 1, 0)
+ 	.set_txq_params = woal_cfg80211_set_txq_params,
+ #endif
+@@ -528,7 +621,7 @@ static struct cfg80211_ops woal_cfg80211_ops = {
+ 
+ #if CFG80211_VERSION_CODE >= KERNEL_VERSION(2, 6, 39)
+ 	.mgmt_tx_cancel_wait = woal_cfg80211_mgmt_tx_cancel_wait,
+-	.remain_on_channel = woal_cfg80211_remain_on_channel,
++	.remain_on_channel = MOAL_OP(remain_on_channel),
+ 	.cancel_remain_on_channel = woal_cfg80211_cancel_remain_on_channel,
+ #endif
+ 
+@@ -9312,16 +9405,16 @@ static int woal_construct_tdls_action_frame(moal_private *priv,
+ 			LEAVE();
+ 			return -EFAULT;
+ 		}
+-		skb_put(skb, 1 + sizeof(mgmt->u.action.u.tdls_discover_resp));
++		skb_put(skb, MOAL_TDLS_DISC_RESP_LEN(mgmt));
+ 		mgmt->u.action.category = WLAN_CATEGORY_PUBLIC;
+-		mgmt->u.action.u.tdls_discover_resp.action_code =
++		MOAL_TDLS_DISC_ACTION(mgmt) =
+ 			WLAN_PUB_ACTION_TDLS_DISCOVER_RES;
+-		mgmt->u.action.u.tdls_discover_resp.dialog_token = dialog_token;
+-		mgmt->u.action.u.tdls_discover_resp.capability =
++		MOAL_TDLS_DISC_RESP(mgmt).dialog_token = dialog_token;
++		MOAL_TDLS_DISC_RESP(mgmt).capability =
+ 			cpu_to_le16(capability);
+ 		/* move back for addr4 */
+ 		memmove(pos + ETH_ALEN, &mgmt->u.action,
+-			1 + sizeof(mgmt->u.action.u.tdls_discover_resp));
++			MOAL_TDLS_DISC_RESP_LEN(mgmt));
+ 		/** init address 4 */
+ 		moal_memcpy_ext(priv->phandle, pos, addr, ETH_ALEN, ETH_ALEN);
+ 
+@@ -11155,7 +11248,7 @@ int woal_cfg80211_uap_add_station(struct wiphy *wiphy, struct net_device *dev,
+ 		struct station_info *sinfo = NULL;
+ 		sinfo = kzalloc(sizeof(struct station_info), GFP_KERNEL);
+ 		if (sinfo) {
+-			cfg80211_new_sta(dev, mac, sinfo, GFP_KERNEL);
++			cfg80211_new_sta(MOAL_WDEV(dev), mac, sinfo, GFP_KERNEL);
+ 			kfree(sinfo);
+ 		}
+ 	}
+diff --git a/mlinux/moal_uap_cfg80211.c b/mlinux/moal_uap_cfg80211.c
+index 1c31a2a..d413e26 100644
+--- a/mlinux/moal_uap_cfg80211.c
++++ b/mlinux/moal_uap_cfg80211.c
+@@ -583,7 +583,7 @@ static int woal_deauth_assoc_station(moal_private *priv, const u8 *mac_addr,
+ 	}
+ #if KERNEL_VERSION(3, 8, 0) <= CFG80211_VERSION_CODE
+ 	if (moal_extflg_isset(priv->phandle, EXT_HOST_MLME))
+-		cfg80211_del_sta(priv->netdev, mac_addr, GFP_KERNEL);
++		cfg80211_del_sta(MOAL_WDEV(priv->netdev), mac_addr, GFP_KERNEL);
+ #endif
+ 	if (priv->media_connected == MFALSE) {
+ 		PRINTM(MINFO, "cfg80211: Media not connected!\n");
