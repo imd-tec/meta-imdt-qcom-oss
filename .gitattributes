@@ -15,3 +15,4 @@ recipes-kernel/linux-firmware/linux-firmware/CYPD6125-40LQXI_notebook_1.cyacd fi
 recipes-kernel/linux-firmware/linux-firmware/CYPD6125-40LQXI_notebook_2.cyacd filter=lfs diff=lfs merge=lfs -text
 recipes-bsp/firmware-boot/files/imdt-8550-sbc-fw-v2_1_3.zip filter=lfs diff=lfs merge=lfs -text
 recipes-test/cdsp-htp-test/files/mobilenet_v2.onnx filter=lfs diff=lfs merge=lfs -text
+recipes-bsp/hexagon-dspso/files/dspso.bin filter=lfs diff=lfs merge=lfs -text
