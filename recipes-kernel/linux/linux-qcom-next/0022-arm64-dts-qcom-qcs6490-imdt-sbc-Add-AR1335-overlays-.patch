@@ -1,0 +1,325 @@
+From e2d3d4a73659cb65409eb0d84eed77c283c1cfb6 Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Tue, 20 Oct 2026 14:26:45 +0100
+Subject: [PATCH] arm64: dts: qcom: qcs6490-imdt-sbc: Add AR1335 overlays for
+ CSI0, CSI1, CSI3
+
+Add AR1335 overlays for the carrier CSI0 (J40), CSI1 (J57) and CSI3
+(J58) connectors, wired as on SoM 01.
+
+The CSI4 connector (J59) gets no overlay. Its I2C only reaches the
+SoM through the TCA9546A on the AON camera bus, and the SoM does not
+connect those pads.
+
+Assisted-by: Claude:claude-opus-5-5
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+---
+ arch/arm64/boot/dts/qcom/Makefile             |  3 +
+ .../qcom/qcs6490-imdt-sbc-ar1335-csi0.dtso    | 89 +++++++++++++++++++
+ .../qcom/qcs6490-imdt-sbc-ar1335-csi1.dtso    | 89 +++++++++++++++++++
+ .../qcom/qcs6490-imdt-sbc-ar1335-csi3.dtso    | 89 +++++++++++++++++++
+ 4 files changed, 270 insertions(+)
+ create mode 100644 arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc-ar1335-csi0.dtso
+ create mode 100644 arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc-ar1335-csi1.dtso
+ create mode 100644 arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc-ar1335-csi3.dtso
+
+diff --git a/arch/arm64/boot/dts/qcom/Makefile b/arch/arm64/boot/dts/qcom/Makefile
+index 122d3549a46e..f5a543522acd 100644
+--- a/arch/arm64/boot/dts/qcom/Makefile
++++ b/arch/arm64/boot/dts/qcom/Makefile
+@@ -232,7 +232,10 @@ qcs615-ride-el2-dtbs := qcs615-ride.dtb talos-el2.dtbo
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs615-ride-el2.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= talos-el2.dtbo
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs6490-imdt-sbc.dtb
++dtb-$(CONFIG_ARCH_QCOM)	+= qcs6490-imdt-sbc-ar1335-csi0.dtbo
++dtb-$(CONFIG_ARCH_QCOM)	+= qcs6490-imdt-sbc-ar1335-csi1.dtbo
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs6490-imdt-sbc-ar1335-csi2.dtbo
++dtb-$(CONFIG_ARCH_QCOM)	+= qcs6490-imdt-sbc-ar1335-csi3.dtbo
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs6490-imdt-sbc-pcie-keyb.dtbo
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs6490-radxa-dragon-q6a.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs6490-rb3gen2.dtb
+diff --git a/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc-ar1335-csi0.dtso b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc-ar1335-csi0.dtso
+new file mode 100644
+index 000000000000..2728ce45357e
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc-ar1335-csi0.dtso
+@@ -0,0 +1,89 @@
++// SPDX-License-Identifier: BSD-3-Clause
++/*
++ * QCS6490 IMDT SBC AR1335 carrier CSI0 (J40) camera overlay (SoM 01)
++ *
++ * Copyright (c) 2026 IMD Technologies Ltd
++ */
++
++#include <dt-bindings/clock/qcom,camcc-sc7280.h>
++#include <dt-bindings/gpio/gpio.h>
++
++/dts-v1/;
++/plugin/;
++
++&tlmm {
++	ar1335_csi0_mclk_default: ar1335-csi0-mclk-default-state {
++		pins = "gpio65";
++		function = "cam_mclk";
++		drive-strength = <2>;
++		bias-disable;
++	};
++
++	ar1335_csi0_rst_default: ar1335-csi0-rst-default-state {
++		pins = "gpio21";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-disable;
++	};
++};
++
++&camss {
++	vdda-phy-supply = <&vreg_l10c_0p88>;
++	vdda-pll-supply = <&vreg_l6b_1p2>;
++
++	status = "okay";
++
++	ports {
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		/* Carrier CSI0 is QCS6490 CSIPHY3 on SoM 01 */
++		port@3 {
++			reg = <3>;
++
++			csiphy3_ep: endpoint {
++				clock-lanes = <7>;
++				data-lanes = <0 1 2 3>;
++				remote-endpoint = <&ar1335_csi0_ep>;
++			};
++		};
++	};
++};
++
++&cci1 {
++	status = "okay";
++};
++
++&cci1_i2c1 {
++	#address-cells = <1>;
++	#size-cells = <0>;
++
++	ar1335_csi0: sensor@36 {
++		compatible = "onnn,ar1335";
++		reg = <0x36>;
++
++		clocks = <&camcc CAM_CC_MCLK1_CLK>;
++		clock-names = "extclk";
++		assigned-clocks = <&camcc CAM_CC_MCLK1_CLK>;
++		assigned-clock-rates = <19200000>;
++
++		reset-gpios = <&tlmm 21 GPIO_ACTIVE_LOW>;
++
++		pinctrl-names = "default";
++		pinctrl-0 = <&ar1335_csi0_mclk_default &ar1335_csi0_rst_default>;
++
++		vdd_io-supply = <&cam_1v8_reg>;
++		vdd-supply = <&cam_1v2_reg>;
++		vaa-supply = <&hr_cam_pwr>;
++
++		orientation = <0>;	/* Front */
++		rotation = <0>;
++
++		port {
++			ar1335_csi0_ep: endpoint {
++				data-lanes = <1 2 3 4>;
++				remote-endpoint = <&csiphy3_ep>;
++			};
++		};
++	};
++};
+diff --git a/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc-ar1335-csi1.dtso b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc-ar1335-csi1.dtso
+new file mode 100644
+index 000000000000..4036d688d14e
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc-ar1335-csi1.dtso
+@@ -0,0 +1,89 @@
++// SPDX-License-Identifier: BSD-3-Clause
++/*
++ * QCS6490 IMDT SBC AR1335 carrier CSI1 (J57) camera overlay (SoM 01)
++ *
++ * Copyright (c) 2026 IMD Technologies Ltd
++ */
++
++#include <dt-bindings/clock/qcom,camcc-sc7280.h>
++#include <dt-bindings/gpio/gpio.h>
++
++/dts-v1/;
++/plugin/;
++
++&tlmm {
++	ar1335_csi1_mclk_default: ar1335-csi1-mclk-default-state {
++		pins = "gpio66";
++		function = "cam_mclk";
++		drive-strength = <2>;
++		bias-disable;
++	};
++
++	ar1335_csi1_rst_default: ar1335-csi1-rst-default-state {
++		pins = "gpio77";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-disable;
++	};
++};
++
++&camss {
++	vdda-phy-supply = <&vreg_l10c_0p88>;
++	vdda-pll-supply = <&vreg_l6b_1p2>;
++
++	status = "okay";
++
++	ports {
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		/* Carrier CSI1 is QCS6490 CSIPHY0 on SoM 01 */
++		port@0 {
++			reg = <0>;
++
++			csiphy0_ep: endpoint {
++				clock-lanes = <7>;
++				data-lanes = <0 1 2 3>;
++				remote-endpoint = <&ar1335_csi1_ep>;
++			};
++		};
++	};
++};
++
++&cci0 {
++	status = "okay";
++};
++
++&cci0_i2c1 {
++	#address-cells = <1>;
++	#size-cells = <0>;
++
++	ar1335_csi1: sensor@36 {
++		compatible = "onnn,ar1335";
++		reg = <0x36>;
++
++		clocks = <&camcc CAM_CC_MCLK2_CLK>;
++		clock-names = "extclk";
++		assigned-clocks = <&camcc CAM_CC_MCLK2_CLK>;
++		assigned-clock-rates = <19200000>;
++
++		reset-gpios = <&tlmm 77 GPIO_ACTIVE_LOW>;
++
++		pinctrl-names = "default";
++		pinctrl-0 = <&ar1335_csi1_mclk_default &ar1335_csi1_rst_default>;
++
++		vdd_io-supply = <&cam_1v8_reg>;
++		vdd-supply = <&cam_1v2_reg>;
++		vaa-supply = <&hr_cam_pwr>;
++
++		orientation = <0>;	/* Front */
++		rotation = <0>;
++
++		port {
++			ar1335_csi1_ep: endpoint {
++				data-lanes = <1 2 3 4>;
++				remote-endpoint = <&csiphy0_ep>;
++			};
++		};
++	};
++};
+diff --git a/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc-ar1335-csi3.dtso b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc-ar1335-csi3.dtso
+new file mode 100644
+index 000000000000..b28e732f66e3
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc-ar1335-csi3.dtso
+@@ -0,0 +1,89 @@
++// SPDX-License-Identifier: BSD-3-Clause
++/*
++ * QCS6490 IMDT SBC AR1335 carrier CSI3 (J58) camera overlay (SoM 01)
++ *
++ * Copyright (c) 2026 IMD Technologies Ltd
++ */
++
++#include <dt-bindings/clock/qcom,camcc-sc7280.h>
++#include <dt-bindings/gpio/gpio.h>
++
++/dts-v1/;
++/plugin/;
++
++&tlmm {
++	ar1335_csi3_mclk_default: ar1335-csi3-mclk-default-state {
++		pins = "gpio64";
++		function = "cam_mclk";
++		drive-strength = <2>;
++		bias-disable;
++	};
++
++	ar1335_csi3_rst_default: ar1335-csi3-rst-default-state {
++		pins = "gpio20";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-disable;
++	};
++};
++
++&camss {
++	vdda-phy-supply = <&vreg_l10c_0p88>;
++	vdda-pll-supply = <&vreg_l6b_1p2>;
++
++	status = "okay";
++
++	ports {
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		/* Carrier CSI3 is QCS6490 CSIPHY2 on SoM 01 */
++		port@2 {
++			reg = <2>;
++
++			csiphy2_ep: endpoint {
++				clock-lanes = <7>;
++				data-lanes = <0 1 2 3>;
++				remote-endpoint = <&ar1335_csi3_ep>;
++			};
++		};
++	};
++};
++
++&cci0 {
++	status = "okay";
++};
++
++&cci0_i2c0 {
++	#address-cells = <1>;
++	#size-cells = <0>;
++
++	ar1335_csi3: sensor@36 {
++		compatible = "onnn,ar1335";
++		reg = <0x36>;
++
++		clocks = <&camcc CAM_CC_MCLK0_CLK>;
++		clock-names = "extclk";
++		assigned-clocks = <&camcc CAM_CC_MCLK0_CLK>;
++		assigned-clock-rates = <19200000>;
++
++		reset-gpios = <&tlmm 20 GPIO_ACTIVE_LOW>;
++
++		pinctrl-names = "default";
++		pinctrl-0 = <&ar1335_csi3_mclk_default &ar1335_csi3_rst_default>;
++
++		vdd_io-supply = <&cam_1v8_reg>;
++		vdd-supply = <&cam_1v2_reg>;
++		vaa-supply = <&hr_cam_pwr>;
++
++		orientation = <0>;	/* Front */
++		rotation = <0>;
++
++		port {
++			ar1335_csi3_ep: endpoint {
++				data-lanes = <1 2 3 4>;
++				remote-endpoint = <&csiphy2_ep>;
++			};
++		};
++	};
++};

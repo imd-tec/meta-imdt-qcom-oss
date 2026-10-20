@@ -638,10 +638,16 @@ v4l2-ctl -d /dev/video0 --stream-mmap
 You may need to change the name of the video device as sometimes it can be
 `/dev/video1`.
 
-On the QCS6490 SBC the camera is on carrier CSI2, and
-`qcs6490-csi2-ar1335.service` sets up the same pipeline through
-`msm_csiphy1` at boot (`/usr/sbin/qcs6490-csi2-ar1335.sh`). Stream from
-the `msm_vfe0_video0` node:
+On the QCS6490 SBC (SoM 01) there is an AR1335 overlay for each of
+carrier CSI0 to CSI3 (J40, J57, J35, J58),
+`qcs6490-imdt-sbc-ar1335-csi0` to `-csi3`. Only one can be applied at a
+time, and the FIT applies `-csi2` by default. Select another one in the
+`qcom_qcs6490-iot` line of `imdt-fit-dtb-compatible.inc`. CSI4 (J59) is
+not supported, as its I2C does not reach the 6490 SoM.
+
+`qcs6490-ar1335.service` sets up the pipeline at boot
+(`/usr/sbin/qcs6490-ar1335.sh`), using whichever CSI PHY the applied
+overlay connects the sensor to. Stream from the `msm_vfe0_video0` node:
 
 ```bash
 v4l2-ctl -d $(media-ctl -d /dev/media0 -e msm_vfe0_video0) --stream-mmap

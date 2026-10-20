@@ -7,8 +7,8 @@ LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda
 SRC_URI = " \
     file://qcs8550-csi0-ar1335.sh \
     file://qcs8550-csi0-ar1335.service \
-    file://qcs6490-csi2-ar1335.sh \
-    file://qcs6490-csi2-ar1335.service \
+    file://qcs6490-ar1335.sh \
+    file://qcs6490-ar1335.service \
 "
 
 S = "${UNPACKDIR}"
@@ -17,7 +17,7 @@ inherit systemd
 
 # Each board configures its own AR1335 media pipeline at boot.
 CAMSS_PIPELINE = "qcs8550-csi0-ar1335"
-CAMSS_PIPELINE:imdt-6490-sbc = "qcs6490-csi2-ar1335"
+CAMSS_PIPELINE:imdt-6490-sbc = "qcs6490-ar1335"
 PACKAGE_ARCH = "${MACHINE_ARCH}"
 
 SYSTEMD_SERVICE:${PN} = "${CAMSS_PIPELINE}.service"
