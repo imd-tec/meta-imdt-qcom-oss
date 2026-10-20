@@ -5,7 +5,8 @@
 
 require conf/machine/include/fit-dtb-compatible-linux-qcom.inc
 
-FIT_DTB_COMPATIBLE[qcom_qcs6490-iot] = "qcs6490-imdt-sbc"
+# Base config = base DTB + ar1335-csi2.
+FIT_DTB_COMPATIBLE[qcom_qcs6490-iot] = "qcs6490-imdt-sbc qcs6490-imdt-sbc-ar1335-csi2"
 
 # UEFI matches the hyphen-separated suffix tokens (registered by the
 # qcom-dtb-metadata bbappend). Base config = base DTB + display + ar1335-csi0.

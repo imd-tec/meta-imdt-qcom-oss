@@ -30,6 +30,7 @@ SRC_URI:append = " \
     file://0018-arm64-dts-qcom-qcs8550-imdt-sbc-Stop-the-display-ove.patch \
     file://0019-misc-fastrpc-retry-INIT_CREATE-on-transient-DSP-tear.patch \
     file://0020-arm64-dts-qcom-qcs6490-imdt-sbc-Describe-the-CYPD612.patch \
+    file://0021-arm64-dts-qcom-qcs6490-imdt-sbc-Add-AR1335-CSI2-came.patch \
     file://configs/imdt.cfg \
 "
 

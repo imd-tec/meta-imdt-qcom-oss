@@ -60,7 +60,7 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 | Android Debug Bridge (ADB) | — | USB | — | ✅ | ✅ | ✅ |
 | Audio (LPASS) | — | — | — | 🚧 Planned | 🚧 Planned | ❌ |
 | Bluetooth | NXP IW416 | UART14 | btnxpuart | ❌ | ❌ | ❌ |
-| Camera (AR1335 - 13MP) | ON Semiconductor AR1335 | CSI0 | ar1335 | ✅ | ✅ | ❌ |
+| Camera (AR1335 - 13MP) | ON Semiconductor AR1335 | CSI0 | ar1335 | ✅ | ✅ | ✅ |
 | CDSP | Hexagon DSP | — | remoteproc | ✅ | ✅ | ✅ |
 | Debug Serial Console (J19)| — | UART7 (115200 baud) | qcom-geni-serial | ✅ | ✅ | ✅ |
 | DDR Memory | 8GB / 12GB LPDDR5 | — | — | ✅ 12GB | ✅ 8GB | ✅ 4GB |
