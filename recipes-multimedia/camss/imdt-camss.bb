@@ -7,22 +7,28 @@ LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda
 SRC_URI = " \
     file://qcs8550-csi0-ar1335.sh \
     file://qcs8550-csi0-ar1335.service \
+    file://qcs6490-csi2-ar1335.sh \
+    file://qcs6490-csi2-ar1335.service \
 "
 
 S = "${UNPACKDIR}"
 
 inherit systemd
 
-# Configure the CSI0 AR1335 media pipeline automatically at boot.
-SYSTEMD_SERVICE:${PN} = "qcs8550-csi0-ar1335.service"
+# Each board configures its own AR1335 media pipeline at boot.
+CAMSS_PIPELINE = "qcs8550-csi0-ar1335"
+CAMSS_PIPELINE:imdt-6490-sbc = "qcs6490-csi2-ar1335"
+PACKAGE_ARCH = "${MACHINE_ARCH}"
+
+SYSTEMD_SERVICE:${PN} = "${CAMSS_PIPELINE}.service"
 
 # ${sbindir}, not /opt: /opt is /var on an OSTree system, which no deployment populates.
 do_install() {
-    install -D -m 0755 ${S}/qcs8550-csi0-ar1335.sh \
-        ${D}${sbindir}/qcs8550-csi0-ar1335.sh
+    install -D -m 0755 ${S}/${CAMSS_PIPELINE}.sh \
+        ${D}${sbindir}/${CAMSS_PIPELINE}.sh
 
-    install -D -m 0644 ${S}/qcs8550-csi0-ar1335.service \
-        ${D}${systemd_system_unitdir}/qcs8550-csi0-ar1335.service
+    install -D -m 0644 ${S}/${CAMSS_PIPELINE}.service \
+        ${D}${systemd_system_unitdir}/${CAMSS_PIPELINE}.service
 }
 
 

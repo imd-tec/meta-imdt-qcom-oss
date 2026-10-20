@@ -638,6 +638,15 @@ v4l2-ctl -d /dev/video0 --stream-mmap
 You may need to change the name of the video device as sometimes it can be
 `/dev/video1`.
 
+On the QCS6490 SBC the camera is on carrier CSI2, and
+`qcs6490-csi2-ar1335.service` sets up the same pipeline through
+`msm_csiphy1` at boot (`/usr/sbin/qcs6490-csi2-ar1335.sh`). Stream from
+the `msm_vfe0_video0` node:
+
+```bash
+v4l2-ctl -d $(media-ctl -d /dev/media0 -e msm_vfe0_video0) --stream-mmap
+```
+
 #### Streaming with GStreamer over the network
 
 You can also pull a live preview from the AR1335 over the network using
