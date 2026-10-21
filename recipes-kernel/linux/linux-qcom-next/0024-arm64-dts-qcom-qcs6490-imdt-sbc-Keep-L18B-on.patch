@@ -1,0 +1,28 @@
+From 2a8ec5b411762426d0c54665a192839c491a8932 Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Wed, 21 Oct 2026 14:59:12 +0100
+Subject: [PATCH] arm64: dts: qcom: qcs6490-imdt-sbc: Keep L18B on
+
+L18B feeds the carrier's +VREG_L15B_1P8, which powers the DSI backlight
+enable buffer. Nothing on the SoM claims it, so the regulator core turns
+it off after boot. Keep it always on.
+
+Assisted-by: Claude:claude-opus-5-5
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+---
+ arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
+index b8504cc6bcab..df5ca90a188d 100644
+--- a/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
++++ b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
+@@ -957,3 +957,8 @@ &usb_2_hsphy {
+ &usb_dp_qmpphy_out {
+ 	remote-endpoint = <&cypd6125_ss_in>;
+ };
++
++/* Feeds the carrier +VREG_L15B_1P8, which powers the backlight buffer */
++&vreg_l18b_1p8 {
++	regulator-always-on;
++};

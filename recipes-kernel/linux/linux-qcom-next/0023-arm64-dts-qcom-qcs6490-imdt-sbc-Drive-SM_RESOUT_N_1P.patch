@@ -1,0 +1,35 @@
+From c1041f4cfcc03e29629367f80511420b021b4300 Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Wed, 21 Oct 2026 15:01:24 +0100
+Subject: [PATCH] arm64: dts: qcom: qcs6490-imdt-sbc: Drive SM_RESOUT_N_1P8
+ high
+
+The carrier's SM_RESOUT_N_1P8 is GPIO 155, not the SoM reset output. It
+enables the buffer that drives the DSI backlight enable and lights the
+reset LED, so hog it high.
+
+Assisted-by: Claude:claude-opus-5-5
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+---
+ arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
+index 309626fd9bfe..b8504cc6bcab 100644
+--- a/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
++++ b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
+@@ -867,6 +867,14 @@ sensors_i2c_default: sensors-i2c-default-state {
+ 		bias-pull-up;
+ 	};
+ 
++	/* Carrier SM_RESOUT_N_1P8: enables the backlight buffer and reset LED */
++	sm-resout-n-hog {
++		gpio-hog;
++		gpios = <155 GPIO_ACTIVE_HIGH>;
++		output-high;
++		line-name = "sm-resout-n";
++	};
++
+ 	sys_led_default: sys-led-default-state {
+ 		pins = "gpio40";
+ 		function = "gpio";

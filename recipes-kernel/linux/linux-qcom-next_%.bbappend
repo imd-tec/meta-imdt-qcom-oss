@@ -32,6 +32,9 @@ SRC_URI:append = " \
     file://0020-arm64-dts-qcom-qcs6490-imdt-sbc-Describe-the-CYPD612.patch \
     file://0021-arm64-dts-qcom-qcs6490-imdt-sbc-Add-AR1335-CSI2-came.patch \
     file://0022-arm64-dts-qcom-qcs6490-imdt-sbc-Add-AR1335-overlays-.patch \
+    file://0023-arm64-dts-qcom-qcs6490-imdt-sbc-Drive-SM_RESOUT_N_1P.patch \
+    file://0024-arm64-dts-qcom-qcs6490-imdt-sbc-Keep-L18B-on.patch \
+    file://0025-arm64-dts-qcom-qcs8550-imdt-sbc-Drive-SM_RESOUT_N_1P.patch \
     file://configs/imdt.cfg \
 "
 
