@@ -11,6 +11,7 @@ SRC_URI = " \
     git://github.com/nxp-imx/mwifiex.git;protocol=https;branch=${SRCBRANCH} \
     file://0001-mlinux-moal_main-fix-device-wakeup-capability.patch \
     file://0002-mlinux-Build-against-kernel-7.2.patch \
+    file://0003-mlinux-Build-against-kernel-7.3.patch \
 "
 SRCBRANCH = "lf-6.18.2_1.0.0"
 SRCREV = "a5fe4e194bf99315e349d81d77d6dfacec70757a"

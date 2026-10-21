@@ -1,0 +1,111 @@
+From 26ffaa0113a9d146ee00bb925921bfa7b0a90993 Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Wed, 21 Oct 2026 15:04:03 +0100
+Subject: [PATCH] mlinux: Build against kernel 7.3
+
+cfg80211 now assigns the mgmt_tx and remain_on_channel cookies itself
+and passes them in by value, so wrap both ops and keep the given cookie
+instead of picking a random one. probe_client is gone in favour of
+probe_peer. Ours is only a stub that fails, so leave the op unset.
+
+Upstream-Status: Pending
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+---
+ mlinux/moal_cfg80211.c     |  2 +-
+ mlinux/moal_sta_cfg80211.c | 30 +++++++++++++++++++++++++++---
+ 2 files changed, 28 insertions(+), 4 deletions(-)
+
+diff --git a/mlinux/moal_cfg80211.c b/mlinux/moal_cfg80211.c
+index 207e671..216bb91 100644
+--- a/mlinux/moal_cfg80211.c
++++ b/mlinux/moal_cfg80211.c
+@@ -3644,7 +3644,7 @@ int woal_cfg80211_mgmt_tx(struct wiphy *wiphy,
+ #else
+ #if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
+ 	*cookie = prandom_u32() | 1;
+-#else
++#elif KERNEL_VERSION(7, 3, 0) > LINUX_VERSION_CODE
+ 	*cookie = get_random_u32() | 1;
+ #endif
+ #endif
+diff --git a/mlinux/moal_sta_cfg80211.c b/mlinux/moal_sta_cfg80211.c
+index 6b8b32a..cc7e195 100644
+--- a/mlinux/moal_sta_cfg80211.c
++++ b/mlinux/moal_sta_cfg80211.c
+@@ -486,11 +486,33 @@ static int woal_cfg80211_remain_on_channel_wdev(struct wiphy *wiphy,
+ 						struct wireless_dev *wdev,
+ 						struct ieee80211_channel *chan,
+ 						unsigned int duration,
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0)
++						u64 cookie, const u8 *rx_addr)
++{
++	return woal_cfg80211_remain_on_channel(wiphy, wdev, chan, duration,
++					       &cookie);
++}
++#else
+ 						u64 *cookie, const u8 *rx_addr)
+ {
+ 	return woal_cfg80211_remain_on_channel(wiphy, wdev, chan, duration,
+ 					       cookie);
+ }
++#endif
++
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 3, 0)
++/* cfg80211 assigns the cookie and passes it in by value */
++static int woal_cfg80211_mgmt_tx_cookie(struct wiphy *wiphy,
++					struct wireless_dev *wdev,
++					struct cfg80211_mgmt_tx_params *params,
++					u64 cookie)
++{
++	return woal_cfg80211_mgmt_tx(wiphy, wdev, params, &cookie);
++}
++#define MOAL_MGMT_TX woal_cfg80211_mgmt_tx_cookie
++#else
++#define MOAL_MGMT_TX woal_cfg80211_mgmt_tx
++#endif
+ 
+ #define MOAL_OP(op) woal_cfg80211_##op##_wdev
+ #else
+@@ -616,7 +638,7 @@ static struct cfg80211_ops woal_cfg80211_ops = {
+ #else
+ 	.mgmt_frame_register = woal_cfg80211_mgmt_frame_register,
+ #endif
+-	.mgmt_tx = woal_cfg80211_mgmt_tx,
++	.mgmt_tx = MOAL_MGMT_TX,
+ #endif
+ 
+ #if CFG80211_VERSION_CODE >= KERNEL_VERSION(2, 6, 39)
+@@ -7815,7 +7837,7 @@ woal_cfg80211_remain_on_channel(struct wiphy *wiphy, struct net_device *dev,
+ #else
+ #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0)
+ 	*cookie = (u64)prandom_u32() | 1;
+-#else
++#elif LINUX_VERSION_CODE < KERNEL_VERSION(7, 3, 0)
+ 	*cookie = (u64)get_random_u32() | 1;
+ #endif
+ #endif
+@@ -11271,6 +11293,7 @@ done:
+  *
+  *  @return            0 -- success, otherwise fail
+  */
++#if LINUX_VERSION_CODE < KERNEL_VERSION(7, 3, 0)
+ static int woal_cfg80211_probe_client(struct wiphy *wiphy,
+ 				      struct net_device *dev, const u8 *peer,
+ 				      u64 *cookie)
+@@ -11278,6 +11301,7 @@ static int woal_cfg80211_probe_client(struct wiphy *wiphy,
+ 	return -1;
+ }
+ #endif
++#endif
+ 
+ /**
+  *  @brief Sends deauth packet to kernel
+@@ -11911,7 +11935,7 @@ mlan_status woal_register_cfg80211(moal_private *priv)
+ 		woal_cfg80211_ops.assoc = woal_cfg80211_associate;
+ 		woal_cfg80211_ops.disconnect = NULL;
+ 		woal_cfg80211_ops.connect = NULL;
+-#ifdef UAP_SUPPORT
++#if defined(UAP_SUPPORT) && LINUX_VERSION_CODE < KERNEL_VERSION(7, 3, 0)
+ 		woal_cfg80211_ops.probe_client = woal_cfg80211_probe_client;
+ #endif
+ 	}
