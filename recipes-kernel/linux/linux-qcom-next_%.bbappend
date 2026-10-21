@@ -35,6 +35,7 @@ SRC_URI:append = " \
     file://0023-arm64-dts-qcom-qcs6490-imdt-sbc-Drive-SM_RESOUT_N_1P.patch \
     file://0024-arm64-dts-qcom-qcs6490-imdt-sbc-Keep-L18B-on.patch \
     file://0025-arm64-dts-qcom-qcs8550-imdt-sbc-Drive-SM_RESOUT_N_1P.patch \
+    file://0026-arm64-dts-qcom-qcs6490-imdt-sbc-Add-display-overlay.patch \
     file://configs/imdt.cfg \
 "
 
