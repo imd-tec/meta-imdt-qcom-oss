@@ -1,4 +1,4 @@
-From f436bde1ceb402e4b2eed7384a04b4b4f6b60bdd Mon Sep 17 00:00:00 2001
+From a0cbb2432d8e3392abdf0fc02fd75ed9b7cc505f Mon Sep 17 00:00:00 2001
 From: William Bright <william.bright@imd-tec.com>
 Date: Wed, 29 Apr 2026 20:49:12 +0100
 Subject: [PATCH] arm64: dts: qcom: Add IMDT QCS8550 SBC
@@ -44,13 +44,13 @@ Signed-off-by: William Bright <william.bright@imd-tec.com>
  create mode 100644 arch/arm64/boot/dts/qcom/qcs8550-imdt-som.dtsi
 
 diff --git a/arch/arm64/boot/dts/qcom/Makefile b/arch/arm64/boot/dts/qcom/Makefile
-index 0aca0127ae09..fb5da6c7364e 100644
+index dd6b37557803..0be1273f57d6 100644
 --- a/arch/arm64/boot/dts/qcom/Makefile
 +++ b/arch/arm64/boot/dts/qcom/Makefile
-@@ -238,6 +238,7 @@ qcs8300-ride-el2-dtbs := qcs8300-ride.dtb monaco-el2.dtbo
- dtb-$(CONFIG_ARCH_QCOM)	+= qcs8300-ride-el2.dtb
+@@ -268,6 +268,7 @@ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8300-ride-el2.dtb
  dtb-$(CONFIG_ARCH_QCOM)	+= monaco-el2.dtbo
  dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-aim300-aiot.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-rb5gen2.dtb
 +dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc.dtb
  dtb-$(CONFIG_ARCH_QCOM)	+= qcs9100-ride.dtb
  dtb-$(CONFIG_ARCH_QCOM)	+= qcs9100-ride-r3.dtb
@@ -1231,6 +1231,3 @@ index 000000000000..816cbd254dea
 +&xo_board {
 +	clock-frequency = <76800000>;
 +};
--- 
-2.43.0
-

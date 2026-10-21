@@ -1,4 +1,4 @@
-From 902226116144fec1a5e66d12dc429a681ca97067 Mon Sep 17 00:00:00 2001
+From 3a591df7e47db3cc7f58d1f8511c87a4cd624526 Mon Sep 17 00:00:00 2001
 From: William Bright <william.bright@imd-tec.com>
 Date: Mon, 27 Apr 2026 12:24:51 +0100
 Subject: [PATCH] arm64: dts: qcom: sm8550: add SDHC4 controller node
@@ -26,10 +26,10 @@ Signed-off-by: William Bright <william.bright@imd-tec.com>
  1 file changed, 40 insertions(+)
 
 diff --git a/arch/arm64/boot/dts/qcom/sm8550.dtsi b/arch/arm64/boot/dts/qcom/sm8550.dtsi
-index 396201905ef2..06e57d789706 100644
+index d21c04b1a306..60169fad5b2a 100644
 --- a/arch/arm64/boot/dts/qcom/sm8550.dtsi
 +++ b/arch/arm64/boot/dts/qcom/sm8550.dtsi
-@@ -3641,6 +3641,46 @@ opp-202000000 {
+@@ -3654,6 +3654,46 @@ opp-202000000 {
  			};
  		};
  
@@ -76,6 +76,3 @@ index 396201905ef2..06e57d789706 100644
  		iris: video-codec@aa00000 {
  			compatible = "qcom,sm8550-iris";
  
--- 
-2.43.0
-

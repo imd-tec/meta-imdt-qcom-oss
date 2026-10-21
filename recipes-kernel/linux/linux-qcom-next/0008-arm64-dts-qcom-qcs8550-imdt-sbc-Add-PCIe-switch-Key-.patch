@@ -1,4 +1,4 @@
-From d13a61a34d841abd256d852133d19f75bf0ac334 Mon Sep 17 00:00:00 2001
+From 9a35df0cd9fac61e652b22d2e3c33fe14aeccdc8 Mon Sep 17 00:00:00 2001
 From: William Bright <William.Bright@imd-tec.com>
 Date: Wed, 15 Apr 2026 11:57:54 +0100
 Subject: [PATCH] arm64: dts: qcom: qcs8550-imdt-sbc: Add PCIe switch Key B
@@ -27,10 +27,10 @@ Signed-off-by: William Bright <william.bright@imd-tec.com>
  create mode 100644 arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-pcie-keyb.dtso
 
 diff --git a/arch/arm64/boot/dts/qcom/Makefile b/arch/arm64/boot/dts/qcom/Makefile
-index 7350299fdb87..d93b89a06136 100644
+index db6ea97fc503..157c15721220 100644
 --- a/arch/arm64/boot/dts/qcom/Makefile
 +++ b/arch/arm64/boot/dts/qcom/Makefile
-@@ -241,6 +241,7 @@ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-aim300-aiot.dtb
+@@ -271,6 +271,7 @@ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-rb5gen2.dtb
  dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc.dtb
  dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-display.dtbo
  dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-ar1335-csi0.dtbo
@@ -80,6 +80,3 @@ index 000000000000..a55377db3cc9
 +		    <&pcie_switch_sel_keyb>,
 +		    <&gbe_reset_default>;
 +};
--- 
-2.43.0
-

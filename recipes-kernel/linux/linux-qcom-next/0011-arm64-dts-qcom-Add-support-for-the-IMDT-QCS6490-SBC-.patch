@@ -1,4 +1,4 @@
-From 730134613ff72b6ea446a6f00f585d23c02b990b Mon Sep 17 00:00:00 2001
+From 7faad737d50d7e01e7c58c1ac843a8eff560ddab Mon Sep 17 00:00:00 2001
 From: William Bright <william.bright@imd-tec.com>
 Date: Tue, 7 Jul 2026 15:33:43 +0100
 Subject: [PATCH] arm64/dts/qcom: Add support for the IMDT QCS6490 SBC and SoM
@@ -7,19 +7,19 @@ Subject: [PATCH] arm64/dts/qcom: Add support for the IMDT QCS6490 SBC and SoM
  .../devicetree/bindings/arm/qcom.yaml         |   6 +
  arch/arm64/boot/dts/qcom/Makefile             |   2 +
  .../dts/qcom/qcs6490-imdt-sbc-pcie-keyb.dtso  |  18 +
- arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts | 885 ++++++++++++++++++
+ arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts | 883 ++++++++++++++++++
  .../arm64/boot/dts/qcom/qcs6490-imdt-som.dtsi | 291 ++++++
- 5 files changed, 1202 insertions(+)
+ 5 files changed, 1200 insertions(+)
  create mode 100644 arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc-pcie-keyb.dtso
  create mode 100644 arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
  create mode 100644 arch/arm64/boot/dts/qcom/qcs6490-imdt-som.dtsi
 
 diff --git a/Documentation/devicetree/bindings/arm/qcom.yaml b/Documentation/devicetree/bindings/arm/qcom.yaml
-index e0029caff82f..df39b367724d 100644
+index 82245fb74a86..fb30a346486f 100644
 --- a/Documentation/devicetree/bindings/arm/qcom.yaml
 +++ b/Documentation/devicetree/bindings/arm/qcom.yaml
-@@ -405,6 +405,12 @@ properties:
-               - thundercomm,rubikpi3
+@@ -440,6 +440,12 @@ properties:
+               - vicharak,axon-mini
            - const: qcom,qcm6490
  
 +      - items:
@@ -28,14 +28,14 @@ index e0029caff82f..df39b367724d 100644
 +          - const: imdt,qcs6490-som
 +          - const: qcom,qcm6490
 +
-       - description: Qualcomm Technologies, Inc. Distributed Unit 1000 platform
-         items:
+       - items:
            - enum:
+               - qcom,qcs404-evb-1000
 diff --git a/arch/arm64/boot/dts/qcom/Makefile b/arch/arm64/boot/dts/qcom/Makefile
-index d93b89a06136..c083502b4e9a 100644
+index 157c15721220..b95745b47396 100644
 --- a/arch/arm64/boot/dts/qcom/Makefile
 +++ b/arch/arm64/boot/dts/qcom/Makefile
-@@ -208,6 +208,8 @@ qcs615-ride-el2-dtbs := qcs615-ride.dtb talos-el2.dtbo
+@@ -231,6 +231,8 @@ qcs615-ride-el2-dtbs := qcs615-ride.dtb talos-el2.dtbo
  
  dtb-$(CONFIG_ARCH_QCOM)	+= qcs615-ride-el2.dtb
  dtb-$(CONFIG_ARCH_QCOM)	+= talos-el2.dtbo
@@ -70,10 +70,10 @@ index 000000000000..a126bedbeaf1
 +};
 diff --git a/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
 new file mode 100644
-index 000000000000..ccad9256a828
+index 000000000000..743a4e3712be
 --- /dev/null
 +++ b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
-@@ -0,0 +1,885 @@
+@@ -0,0 +1,883 @@
 +// SPDX-License-Identifier: BSD-3-Clause
 +/*
 + * Copyright (c) 2026 IMD Technologies Ltd
@@ -110,25 +110,18 @@ index 000000000000..ccad9256a828
 +
 +/*
 + * The mdmss thermal zones throttle via &remoteproc_mpss, deleted above, which
-+ * leaves their cooling-maps referencing a non-existent label and aborts dtc.
++ * leaves their cooling maps referencing a non-existent label and aborts dtc.
 + * Drop the maps only: the sensors and their trip points, including the critical
 + * shutdown trip, stay live.
 + */
-+&mdmss0_thermal {
-+	/delete-node/ cooling-maps;
-+};
-+
-+&mdmss1_thermal {
-+	/delete-node/ cooling-maps;
-+};
-+
-+&mdmss2_thermal {
-+	/delete-node/ cooling-maps;
-+};
-+
-+&mdmss3_thermal {
-+	/delete-node/ cooling-maps;
-+};
++/delete-node/ &mdmss0_pa_cooling_map;
++/delete-node/ &mdmss0_modem_cooling_map;
++/delete-node/ &mdmss1_pa_cooling_map;
++/delete-node/ &mdmss1_modem_cooling_map;
++/delete-node/ &mdmss2_pa_cooling_map;
++/delete-node/ &mdmss2_modem_cooling_map;
++/delete-node/ &mdmss3_pa_cooling_map;
++/delete-node/ &mdmss3_modem_cooling_map;
 +
 +/ {
 +	model = "IMDT QCS6490 SBC";
@@ -589,6 +582,11 @@ index 000000000000..ccad9256a828
 +&i2c2 {
 +	clock-frequency = <400000>;
 +	status = "okay";
++};
++
++/* IPA stays disabled; its firmware region is deleted above */
++&ipa {
++	/delete-property/ memory-region;
 +};
 +
 +&pcie0 {
@@ -1256,6 +1254,3 @@ index 000000000000..b6d6d0f6d371
 +		};
 +	};
 +};
--- 
-2.43.0
-

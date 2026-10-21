@@ -1,4 +1,4 @@
-From 5778132743be30666081f58bb258284aa1dc6b11 Mon Sep 17 00:00:00 2001
+From 31b9e679f786773e326f475588a4be2137961c96 Mon Sep 17 00:00:00 2001
 From: William Bright <William.Bright@imd-tec.com>
 Date: Wed, 8 Apr 2026 10:43:00 +0100
 Subject: [PATCH] dt-bindings: media: i2c: Add ON Semiconductor AR1335 sensor
@@ -128,6 +128,3 @@ index 000000000000..ea33cb60dbab
 +                    };
 +            };
 +    };
--- 
-2.43.0
-

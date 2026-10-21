@@ -1,4 +1,4 @@
-From cd74064c3b9cc93a2d42e602784e6608e4381e7f Mon Sep 17 00:00:00 2001
+From 9f3b62a7ae3c97e164105221541a28b66cc4552f Mon Sep 17 00:00:00 2001
 From: William Bright <william.bright@imd-tec.com>
 Date: Thu, 6 Aug 2026 19:25:05 +0100
 Subject: [PATCH] arm64: dts: qcom: qcs8550-imdt-som: Drop LPM mode in
@@ -31,6 +31,3 @@ index 816cbd254dea..a6a3c42854de 100644
  		};
  
  		vreg_l3g_1p2: ldo3 {
--- 
-2.43.0
-

@@ -11,28 +11,25 @@ FILESEXTRAPATHS:prepend := "${THISDIR}/linux-qcom-next:"
 # rather than trying to rebase it.
 SRC_URI:append = " \
     file://0001-arm64-dts-qcom-sm8550-add-SDHC4-controller-node.patch \
-    file://0002-dt-bindings-vendor-prefixes-Add-IMDT.patch \
-    file://0003-dt-bindings-qcom-Document-IMDT-QCS8550-SBC-and-SoM.patch \
-    file://0004-arm64-dts-qcom-Add-IMDT-QCS8550-SBC.patch \
-    file://0005-arm64-dts-qcom-qcs8550-imdt-sbc-Add-DSI-display-over.patch \
-    file://0006-dt-bindings-media-i2c-Add-ON-Semiconductor-AR1335-se.patch \
-    file://0007-media-i2c-ar1335-Add-ON-Semiconductor-AR1335-camera-.patch \
-    file://0008-arm64-dts-qcom-qcs8550-imdt-sbc-Split-AR1335-CSI0-in.patch \
-    file://0009-arm64-dts-qcom-qcs8550-imdt-sbc-Add-PCIe-switch-Key-.patch \
-    file://0010-arm64-dts-qcom-qcs8550-imdt-sbc-enable-zap-shader.patch \
-    file://0011-qcs8550-imdt-sbc-display-Enable-backlight-improve-po.patch \
-    file://0012-arm64-dts-qcom-Add-support-for-the-IMDT-QCS6490-SBC-.patch \
-    file://0013-arm64-dts-qcom-qcs6490-imdt-sbc-detach-eMMC-inline-c.patch \
-    file://0014-arm64-dts-qcom-qcs8550-imdt-som-Drop-LPM-mode-in-vre.patch \
-    file://0015-drivers-usb-typec-Add-CYPD-patches-and-qcs8550-DTS-o.patch \
-    file://0016-drivers-usb-typec-ucsi-Fix-for-cold-boot-typec-mux-n.patch \
-    file://0017-arm64-dts-qcom-qcs8550-imdt-sbc-Enable-DisplayPort.patch \
-    file://0018-drivers-usb-typec-ucsi-ccg-Register-a-DP-HPD-bridge-.patch \
-    file://0019-arm64-dts-qcom-qcs8550-imdt-sbc-Stop-the-display-ove.patch \
-    file://0020-drm-msm-dp-fix-link-bandwidth-check-when-wide-bus-is.patch \
-    file://0021-Revert-media-iris-enable-sm8550-context-banks-via-in.patch \
-    file://0022-misc-fastrpc-retry-INIT_CREATE-on-transient-DSP-tea.patch \
-    file://0023-arm64-dts-qcom-qcs6490-imdt-sbc-Describe-the-CYPD612.patch \
+    file://0002-dt-bindings-qcom-Document-IMDT-QCS8550-SBC-and-SoM.patch \
+    file://0003-arm64-dts-qcom-Add-IMDT-QCS8550-SBC.patch \
+    file://0004-arm64-dts-qcom-qcs8550-imdt-sbc-Add-DSI-display-over.patch \
+    file://0005-dt-bindings-media-i2c-Add-ON-Semiconductor-AR1335-se.patch \
+    file://0006-media-i2c-ar1335-Add-ON-Semiconductor-AR1335-camera-.patch \
+    file://0007-arm64-dts-qcom-qcs8550-imdt-sbc-Split-AR1335-CSI0-in.patch \
+    file://0008-arm64-dts-qcom-qcs8550-imdt-sbc-Add-PCIe-switch-Key-.patch \
+    file://0009-arm64-dts-qcom-qcs8550-imdt-sbc-enable-zap-shader.patch \
+    file://0010-qcs8550-imdt-sbc-display-Enable-backlight-improve-po.patch \
+    file://0011-arm64-dts-qcom-Add-support-for-the-IMDT-QCS6490-SBC-.patch \
+    file://0012-arm64-dts-qcom-qcs6490-imdt-sbc-detach-eMMC-inline-c.patch \
+    file://0013-arm64-dts-qcom-qcs8550-imdt-som-Drop-LPM-mode-in-vre.patch \
+    file://0014-drivers-usb-typec-Add-CYPD-patches-and-qcs8550-DTS-o.patch \
+    file://0015-drivers-usb-typec-ucsi-Fix-for-cold-boot-typec-mux-n.patch \
+    file://0016-arm64-dts-qcom-qcs8550-imdt-sbc-Enable-DisplayPort.patch \
+    file://0017-drivers-usb-typec-ucsi-ccg-Register-a-DP-HPD-bridge-.patch \
+    file://0018-arm64-dts-qcom-qcs8550-imdt-sbc-Stop-the-display-ove.patch \
+    file://0019-misc-fastrpc-retry-INIT_CREATE-on-transient-DSP-tear.patch \
+    file://0020-arm64-dts-qcom-qcs6490-imdt-sbc-Describe-the-CYPD612.patch \
     file://configs/imdt.cfg \
 "
 

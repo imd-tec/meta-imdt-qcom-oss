@@ -1,4 +1,4 @@
-From e69ff61ef2ba9b6be1aeafeb773762c4f74e6a21 Mon Sep 17 00:00:00 2001
+From d8917be45b60d1cea43e3f780f11008718a7a1f3 Mon Sep 17 00:00:00 2001
 From: William Bright <william.bright@imd-tec.com>
 Date: Tue, 30 Jun 2026 09:43:06 +0100
 Subject: [PATCH] qcs8550-imdt-sbc-display: Enable backlight & improve power-up
@@ -96,6 +96,3 @@ index 59cacf863c91..f4d4d0bb8823 100644
  	};
  
  	pwr_per_en_default: pwr-per-en-default-state {
--- 
-2.43.0
-

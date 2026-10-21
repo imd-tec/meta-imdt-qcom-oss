@@ -1,4 +1,4 @@
-From ac8e6db96f19708c887c9dc1fd40057b504bb06e Mon Sep 17 00:00:00 2001
+From a31018de81f21ed554fe752b592ce5989f23027d Mon Sep 17 00:00:00 2001
 From: William Bright <william.bright@imd-tec.com>
 Date: Tue, 11 Aug 2026 12:05:49 +0100
 Subject: [PATCH] drivers: usb: typec: ucsi: Fix for cold boot typec mux not
@@ -19,10 +19,10 @@ Signed-off-by: William Bright <william.bright@imd-tec.com>
  1 file changed, 9 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/usb/typec/ucsi/ucsi.c b/drivers/usb/typec/ucsi/ucsi.c
-index 2a83bee71772..6fd8e8ef2452 100644
+index 269758f548d6..291922da45ad 100644
 --- a/drivers/usb/typec/ucsi/ucsi.c
 +++ b/drivers/usb/typec/ucsi/ucsi.c
-@@ -1892,7 +1892,9 @@ static u64 ucsi_get_supported_notifications(struct ucsi *ucsi)
+@@ -2067,7 +2067,9 @@ static u64 ucsi_get_supported_notifications(struct ucsi *ucsi)
  static int ucsi_init(struct ucsi *ucsi)
  {
  	struct ucsi_connector *con, *connector;
@@ -32,7 +32,7 @@ index 2a83bee71772..6fd8e8ef2452 100644
  	u32 cci;
  	int ret;
  	int i;
-@@ -1962,8 +1964,13 @@ static int ucsi_init(struct ucsi *ucsi)
+@@ -2137,8 +2139,13 @@ static int ucsi_init(struct ucsi *ucsi)
  	mutex_unlock(&ucsi->ppm_lock);
  	if (ret)
  		return ret;
@@ -48,6 +48,3 @@ index 2a83bee71772..6fd8e8ef2452 100644
  
  	return 0;
  
--- 
-2.43.0
-

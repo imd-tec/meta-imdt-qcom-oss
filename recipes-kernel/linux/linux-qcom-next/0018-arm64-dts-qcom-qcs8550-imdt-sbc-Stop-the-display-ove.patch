@@ -1,4 +1,4 @@
-From cd6f204c38647621519592be0aad22669f74bb34 Mon Sep 17 00:00:00 2001
+From 87addabb62c1d9b9e9d7eac660831db2f5c7b9c4 Mon Sep 17 00:00:00 2001
 From: William Bright <william.bright@imd-tec.com>
 Date: Tue, 11 Aug 2026 16:00:19 +0100
 Subject: [PATCH] arm64: dts: qcom: qcs8550-imdt-sbc: Stop the display overlay
@@ -24,6 +24,3 @@ index 664947c2f282..9108533e4412 100644
  &mdss_dsi0_out {
  	remote-endpoint = <&panel0_in>;
  	data-lanes = <0 1 2 3>;
--- 
-2.43.0
-

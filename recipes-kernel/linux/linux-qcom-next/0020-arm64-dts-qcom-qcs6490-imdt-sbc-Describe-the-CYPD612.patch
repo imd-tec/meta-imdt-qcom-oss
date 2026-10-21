@@ -1,4 +1,4 @@
-From a60d202f8c019208e17b1c91139c5dd50e20636c Mon Sep 17 00:00:00 2001
+From 0e3f1604bf5a5776a7ebc12d91ae55eb2c5f7a76 Mon Sep 17 00:00:00 2001
 From: William Bright <william.bright@imd-tec.com>
 Date: Fri, 16 Oct 2026 13:55:52 +0100
 Subject: [PATCH] arm64: dts: qcom: qcs6490-imdt-sbc: Describe the CYPD6125
@@ -16,7 +16,7 @@ Signed-off-by: William Bright <william.bright@imd-tec.com>
  1 file changed, 66 insertions(+), 9 deletions(-)
 
 diff --git a/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
-index 6f41f4c9d24b..9b8dcae606ff 100644
+index 9000ec6c1289..309626fd9bfe 100644
 --- a/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
 +++ b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
 @@ -6,6 +6,7 @@
@@ -27,7 +27,7 @@ index 6f41f4c9d24b..9b8dcae606ff 100644
  #include <dt-bindings/leds/common.h>
  #include "qcs6490-imdt-som.dtsi"
  
-@@ -446,6 +447,10 @@ regulators-1 {
+@@ -439,6 +440,10 @@ regulators-1 {
  	};
  };
  
@@ -38,7 +38,7 @@ index 6f41f4c9d24b..9b8dcae606ff 100644
  &gcc {
  	/* Clocks owned by TZ / a peer VM; the HLOS must not touch them. */
  	protected-clocks = <GCC_CFG_NOC_LPASS_CLK>,
-@@ -499,14 +504,56 @@ imu@6a {
+@@ -492,14 +497,56 @@ imu@6a {
  };
  
  /*
@@ -99,7 +99,7 @@ index 6f41f4c9d24b..9b8dcae606ff 100644
  };
  
  /* Expansion-header I2C (J1/J52, "CHARGER_I2C") */
-@@ -675,6 +722,13 @@ &tlmm {
+@@ -673,6 +720,13 @@ &tlmm {
  	/* Reserved I/Os: 32-33 ADSP, 48-51 NFC (trustzone-protected) */
  	gpio-reserved-ranges = <32 2>, <48 4>;
  
@@ -113,7 +113,7 @@ index 6f41f4c9d24b..9b8dcae606ff 100644
  	dsi_5v_en_default: dsi-5v-en-default-state {
  		pins = "gpio35";
  		function = "gpio";
-@@ -854,13 +908,12 @@ bluetooth {
+@@ -852,13 +906,12 @@ bluetooth {
  };
  
  /*
@@ -131,7 +131,7 @@ index 6f41f4c9d24b..9b8dcae606ff 100644
  
  	status = "okay";
  };
-@@ -894,3 +947,7 @@ &usb_2_hsphy {
+@@ -892,3 +945,7 @@ &usb_2_hsphy {
  
  	status = "okay";
  };

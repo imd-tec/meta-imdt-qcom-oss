@@ -1,4 +1,4 @@
-From 472274b3d02e134e35d5ed57eff193102c894c05 Mon Sep 17 00:00:00 2001
+From e97d2e28cb1e9baaada87018d6dacaa87b225b8c Mon Sep 17 00:00:00 2001
 From: William Bright <william.bright@imd-tec.com>
 Date: Thu, 6 Aug 2026 10:37:07 +0100
 Subject: [PATCH] drivers: usb: typec: Add CYPD patches and qcs8550 DTS overlay
@@ -19,10 +19,10 @@ Signed-off-by: William Bright <william.bright@imd-tec.com>
  create mode 100644 arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-cypd6125.dtso
 
 diff --git a/arch/arm64/boot/dts/qcom/Makefile b/arch/arm64/boot/dts/qcom/Makefile
-index c083502b4e9a..6b29094dd6f3 100644
+index b95745b47396..9ef35a976570 100644
 --- a/arch/arm64/boot/dts/qcom/Makefile
 +++ b/arch/arm64/boot/dts/qcom/Makefile
-@@ -244,6 +244,7 @@ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc.dtb
+@@ -274,6 +274,7 @@ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc.dtb
  dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-display.dtbo
  dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-ar1335-csi0.dtbo
  dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-pcie-keyb.dtbo
@@ -138,10 +138,10 @@ index 000000000000..aa774906f67b
 +	remote-endpoint = <&cypd6125_ss_in>;
 +};
 diff --git a/drivers/usb/typec/ucsi/ucsi.c b/drivers/usb/typec/ucsi/ucsi.c
-index 6a6723e8fb12..2a83bee71772 100644
+index bef3f9b71d71..269758f548d6 100644
 --- a/drivers/usb/typec/ucsi/ucsi.c
 +++ b/drivers/usb/typec/ucsi/ucsi.c
-@@ -2051,10 +2051,16 @@ static void ucsi_init_work(struct work_struct *work)
+@@ -2212,10 +2212,16 @@ static void ucsi_init_work(struct work_struct *work)
  	int ret;
  
  	ret = ucsi_init(ucsi);
@@ -161,7 +161,7 @@ index 6a6723e8fb12..2a83bee71772 100644
  			dev_err(ucsi->dev, "PPM init failed, stop trying\n");
  			return;
 diff --git a/drivers/usb/typec/ucsi/ucsi_ccg.c b/drivers/usb/typec/ucsi/ucsi_ccg.c
-index 91c2958a708c..89f42bbdb8d3 100644
+index f22082694f95..a1113de6d623 100644
 --- a/drivers/usb/typec/ucsi/ucsi_ccg.c
 +++ b/drivers/usb/typec/ucsi/ucsi_ccg.c
 @@ -8,6 +8,7 @@
@@ -802,7 +802,7 @@ index 91c2958a708c..89f42bbdb8d3 100644
  }
  
  static const struct of_device_id ucsi_ccg_of_match_table[] = {
-@@ -1548,6 +1696,9 @@ static int ucsi_ccg_resume(struct device *dev)
+@@ -1550,6 +1698,9 @@ static int ucsi_ccg_resume(struct device *dev)
  	struct i2c_client *client = to_i2c_client(dev);
  	struct ucsi_ccg *uc = i2c_get_clientdata(client);
  
@@ -812,7 +812,7 @@ index 91c2958a708c..89f42bbdb8d3 100644
  	return ucsi_resume(uc->ucsi);
  }
  
-@@ -1561,6 +1712,9 @@ static int ucsi_ccg_runtime_resume(struct device *dev)
+@@ -1563,6 +1714,9 @@ static int ucsi_ccg_runtime_resume(struct device *dev)
  	struct i2c_client *client = to_i2c_client(dev);
  	struct ucsi_ccg *uc = i2c_get_clientdata(client);
  
@@ -822,6 +822,3 @@ index 91c2958a708c..89f42bbdb8d3 100644
  	/*
  	 * Firmware version 3.1.10 or earlier, built for NVIDIA has known issue
  	 * of missing interrupt when a device is connected for runtime resume.
--- 
-2.43.0
-

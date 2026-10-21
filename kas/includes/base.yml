@@ -17,10 +17,9 @@ defaults:
 repos:
   meta-qcom:
     url: https://github.com/qualcomm-linux/meta-qcom.git
-    # ort-qnn merge, which adds the onnxruntime-qnn recipe that qcom-distro's
-    # qcom-multimedia-proprietary-image now installs. Still held short of
-    # 26179804, where master drops hexagon-dspso and breaks packagegroup-core-boot.
-    commit: 96ce479f9467cdf954b20602a472b76398b5aaac
+    # Latest master (2026-10-20), kernel qcom-next-7.3-rc4-20261014. The
+    # recipes it dropped that we still use are vendored in this layer.
+    commit: 74a7ed802c91673a2a9cf19b0c6cb6541d7e016e
 
 
 

@@ -1,4 +1,4 @@
-From 05c7643f7e9ab23de829b3cbe8091de9b45306ba Mon Sep 17 00:00:00 2001
+From 6e40ecdaeb6464accb77b650f9becb4a11e85998 Mon Sep 17 00:00:00 2001
 From: William Bright <william.bright@imd-tec.com>
 Date: Tue, 11 Aug 2026 13:42:15 +0100
 Subject: [PATCH] drivers: usb: typec: ucsi: ccg: Register a DP HPD bridge for
@@ -32,7 +32,7 @@ Signed-off-by: William Bright <william.bright@imd-tec.com>
  1 file changed, 101 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/usb/typec/ucsi/ucsi_ccg.c b/drivers/usb/typec/ucsi/ucsi_ccg.c
-index 89f42bbdb8d3..8e6c37bccac4 100644
+index a1113de6d623..0caf4025e52c 100644
 --- a/drivers/usb/typec/ucsi/ucsi_ccg.c
 +++ b/drivers/usb/typec/ucsi/ucsi_ccg.c
 @@ -8,6 +8,7 @@
@@ -218,6 +218,3 @@ index 89f42bbdb8d3..8e6c37bccac4 100644
  	cancel_work_sync(&uc->pm_work);
  	cancel_work_sync(&uc->work);
  
--- 
-2.43.0
-

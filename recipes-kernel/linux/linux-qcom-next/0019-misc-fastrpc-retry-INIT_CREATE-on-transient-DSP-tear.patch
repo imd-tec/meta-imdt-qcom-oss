@@ -1,4 +1,4 @@
-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From b958982cb0fd3718c43c8b9b1e9b2516b391f594 Mon Sep 17 00:00:00 2001
 From: William Bright <william.bright@imd-tec.com>
 Date: Tue, 29 Sep 2026 11:00:00 +0100
 Subject: [PATCH] misc: fastrpc: retry INIT_CREATE on transient DSP teardown
@@ -25,24 +25,25 @@ before.
 
 Signed-off-by: William Bright <william.bright@imd-tec.com>
 ---
- drivers/misc/fastrpc.c | 33 +++++++++++++++++++++++++++++----
- 1 file changed, 29 insertions(+), 4 deletions(-)
+ drivers/misc/fastrpc.c | 29 +++++++++++++++++++++++++++--
+ 1 file changed, 27 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/misc/fastrpc.c b/drivers/misc/fastrpc.c
+index da60deb56b28..e6e0bdd9f370 100644
 --- a/drivers/misc/fastrpc.c
 +++ b/drivers/misc/fastrpc.c
-@@ -27,6 +27,7 @@
+@@ -28,6 +28,7 @@
  #include <linux/bitops.h>
  #include <linux/compiler.h>
  #include <linux/iopoll.h>
 +#include <linux/delay.h>
-
+ 
  #define ADSP_DOMAIN_ID (0)
  #define MDSP_DOMAIN_ID (1)
-@@ -108,6 +109,15 @@
+@@ -123,6 +124,15 @@
  #define FASTRPC_RMID_INIT_MEM_MAP      10
  #define FASTRPC_RMID_INIT_MEM_UNMAP    11
-
+ 
 +/*
 + * DSP-side statuses (AEEStdErr.h) seen transiently when a create races the
 + * async tail of a just-completed release for the same client_id/PID slot.
@@ -55,10 +56,10 @@ diff --git a/drivers/misc/fastrpc.c b/drivers/misc/fastrpc.c
  /* Protection Domain(PD) ids */
  #define ROOT_PD		(0)
  #define USER_PD		(1)
-@@ -1759,8 +1769,23 @@
+@@ -1708,8 +1718,23 @@ static int fastrpc_init_create_process(struct fastrpc_user *fl,
  	if (init.attrs)
  		sc = FASTRPC_SCALARS(FASTRPC_RMID_INIT_CREATE_ATTR, 4, 0);
-
+ 
 -	err = fastrpc_internal_invoke(fl, true, FASTRPC_INIT_HANDLE,
 -				      sc, args);
 +	{
@@ -80,6 +81,4 @@ diff --git a/drivers/misc/fastrpc.c b/drivers/misc/fastrpc.c
 +	}
  	if (err)
  		goto err_invoke;
-
---
-2.41.0
+ 
