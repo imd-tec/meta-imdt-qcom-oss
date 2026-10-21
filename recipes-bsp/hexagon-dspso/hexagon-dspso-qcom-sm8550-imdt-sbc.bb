@@ -13,12 +13,12 @@ S = "${UNPACKDIR}"
 
 DSPSO_URI = "file://${THISDIR}/files/dspso.bin"
 
-require recipes-bsp/hexagon-dspso/hexagon-dspso.inc
+require recipes-bsp/hexagon-dspso/hexagon-dspso-imdt.inc
 
 SKIP_FILEDEPS:hexagon-dsp-binaries-${DSP_PKG_NAME}-adsp = "1"
 SKIP_FILEDEPS:hexagon-dsp-binaries-${DSP_PKG_NAME}-cdsp = "1"
 
-# hexagon-dspso.inc's generate_config() writes DSP_LIBRARY_PATH as
+# hexagon-dspso-imdt.inc's generate_config() writes DSP_LIBRARY_PATH as
 # DSP_QCOM_SUBPATH, but do_install installs the adsp/cdsp binaries under
 # DSP_QCOM_PATH/dsp/{adsp,cdsp} (an extra "dsp" segment). Without this fix
 # the fastrpc loader resolves a path one directory short of where the
