@@ -158,8 +158,31 @@ DTB/overlay change needs the `efi` partition reflashed).
 
 `qcom-metadata-editor` (in the default image) edits the same FIT config
 directly on the board, picking from overlays already packed into the FIT —
-no rebuild or reflash needed. The FIT lives on the `dtb` partition, mounted
-at `/mnt/dtb`.
+no rebuild or reflash needed. It only rewrites which images a config entry
+lists, so an overlay must already be in the FIT (built via `KERNEL_DEVICETREE`)
+to be selectable. The change takes effect on the next boot.
+
+The editor needs root, so run `adb root` first. Reading the FIT with no options
+prints each config entry, numbered from `conf-1`, with its compatible string and
+the images (`fdt:`) it applies:
+
+```
+Parsing /mnt/dtb/qclinux_fit.img
+	 conf-1
+		 compatible: qcom,qcs6490-iot
+		 fdt: fdt-qcs6490-imdt-sbc.dtb fdt-qcs6490-imdt-sbc-display.dtbo
+```
+
+`-u -i <n> -f "<images>"` replaces the image list of entry `n`, base DTB first,
+then the overlays in the order they should be applied. The names are the FIT
+image names: the build's file names with an `fdt-` prefix.
+`-c`/`--compatible` updates the compatible string the same way.
+
+#### QCS8550 SBC
+
+The FIT lives on the `dtb` partition, mounted at `/mnt/dtb`. On a Rev 5 board,
+entry 1 is the `subtype5` config (with the CYPD6125 overlay) and entry 2 the
+generic one, so check the listing before editing.
 
 Read the current config:
 
@@ -176,8 +199,31 @@ adb shell qcom-metadata-editor -u -i 1 \
 adb reboot
 ```
 
-`-c`/`--compatible` updates the compatible string the same way. The change
-takes effect on next boot.
+#### QCS6490 SBC
+
+The FIT is on the A/B partitions `dtb_a` and `dtb_b`, which are not mounted by
+default, and there is a single config entry. Edit both slots so the board boots
+the same device tree whichever slot it uses:
+
+```bash
+adb shell 'mkdir -p /mnt/dtb; for p in dtb_a dtb_b; do
+  mount /dev/disk/by-partlabel/$p /mnt/dtb &&
+  qcom-metadata-editor -u -i 1 \
+    -f "fdt-qcs6490-imdt-sbc.dtb fdt-qcs6490-imdt-sbc-display.dtbo" \
+    /mnt/dtb/qclinux_fit.img && sync; umount /mnt/dtb; done'
+adb reboot
+```
+
+The overlay choices for the J41 display connector are:
+
+| Display on J41 | Image list |
+|---|---|
+| TST070WSBE-196C 7" DSI panel (default) | `fdt-qcs6490-imdt-sbc.dtb fdt-qcs6490-imdt-sbc-display.dtbo` |
+| ST B-LCDAD-HDMI1 DSI to HDMI adapter | `fdt-qcs6490-imdt-sbc.dtb fdt-qcs6490-imdt-sbc-dsi-hdmi.dtbo` |
+| Nothing fitted | `fdt-qcs6490-imdt-sbc.dtb` |
+
+Apply only one display overlay at a time: both drive DSI0 and GPIO 44. To check a
+slot, mount it as above and run `qcom-metadata-editor /mnt/dtb/qclinux_fit.img`.
 
 ## UFS Layout
 
