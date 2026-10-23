@@ -1,42 +1,42 @@
-From 48c757c6bf8e06988d2cf51a11fc874ccde36acb Mon Sep 17 00:00:00 2001
+From 08b43137aa4e5a27d8bdf3d55787380d3c31946d Mon Sep 17 00:00:00 2001
 From: William Bright <william.bright@imd-tec.com>
-Date: Fri, 23 Oct 2026 09:16:37 +0100
+Date: Fri, 23 Oct 2026 09:52:59 +0100
 Subject: [PATCH] arm64: dts: qcom: qcs6490-imdt-sbc: Describe the M.2 Key-E
  connector
 
 Describe J46 with the pcie-m2-e-connector binding, linked to the PCIe0
-root port and to USB1, with the VM2E_3V3 rail and W_DISABLE1# on
-GPIO 84.
-
-W_DISABLE2# on GPIO 85 is hogged high instead. The connector driver
-only releases it when a UART BT link exists, so a card with USB BT
-would stay disabled.
+root port and to USB1. The connector owns the VM2E_3V3 rail,
+W_DISABLE1# and W_DISABLE2# (GPIO 84 and 85, through a non-inverting
+NXS0104) and SDIO_RESET# (GPIO 153), so pcie0 no longer holds the SDIO
+reset.
 
 Tested on SoM 01 with a WCN7850 card: Wi-Fi on ath12k and BT on btusb.
 
 Assisted-by: Claude:claude-opus-5-5
 Signed-off-by: William Bright <william.bright@imd-tec.com>
 ---
- arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts | 78 +++++++++++++++++++
- 1 file changed, 78 insertions(+)
+ arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts | 86 ++++++++++++++++---
+ 1 file changed, 73 insertions(+), 13 deletions(-)
 
 diff --git a/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
-index df5ca90a188d..bde2e83da826 100644
+index df5ca90a188d..3f6b0ae84021 100644
 --- a/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
 +++ b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
-@@ -68,6 +68,45 @@ chosen {
- 	 * through a MOSFET. The nominal RPM is indicative only; there is
- 	 * no tachometer feedback.
- 	 */
+@@ -63,6 +63,47 @@ chosen {
+ 		stdout-path = "serial0:115200n8";
+ 	};
+ 
 +	/* J46, M.2 Key-E */
 +	m2e_connector: connector-m2-e {
 +		compatible = "pcie-m2-e-connector";
 +		vpcie3v3-supply = <&vreg_m2e_3p3>;
 +
-+		/* Through the NXS0104 (U513), non-inverting */
++		/* W_DISABLE#s go through the NXS0104 (U513), non-inverting */
 +		w-disable1-gpios = <&tlmm 84 GPIO_ACTIVE_LOW>;
++		w-disable2-gpios = <&tlmm 85 GPIO_ACTIVE_LOW>;
++		sdio-reset-gpios = <&tlmm 153 GPIO_ACTIVE_LOW>;
 +
-+		pinctrl-0 = <&m2e_w_disable_default>;
++		pinctrl-0 = <&m2e_w_disable_default>, <&m2e_sdio_resetn_default>;
 +		pinctrl-names = "default";
 +
 +		ports {
@@ -67,10 +67,10 @@ index df5ca90a188d..bde2e83da826 100644
 +		};
 +	};
 +
- 	fan: fan {
- 		compatible = "gpio-fan";
- 		gpios = <&tlmm 133 GPIO_ACTIVE_HIGH>;
-@@ -227,6 +266,16 @@ m2_pd_pwr: regulator-m2-pd-pwr {
+ 	/*
+ 	 * 2-pin fan header J44, switched on/off by FAN_CONTROL (GPIO_133)
+ 	 * through a MOSFET. The nominal RPM is indicative only; there is
+@@ -227,6 +268,16 @@ m2_pd_pwr: regulator-m2-pd-pwr {
  		gpio-open-drain;
  	};
  
@@ -87,7 +87,22 @@ index df5ca90a188d..bde2e83da826 100644
  	per_1v8_reg: regulator-per-1v8 {
  		compatible = "regulator-fixed";
  		regulator-name = "per_1v8_reg";
-@@ -578,6 +627,14 @@ &pcie0 {
+@@ -564,20 +615,22 @@ &pcie0 {
+ 	perst-gpios = <&tlmm 87 GPIO_ACTIVE_LOW>;
+ 	wake-gpios = <&tlmm 89 GPIO_ACTIVE_HIGH>;
+ 
+-	/*
+-	 * pcie0 hosts the M.2 Key-E slot. Apply the SDIO reset de-assert
+-	 * here so any module's chip enable is settled before pcie0 trains
+-	 * its link.
+-	 */
+ 	pinctrl-0 = <&pcie0_clkreq_n>,
+ 		    <&pcie0_reset_n>,
+-		    <&pcie0_wake_n>,
+-		    <&m2e_sdio_resetn_default>;
++		    <&pcie0_wake_n>;
+ 	pinctrl-names = "default";
+ 
  	status = "okay";
  };
  
@@ -102,29 +117,32 @@ index df5ca90a188d..bde2e83da826 100644
  &pcie0_phy {
  	vdda-phy-supply = <&vreg_l10c_0p88>;
  	vdda-pll-supply = <&vreg_l6b_1p2>;
-@@ -774,6 +831,21 @@ m2_pd_en_default: m2-pd-en-default-state {
+@@ -774,17 +827,18 @@ m2_pd_en_default: m2-pd-en-default-state {
  		drive-open-drain;
  	};
  
+-	/*
+-	 * We drive this GPIO physically high on the M.2 Key-E connector
+-	 * to make sure the module is enabled. An M.2 Key-E module could
+-	 * be using this pin as a chip enable.
+-	 */
 +	m2e_w_disable_default: m2e-w-disable-default-state {
-+		pins = "gpio84";
++		pins = "gpio84", "gpio85";
 +		function = "gpio";
 +		drive-strength = <2>;
 +		bias-disable;
 +	};
 +
-+	/* M.2 W_DISABLE2#, the connector driver only releases it for UART BT */
-+	m2e-w-disable2-hog {
-+		gpio-hog;
-+		gpios = <85 GPIO_ACTIVE_HIGH>;
-+		output-high;
-+		line-name = "m2e-w-disable2-n";
-+	};
-+
- 	/*
- 	 * We drive this GPIO physically high on the M.2 Key-E connector
- 	 * to make sure the module is enabled. An M.2 Key-E module could
-@@ -944,6 +1016,12 @@ &usb_2 {
+ 	m2e_sdio_resetn_default: m2e-sdio-resetn-default-state {
+ 		pins = "gpio153";
+ 		function = "gpio";
+ 		drive-strength = <2>;
+ 		bias-disable;
+-		output-high;
+ 	};
+ 
+ 	panel_en_default: panel-en-default-state {
+@@ -944,6 +998,12 @@ &usb_2 {
  	dr_mode = "host";
  
  	status = "okay";

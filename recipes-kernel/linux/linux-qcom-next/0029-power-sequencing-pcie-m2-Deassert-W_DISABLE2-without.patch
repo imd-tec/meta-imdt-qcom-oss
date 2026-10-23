@@ -1,0 +1,111 @@
+From b7d348cb724e6f8bc501286c537a3c0617dd5897 Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Fri, 23 Oct 2026 10:34:45 +0100
+Subject: [PATCH] power: sequencing: pcie-m2: Deassert W_DISABLE2# without a
+ UART link
+
+W_DISABLE2# is deasserted from the PCI bus notifier, but the notifier
+is only registered when port@3 of a Key E connector links to a UART.
+A card with its BT on USB, described by port@2, keeps W_DISABLE2#
+asserted and its BT never enumerates.
+
+Register the notifier whenever the connector has a W_DISABLE2# GPIO,
+and only create the UART serdev when there is a UART link. Otherwise
+deassert W_DISABLE2# once the PCIe device is added, as is already done
+for USB BT variants of the UART BT cards.
+
+Deasserting it at probe is not enough: a WCN7850 card only brings up
+its USB BT when W_DISABLE2# is released after the WLAN side is up.
+
+Assisted-by: Claude:claude-opus-5-5
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+---
+ drivers/power/sequencing/pwrseq-pcie-m2.c | 29 +++++++++++++----------
+ 1 file changed, 17 insertions(+), 12 deletions(-)
+
+diff --git a/drivers/power/sequencing/pwrseq-pcie-m2.c b/drivers/power/sequencing/pwrseq-pcie-m2.c
+index 54a13f90e85c..0b96499102eb 100644
+--- a/drivers/power/sequencing/pwrseq-pcie-m2.c
++++ b/drivers/power/sequencing/pwrseq-pcie-m2.c
+@@ -41,6 +41,7 @@ struct pwrseq_pcie_m2_ctx {
+ 	struct gpio_desc *w_disable2_gpio;
+ 	struct gpio_desc *sdio_reset_gpio;
+ 	struct device *dev;
++	bool uart;
+ 	struct list_head pci_devices;
+ 	struct mutex list_lock;
+ };
+@@ -423,24 +424,25 @@ static int pwrseq_pcie_m2_notify(struct notifier_block *nb, unsigned long action
+ 
+ 	switch (action) {
+ 	case BUS_NOTIFY_ADD_DEVICE:
+-		if (pci_match_id(pwrseq_m2_pci_ids, pdev)) {
++		if (ctx->uart && pci_match_id(pwrseq_m2_pci_ids, pdev)) {
+ 			ret = pwrseq_pcie_m2_create_serdev_one(ctx, pdev);
+ 			if (ret)
+ 				return notifier_from_errno(ret);
+ 		} else if (ctx->w_disable2_gpio) {
+ 			/*
+-			 * PCIe device not in the UART BT table. This covers
+-			 * USB BT variants of the same combo chip (same PCIe
+-			 * device ID, different sub-system ID, BT exposed over
+-			 * USB instead of UART). No UART serdev is needed, but
+-			 * W_DISABLE2# must be deasserted to enable the BT
+-			 * subsystem so the USB BT interface can enumerate.
++			 * No UART link, or a PCIe device not in the UART BT
++			 * table. This covers USB BT variants of the same combo
++			 * chip (same PCIe device ID, different sub-system ID,
++			 * BT exposed over USB instead of UART). No UART serdev
++			 * is needed, but W_DISABLE2# must be deasserted to
++			 * enable the BT subsystem so the USB BT interface can
++			 * enumerate.
+ 			 */
+ 			gpiod_set_value_cansleep(ctx->w_disable2_gpio, 0);
+ 		}
+ 		break;
+ 	case BUS_NOTIFY_REMOVED_DEVICE:
+-		if (pci_match_id(pwrseq_m2_pci_ids, pdev))
++		if (ctx->uart && pci_match_id(pwrseq_m2_pci_ids, pdev))
+ 			pwrseq_pcie_m2_remove_serdev(ctx, pdev);
+ 		else if (ctx->w_disable2_gpio)
+ 			gpiod_set_value_cansleep(ctx->w_disable2_gpio, 1);
+@@ -474,9 +476,10 @@ static int pwrseq_pcie_m2_register_notifier(struct pwrseq_pcie_m2_ctx *ctx)
+ 
+ 	/*
+ 	 * Register a PCI notifier for Key E connector that has PCIe as Port
+-	 * 0/Endpoint 0 interface and Serial as Port 3/Endpoint 0 interface.
++	 * 0/Endpoint 0 interface and either Serial as Port 3/Endpoint 0
++	 * interface or a W_DISABLE2# GPIO to deassert for USB BT.
+ 	 */
+-	if (!pwrseq_pcie_m2_check_remote_node(ctx->dev, 3, 0, "serial") ||
++	if ((!ctx->uart && !ctx->w_disable2_gpio) ||
+ 	    !pwrseq_pcie_m2_check_remote_node(ctx->dev, 0, 0, "pcie"))
+ 		return 0;
+ 
+@@ -493,7 +496,7 @@ static int pwrseq_pcie_m2_create_serdev(struct pwrseq_pcie_m2_ctx *ctx)
+ 	struct pci_dev *pdev = NULL;
+ 	int ret;
+ 
+-	if (!pwrseq_pcie_m2_check_remote_node(ctx->dev, 3, 0, "serial") ||
++	if ((!ctx->uart && !ctx->w_disable2_gpio) ||
+ 	    !pwrseq_pcie_m2_check_remote_node(ctx->dev, 0, 0, "pcie"))
+ 		return 0;
+ 
+@@ -507,7 +510,7 @@ static int pwrseq_pcie_m2_create_serdev(struct pwrseq_pcie_m2_ctx *ctx)
+ 		if (!pwrseq_pcie_m2_pci_parent_matches(pdev, pci_parent))
+ 			continue;
+ 
+-		if (pci_match_id(pwrseq_m2_pci_ids, pdev)) {
++		if (ctx->uart && pci_match_id(pwrseq_m2_pci_ids, pdev)) {
+ 			ret = pwrseq_pcie_m2_create_serdev_one(ctx, pdev);
+ 			if (ret) {
+ 				dev_err_probe(ctx->dev, ret,
+@@ -598,6 +601,8 @@ static int pwrseq_pcie_m2_probe(struct platform_device *pdev)
+ 	INIT_LIST_HEAD(&ctx->pci_devices);
+ 	ctx->dev = dev;
+ 
++	ctx->uart = pwrseq_pcie_m2_check_remote_node(dev, 3, 0, "serial");
++
+ 	/* Create serdev for available PCI devices (if required) */
+ 	ret = pwrseq_pcie_m2_create_serdev(ctx);
+ 	if (ret)

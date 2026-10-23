@@ -1,0 +1,72 @@
+From 8a7c2b2d1c66c265ab829882dc89c183f6b17b3b Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Fri, 23 Oct 2026 10:34:45 +0100
+Subject: [PATCH] power: sequencing: pcie-m2: Drive the Key E SDIO_RESET#
+ signal
+
+The pcie-m2-e-connector binding describes sdio-reset-gpios, but the
+driver never requested it, so the line was left to pinctrl or to its
+reset state.
+
+Request it deasserted, since some cards use it as a chip enable, assert
+it when the connector supplies are disabled and deassert it again once
+they are enabled.
+
+Assisted-by: Claude:claude-opus-5-5
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+---
+ drivers/power/sequencing/pwrseq-pcie-m2.c | 21 ++++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/power/sequencing/pwrseq-pcie-m2.c b/drivers/power/sequencing/pwrseq-pcie-m2.c
+index cafa642a4b6b..54a13f90e85c 100644
+--- a/drivers/power/sequencing/pwrseq-pcie-m2.c
++++ b/drivers/power/sequencing/pwrseq-pcie-m2.c
+@@ -39,6 +39,7 @@ struct pwrseq_pcie_m2_ctx {
+ 	struct notifier_block nb;
+ 	struct gpio_desc *w_disable1_gpio;
+ 	struct gpio_desc *w_disable2_gpio;
++	struct gpio_desc *sdio_reset_gpio;
+ 	struct device *dev;
+ 	struct list_head pci_devices;
+ 	struct mutex list_lock;
+@@ -47,13 +48,23 @@ struct pwrseq_pcie_m2_ctx {
+ static int pwrseq_pcie_m2_vregs_enable(struct pwrseq_device *pwrseq)
+ {
+ 	struct pwrseq_pcie_m2_ctx *ctx = pwrseq_device_get_drvdata(pwrseq);
++	int ret;
++
++	ret = regulator_bulk_enable(ctx->num_vregs, ctx->regs);
++	if (ret)
++		return ret;
+ 
+-	return regulator_bulk_enable(ctx->num_vregs, ctx->regs);
++	return gpiod_set_value_cansleep(ctx->sdio_reset_gpio, 0);
+ }
+ 
+ static int pwrseq_pcie_m2_vregs_disable(struct pwrseq_device *pwrseq)
+ {
+ 	struct pwrseq_pcie_m2_ctx *ctx = pwrseq_device_get_drvdata(pwrseq);
++	int ret;
++
++	ret = gpiod_set_value_cansleep(ctx->sdio_reset_gpio, 1);
++	if (ret)
++		return ret;
+ 
+ 	return regulator_bulk_disable(ctx->num_vregs, ctx->regs);
+ }
+@@ -562,6 +573,14 @@ static int pwrseq_pcie_m2_probe(struct platform_device *pdev)
+ 		goto err_free_regulators;
+ 	}
+ 
++	/* Left deasserted so a card using it as a chip enable stays on */
++	ctx->sdio_reset_gpio = devm_gpiod_get_optional(dev, "sdio-reset", GPIOD_OUT_LOW);
++	if (IS_ERR(ctx->sdio_reset_gpio)) {
++		ret = dev_err_probe(dev, PTR_ERR(ctx->sdio_reset_gpio),
++				     "Failed to get the SDIO_RESET# GPIO\n");
++		goto err_free_regulators;
++	}
++
+ 	config.parent = dev;
+ 	config.owner = THIS_MODULE;
+ 	config.drvdata = ctx;
