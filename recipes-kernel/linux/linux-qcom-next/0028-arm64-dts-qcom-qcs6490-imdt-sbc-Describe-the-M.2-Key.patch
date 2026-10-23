@@ -1,0 +1,139 @@
+From 48c757c6bf8e06988d2cf51a11fc874ccde36acb Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Fri, 23 Oct 2026 09:16:37 +0100
+Subject: [PATCH] arm64: dts: qcom: qcs6490-imdt-sbc: Describe the M.2 Key-E
+ connector
+
+Describe J46 with the pcie-m2-e-connector binding, linked to the PCIe0
+root port and to USB1, with the VM2E_3V3 rail and W_DISABLE1# on
+GPIO 84.
+
+W_DISABLE2# on GPIO 85 is hogged high instead. The connector driver
+only releases it when a UART BT link exists, so a card with USB BT
+would stay disabled.
+
+Tested on SoM 01 with a WCN7850 card: Wi-Fi on ath12k and BT on btusb.
+
+Assisted-by: Claude:claude-opus-5-5
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+---
+ arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts | 78 +++++++++++++++++++
+ 1 file changed, 78 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
+index df5ca90a188d..bde2e83da826 100644
+--- a/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
++++ b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc.dts
+@@ -68,6 +68,45 @@ chosen {
+ 	 * through a MOSFET. The nominal RPM is indicative only; there is
+ 	 * no tachometer feedback.
+ 	 */
++	/* J46, M.2 Key-E */
++	m2e_connector: connector-m2-e {
++		compatible = "pcie-m2-e-connector";
++		vpcie3v3-supply = <&vreg_m2e_3p3>;
++
++		/* Through the NXS0104 (U513), non-inverting */
++		w-disable1-gpios = <&tlmm 84 GPIO_ACTIVE_LOW>;
++
++		pinctrl-0 = <&m2e_w_disable_default>;
++		pinctrl-names = "default";
++
++		ports {
++			#address-cells = <1>;
++			#size-cells = <0>;
++
++			port@0 {
++				reg = <0>;
++				#address-cells = <1>;
++				#size-cells = <0>;
++
++				m2e_pcie_ep: endpoint@0 {
++					reg = <0>;
++					remote-endpoint = <&pcie0_port_ep>;
++				};
++			};
++
++			port@2 {
++				reg = <2>;
++				#address-cells = <1>;
++				#size-cells = <0>;
++
++				m2e_usb_ep: endpoint@0 {
++					reg = <0>;
++					remote-endpoint = <&usb_2_m2e_ep>;
++				};
++			};
++		};
++	};
++
+ 	fan: fan {
+ 		compatible = "gpio-fan";
+ 		gpios = <&tlmm 133 GPIO_ACTIVE_HIGH>;
+@@ -227,6 +266,16 @@ m2_pd_pwr: regulator-m2-pd-pwr {
+ 		gpio-open-drain;
+ 	};
+ 
++	/* U6 output to J46, enabled by m2_pd_pwr */
++	vreg_m2e_3p3: regulator-m2e-3p3 {
++		compatible = "regulator-fixed";
++		regulator-name = "VM2E_3V3";
++		regulator-min-microvolt = <3300000>;
++		regulator-max-microvolt = <3300000>;
++
++		vin-supply = <&m2_pd_pwr>;
++	};
++
+ 	per_1v8_reg: regulator-per-1v8 {
+ 		compatible = "regulator-fixed";
+ 		regulator-name = "per_1v8_reg";
+@@ -578,6 +627,14 @@ &pcie0 {
+ 	status = "okay";
+ };
+ 
++&pcie0_port {
++	port {
++		pcie0_port_ep: endpoint {
++			remote-endpoint = <&m2e_pcie_ep>;
++		};
++	};
++};
++
+ &pcie0_phy {
+ 	vdda-phy-supply = <&vreg_l10c_0p88>;
+ 	vdda-pll-supply = <&vreg_l6b_1p2>;
+@@ -774,6 +831,21 @@ m2_pd_en_default: m2-pd-en-default-state {
+ 		drive-open-drain;
+ 	};
+ 
++	m2e_w_disable_default: m2e-w-disable-default-state {
++		pins = "gpio84";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-disable;
++	};
++
++	/* M.2 W_DISABLE2#, the connector driver only releases it for UART BT */
++	m2e-w-disable2-hog {
++		gpio-hog;
++		gpios = <85 GPIO_ACTIVE_HIGH>;
++		output-high;
++		line-name = "m2e-w-disable2-n";
++	};
++
+ 	/*
+ 	 * We drive this GPIO physically high on the M.2 Key-E connector
+ 	 * to make sure the module is enabled. An M.2 Key-E module could
+@@ -944,6 +1016,12 @@ &usb_2 {
+ 	dr_mode = "host";
+ 
+ 	status = "okay";
++
++	port {
++		usb_2_m2e_ep: endpoint {
++			remote-endpoint = <&m2e_usb_ep>;
++		};
++	};
+ };
+ 
+ &usb_2_hsphy {

@@ -78,7 +78,7 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 | microSD Card | — | SDHC2 | sdhci | ✅ | ✅ | — |
 | MIPI DSI Display | Team Source TST070WSBE-196C 7" | DSI0 | drm/msm | ✅ | 🚧 Not supported yet | ❌ |
 | OTA Rootfs Updates | — | — | — | ✅ | ✅ | 🚧 |
-| PCIe Expansion (M.2 Key-E) | M.2 Key-E slot | PCIe0 | qcom-pcie | ✅ | ✅ | 🚧 |
+| PCIe Expansion (M.2 Key-E) | M.2 Key-E slot | PCIe0 | qcom-pcie | ✅ | ✅ | ✅ |
 | Remote Desktop (VNC) | — | Network | — | ✅ Multimedia images | ✅ Multimedia images | ❌ |
 | systemd-boot as ARM64 UEFI App| — | — | — | ✅ | ✅ | ✅ |
 | UFS Storage | — | UFS | ufshcd | ✅ | ✅ | — |

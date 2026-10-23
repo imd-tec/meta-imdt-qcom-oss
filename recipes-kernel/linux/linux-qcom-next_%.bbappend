@@ -37,6 +37,7 @@ SRC_URI:append = " \
     file://0025-arm64-dts-qcom-qcs8550-imdt-sbc-Drive-SM_RESOUT_N_1P.patch \
     file://0026-arm64-dts-qcom-qcs6490-imdt-sbc-Add-display-overlay.patch \
     file://0027-arm64-dts-qcom-qcs6490-imdt-sbc-Add-DSI-to-HDMI-adap.patch \
+    file://0028-arm64-dts-qcom-qcs6490-imdt-sbc-Describe-the-M.2-Key.patch \
     file://configs/imdt.cfg \
 "
 
