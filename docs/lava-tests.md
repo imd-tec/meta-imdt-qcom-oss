@@ -34,7 +34,7 @@ SSH/camera jobs run against the freshly-deployed rootfs.
 
 ## Job 1 — OSTree Deploy (`ostree-deploy`)
 
-Pushes the build's OSTree commit archive (`*.ostreecommit.tar.xz`) to the DUT
+Pushes the build's OSTree commit archive (`*.ostreecommit.tar.zst`) to the DUT
 over ssh/scp in resumable 64 MB chunks, unpacks it, exposes it as a throwaway
 `file://` OSTree remote and then runs the on-target `ostree-imdt-update` helper
 to pull and stage it — the same script a fielded board runs, so CI covers the

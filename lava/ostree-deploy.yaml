@@ -7,7 +7,7 @@ tags:
 #
 # Disk-mindful by design — the LAVA worker and the DUT both have little spare
 # space:
-#   * CI stages ONLY <image>...ostreecommit.tar.xz into /images (one self-
+#   * CI stages ONLY <image>...ostreecommit.tar.zst into /images (one self-
 #     contained archive repo per image), and deletes it once every job passes.
 #   * On the DUT the pushed tarball is deleted the instant it is unpacked, the
 #     unpacked repo the instant it is pulled, and `ostree admin cleanup` reclaims
@@ -50,7 +50,7 @@ actions:
       parameters:
         # Self-contained archive ostree repo holding this build's commit, staged
         # into /images by CI and named with the commit sha. Set by the workflow.
-        COMMIT_FILE: 'qcom-minimal-image-imdt-8550-sbc.rootfs.ostreecommit.tar.xz'
+        COMMIT_FILE: 'qcom-minimal-image-imdt-8550-sbc.rootfs.ostreecommit.tar.zst'
         # ref (branch) inside that repo, and the OS name the DUT deploys under.
         OSTREE_REF: 'imdt-8550-sbc'
         OSTREE_OSNAME: 'nodistro'
@@ -93,8 +93,8 @@ actions:
           # ── Stage the commit archive on the DUT ─────────────────────────────
           - 'echo "Using commit: /images/$COMMIT_FILE"'
           - if [ -f "/images/$COMMIT_FILE" ]; then lava-test-case commit-present --result pass; else lava-test-case commit-present --result fail; fi
-          - cp "/images/$COMMIT_FILE" /tmp/commit.tar.xz
-          - COMMIT_MD5=$(md5sum /tmp/commit.tar.xz | cut -d' ' -f1)
+          - cp "/images/$COMMIT_FILE" /tmp/commit.tar.zst
+          - COMMIT_MD5=$(md5sum /tmp/commit.tar.zst | cut -d' ' -f1)
           - $SSH mkdir -p /var/ota
           # Reclaim space first: drop superseded/staged deployments so the pull
           # below has the most headroom on the ~6 GB rootfs.
@@ -106,8 +106,8 @@ actions:
           # primitive the old swu-deploy used. Peak DUT use is one copy of the
           # archive, deleted the moment it is unpacked (below).
           - CHUNK=$((64 * 1024 * 1024))
-          - 'dut_size() { S=$($SSH "stat -c%s /var/ota/commit.tar.xz 2>/dev/null" 2>/dev/null) || S=""; case "$S" in ""|*[!0-9]*) S=0 ;; esac; echo "$S"; }'
-          - 'push_file() { LOCAL_SIZE=$(stat -c%s /tmp/commit.tar.xz); STALL=0; PASS=0; while [ $STALL -lt 10 ]; do PASS=$((PASS+1)); HAVE=$(dut_size); if [ "$HAVE" -gt "$LOCAL_SIZE" ]; then $SSH rm -f /var/ota/commit.tar.xz || true; HAVE=0; fi; if [ "$HAVE" -eq "$LOCAL_SIZE" ]; then DUT_MD5=$($SSH md5sum /var/ota/commit.tar.xz | cut -d" " -f1) || DUT_MD5=""; if [ -n "$DUT_MD5" ] && [ "$DUT_MD5" = "$COMMIT_MD5" ]; then echo "push verified after $((PASS-1)) pass(es)"; return 0; fi; $SSH rm -f /var/ota/commit.tar.xz || true; HAVE=0; fi; echo "push pass $PASS: $HAVE of $LOCAL_SIZE bytes on dut"; tail -c +$((HAVE+1)) /tmp/commit.tar.xz | head -c $CHUNK | $SSH_PIPE "cat >> /var/ota/commit.tar.xz" || true; if [ "$(dut_size)" -gt "$HAVE" ]; then STALL=0; else STALL=$((STALL+1)); echo "no progress ($STALL/10)"; sleep 10; fi; done; echo "push gave up after 10 stalled passes"; return 1; }'
+          - 'dut_size() { S=$($SSH "stat -c%s /var/ota/commit.tar.zst 2>/dev/null" 2>/dev/null) || S=""; case "$S" in ""|*[!0-9]*) S=0 ;; esac; echo "$S"; }'
+          - 'push_file() { LOCAL_SIZE=$(stat -c%s /tmp/commit.tar.zst); STALL=0; PASS=0; while [ $STALL -lt 10 ]; do PASS=$((PASS+1)); HAVE=$(dut_size); if [ "$HAVE" -gt "$LOCAL_SIZE" ]; then $SSH rm -f /var/ota/commit.tar.zst || true; HAVE=0; fi; if [ "$HAVE" -eq "$LOCAL_SIZE" ]; then DUT_MD5=$($SSH md5sum /var/ota/commit.tar.zst | cut -d" " -f1) || DUT_MD5=""; if [ -n "$DUT_MD5" ] && [ "$DUT_MD5" = "$COMMIT_MD5" ]; then echo "push verified after $((PASS-1)) pass(es)"; return 0; fi; $SSH rm -f /var/ota/commit.tar.zst || true; HAVE=0; fi; echo "push pass $PASS: $HAVE of $LOCAL_SIZE bytes on dut"; tail -c +$((HAVE+1)) /tmp/commit.tar.zst | head -c $CHUNK | $SSH_PIPE "cat >> /var/ota/commit.tar.zst" || true; if [ "$(dut_size)" -gt "$HAVE" ]; then STALL=0; else STALL=$((STALL+1)); echo "no progress ($STALL/10)"; sleep 10; fi; done; echo "push gave up after 10 stalled passes"; return 1; }'
           - if push_file; then PUSH_OK=1; else PUSH_OK=0; fi
           - 'echo "commit md5 local=$COMMIT_MD5 dut=${DUT_MD5:-<none>}"'
           - if [ "$PUSH_OK" = 1 ]; then lava-test-case push-commit --result pass; else lava-test-case push-commit --result fail; fi
@@ -115,7 +115,7 @@ actions:
           # Unpack the archive repo, then delete the tarball immediately so the
           # DUT never holds both the archive and the unpacked repo for longer
           # than the untar itself.
-          - UNPACK_RC=1; if [ "$PUSH_OK" = 1 ]; then i=0; while [ $i -lt 3 ]; do if $SSH "rm -rf /var/ota/repo && mkdir -p /var/ota/repo && tar -C /var/ota/repo -xJf /var/ota/commit.tar.xz && rm -f /var/ota/commit.tar.xz && echo UNPACK_OK"; then UNPACK_RC=0; break; fi; i=$((i+1)); echo "unpack attempt $i failed (transport drop?), retrying"; sleep 5; done; fi
+          - UNPACK_RC=1; if [ "$PUSH_OK" = 1 ]; then i=0; while [ $i -lt 3 ]; do if $SSH "rm -rf /var/ota/repo && mkdir -p /var/ota/repo && zstd -dc /var/ota/commit.tar.zst | tar -C /var/ota/repo -xf - && rm -f /var/ota/commit.tar.zst && echo UNPACK_OK"; then UNPACK_RC=0; break; fi; i=$((i+1)); echo "unpack attempt $i failed (transport drop?), retrying"; sleep 5; done; fi
           - if [ "${UNPACK_RC:-1}" = 0 ]; then lava-test-case unpack-commit --result pass; else lava-test-case unpack-commit --result fail; fi
           # Expose the repo as a remote so the pull matches a fielded update.
           - if [ "${UNPACK_RC:-1}" = 0 ]; then $SSH "ostree remote delete $OSTREE_TEST_REMOTE >/dev/null 2>&1 || true; ostree remote add --no-gpg-verify $OSTREE_TEST_REMOTE file:///var/ota/repo && echo REMOTE_OK"; REMOTE_RC=$?; else REMOTE_RC=1; fi

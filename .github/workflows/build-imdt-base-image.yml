@@ -94,7 +94,7 @@ jobs:
         qcom-multimedia-image-*.rootfs.qcomflash.tar.gz
         qcom-multimedia-proprietary-image-*.rootfs.qcomflash.tar.gz
       # ostree_repo is the shared archive repo bitbake commits every image into,
-      # and each image's .ostreecommit.tar.xz is itself a tar of that same repo
+      # and each image's .ostreecommit.tar.zst is itself a tar of that same repo
       # (meta-updater sets TAR_IMAGE_ROOTFS:task-image-ostreecommit =
       # ${OSTREE_REPO}). Shipping the directory as well added ~1.7 GB of
       # duplicate objects to the 8550 release asset for nothing.
@@ -108,7 +108,7 @@ jobs:
       rsync-host: ${{ vars.LAVA_HOST }}
       rsync-user: ${{ vars.LAVA_USER }}
       rsync-dest: ${{ vars.LAVA_IMAGES_DIR }}/
-      rsync-pattern: '*.ostreecommit.tar.xz'
+      rsync-pattern: '*.ostreecommit.tar.zst'
       clean-checkout: false
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -187,4 +187,4 @@ jobs:
       - name: Delete this commit's staged OSTree archives on the LAVA server
         run: |
           ssh -o StrictHostKeyChecking=accept-new "${{ vars.LAVA_USER }}@${{ vars.LAVA_HOST }}" \
-            "rm -f ${{ vars.LAVA_IMAGES_DIR }}/*-imdt-8550-sbc.rootfs-${{ github.sha }}.ostreecommit.tar.xz"
+            "rm -f ${{ vars.LAVA_IMAGES_DIR }}/*-imdt-8550-sbc.rootfs-${{ github.sha }}.ostreecommit.tar.zst"

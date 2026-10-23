@@ -208,7 +208,7 @@ jobs:
         run: |
           # kas-gh-ci stages each artifact as <stem>-<sha>.<ext>, splitting on the last
           # dot, so mirror that here rather than assume where the sha lands.
-          ARTIFACT="${{ inputs.image-name }}-imdt-8550-sbc.rootfs.ostreecommit.tar.xz"
+          ARTIFACT="${{ inputs.image-name }}-imdt-8550-sbc.rootfs.ostreecommit.tar.zst"
           COMMIT_FILE="${ARTIFACT%.*}-${{ github.sha }}.${ARTIFACT##*.}"
           sed -e "s|COMMIT_FILE: '.*'|COMMIT_FILE: '${COMMIT_FILE}'|" \
               /tmp/lava-jobs/ostree-deploy.yaml > /tmp/lava-ostree-deploy.yaml
