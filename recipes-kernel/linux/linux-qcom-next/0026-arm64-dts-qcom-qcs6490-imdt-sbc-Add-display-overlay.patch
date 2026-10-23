@@ -1,20 +1,21 @@
-From 9311b513539cedad9a810509ab453fc0aa073dbd Mon Sep 17 00:00:00 2001
+From 9aaa5d886d214c39b72781ffdc03022b0f589e9b Mon Sep 17 00:00:00 2001
 From: William Bright <william.bright@imd-tec.com>
 Date: Wed, 21 Oct 2026 15:10:11 +0100
 Subject: [PATCH] arm64: dts: qcom: qcs6490-imdt-sbc: Add display overlay
 
 Add an overlay for the TST070WSBE-196C DSI panel on the J41 display
 connector. PM7325 GPIO6 has no LPG, so the backlight is a simple on/off
-GPIO. gpio-backlight can't take a supply, so keep DSI_5V on for the LED
-boost. The panel runs in video mode, so TE is left unconnected, which
-also keeps it off the SoM 02 BT UART on GPIO 60.
+GPIO driven by the panel. gpio-backlight can't take a supply, so DSI_5V
+for the LED boost feeds the panel supply and is switched with it. The
+panel runs in video mode, so TE is left unconnected, which also keeps
+it off the SoM 02 BT UART on GPIO 60.
 
 Assisted-by: Claude:claude-opus-5-5
 Signed-off-by: William Bright <william.bright@imd-tec.com>
 ---
  arch/arm64/boot/dts/qcom/Makefile             |  1 +
- .../dts/qcom/qcs6490-imdt-sbc-display.dtso    | 96 +++++++++++++++++++
- 2 files changed, 97 insertions(+)
+ .../dts/qcom/qcs6490-imdt-sbc-display.dtso    | 90 +++++++++++++++++++
+ 2 files changed, 91 insertions(+)
  create mode 100644 arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc-display.dtso
 
 diff --git a/arch/arm64/boot/dts/qcom/Makefile b/arch/arm64/boot/dts/qcom/Makefile
@@ -31,10 +32,10 @@ index f5a543522acd..5da8cbb9effb 100644
  dtb-$(CONFIG_ARCH_QCOM)	+= qcs6490-rb3gen2.dtb
 diff --git a/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc-display.dtso b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc-display.dtso
 new file mode 100644
-index 000000000000..aa5ff5bf1221
+index 000000000000..01585eeb0f07
 --- /dev/null
 +++ b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc-display.dtso
-@@ -0,0 +1,96 @@
+@@ -0,0 +1,90 @@
 +// SPDX-License-Identifier: BSD-3-Clause
 +/*
 + * Copyright (c) 2026 IMD Technologies Ltd
@@ -52,7 +53,6 @@ index 000000000000..aa5ff5bf1221
 +	backlight: backlight {
 +		compatible = "gpio-backlight";
 +		gpios = <&pm7325_gpios 6 GPIO_ACTIVE_HIGH>;
-+		default-on;
 +
 +		pinctrl-0 = <&bl_en_default>;
 +		pinctrl-names = "default";
@@ -100,15 +100,12 @@ index 000000000000..aa5ff5bf1221
 +	status = "okay";
 +};
 +
-+/* DSI_5V feeds the LED boost, gpio-backlight can't enable it */
-+&dsi_5v_en {
-+	regulator-boot-on;
-+	regulator-always-on;
-+};
-+
 +&display_panel_pwr_en {
 +	/* Let the panel rails settle before releasing reset */
 +	startup-delay-us = <30000>;
++
++	/* DSI_5V feeds the LED boost; gpio-backlight has no supply, so the panel switches it */
++	vin-supply = <&dsi_5v_en>;
 +};
 +
 +&pm7325_gpios {
@@ -122,12 +119,10 @@ index 000000000000..aa5ff5bf1221
 +};
 +
 +&tlmm {
-+	/* Open-drain like the 8550, so panel-simple's enable gets a rising edge */
 +	panel_reset_default: panel-reset-default-state {
 +		pins = "gpio44";
 +		function = "gpio";
 +		drive-strength = <2>;
-+		drive-open-drain;
-+		bias-pull-up;
++		bias-disable;
 +	};
 +};
