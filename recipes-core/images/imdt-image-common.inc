@@ -9,3 +9,8 @@ IMAGE_INSTALL:append = " \
     packagegroup-imdt-bsp-support \
 "
 # OSTree image artefacts (ota-esp, ota-ext4, qcomflash) come from sota_qcom.
+
+# meta-updater now builds the commit archive as .tar.zst, but the installed DUT
+# images and the lava-adb container have no zstd. Keep the .tar.xz archive.
+IMAGE_FSTYPES:remove = "ostreecommit.tar.zst"
+IMAGE_FSTYPES:append = " ostreecommit.tar.xz"

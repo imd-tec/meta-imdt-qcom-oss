@@ -919,13 +919,13 @@ defaulting to the machine name); on the board they live in
 `/etc/default/ostree-imdt-update` and `/etc/ostree/remotes.d/<remote>.conf`.
 
 To deploy a locally built commit without an update server, push the build's
-self-contained archive repo (`<image>-<machine>.rootfs.ostreecommit.tar.zst`) to
+self-contained archive repo (`<image>-<machine>.rootfs.ostreecommit.tar.xz`) to
 the board and pull from it — this copies only the objects the board is missing:
 
 ```bash
 adb shell "mkdir -p /var/ota/repo"
-adb push qcom-minimal-image-imdt-8550-sbc.rootfs.ostreecommit.tar.zst /var/ota/
-adb shell "zstd -dc /var/ota/*.ostreecommit.tar.zst | tar -C /var/ota/repo -xf - && rm -f /var/ota/*.tar.zst"
+adb push qcom-minimal-image-imdt-8550-sbc.rootfs.ostreecommit.tar.xz /var/ota/
+adb shell "tar -C /var/ota/repo -xJf /var/ota/*.ostreecommit.tar.xz && rm -f /var/ota/*.tar.xz"
 adb shell "ostree pull-local --repo=/ostree/repo /var/ota/repo imdt-8550-sbc && rm -rf /var/ota"
 adb shell "ostree admin deploy imdt-8550-sbc"
 adb reboot
