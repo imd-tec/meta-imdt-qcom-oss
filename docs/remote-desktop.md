@@ -88,7 +88,6 @@ session on the monitor.
 | Piece | Where |
 |---|---|
 | VNC backend, PAM service file | weston's `vnc` PACKAGECONFIG — `recipes-graphics/wayland/weston_%.bbappend` |
-| aml 1.x fix for weston 15.x | `recipes-graphics/wayland/weston/0001-backend-vnc-build-against-aml1.patch` |
 | RSA-AES + TLS + JPEG in neatvnc | `recipes-graphics/neatvnc/neatvnc_%.bbappend` |
 | The service and its configuration | `recipes-graphics/remote-desktop/imdt-remote-desktop_1.0.bb` |
 
@@ -98,13 +97,11 @@ through the GPU's render node while the local compositor keeps DRM master.
 
 Only the two multimedia images install it; the minimal image has no Weston.
 
-Two notes on the dependency versions, both of which the bbappends deal with:
+Two notes on the dependency versions:
 
-- Weston 15.0.1 wants aml 0.3.x, but meta-openembedded only carries aml 1.0.0
-  (pkg-config module `aml1`, renamed loop accessors), and its neatvnc is
-  already patched to use it. Weston 16.0.0 asks for `aml1` natively, so the
-  patch should be **deleted** when oe-core upgrades weston — the build fails
-  loudly if it is not.
+- Weston 16.0.0 asks for aml 1.x (pkg-config module `aml1`) natively, which is
+  what meta-openembedded carries, and its neatvnc is already patched to use it.
+  Earlier weston needed a local patch for this.
 - meta-oe builds neatvnc with no optional features, which cannot work: the
   backend always requires authentication, and neatvnc can only offer an
   authenticating security type when built with nettle (RSA-AES) or TLS
