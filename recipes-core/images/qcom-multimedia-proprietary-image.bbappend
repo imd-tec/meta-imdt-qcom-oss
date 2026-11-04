@@ -17,3 +17,7 @@ CORE_IMAGE_BASE_INSTALL:remove = "packagegroup-audioreach"
 IMAGE_INSTALL:append = " \
     imdt-remote-desktop \
 "
+
+# cdsp-htp-test needs the LICENSE.qcom hexagon-v73 skel, so it can't go in the
+# open-source multimedia image. qcs8550-only, see docs/lava-tests.md (dsp-htp).
+IMAGE_INSTALL:append:qcs8550 = " cdsp-htp-test"

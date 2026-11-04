@@ -143,7 +143,7 @@ Runs a real MobileNetV2 model on the cDSP's Hexagon Tensor Processor via
 onnxruntime-qnn (`cdsp-htp-test`, see `recipes-test/cdsp-htp-test`) repeatedly
 for `HTP_DURATION_S` seconds (default 30), so a session that wedges shortly
 after a successful first inference doesn't pass undetected. Reports a skip if
-the image doesn't have `cdsp-htp-test` installed (qcs8550-only for now).
+the image doesn't have `cdsp-htp-test` installed (qcs8550 minimal and proprietary images only).
 
 | Test Case | Description |
 |-----------|-------------|

@@ -253,7 +253,7 @@ actions:
           description: Run MobileNetV2 on the cDSP's HTP (NPU) via onnxruntime-qnn for a sustained period
         run:
           steps:
-          # cdsp-htp-test is qcs8550-only (see packagegroup-imdt-bsp-support.bb);
+          # cdsp-htp-test is qcs8550 minimal and proprietary images only;
           # skip cleanly on boards/images that don't have it.
           - if ! command -v cdsp-htp-test >/dev/null 2>&1; then echo "cdsp-htp-test not installed on this image - skipping"; lava-test-case htp-sustained-inference --result skip; exit 0; fi
           - MODEL=/usr/share/cdsp-htp-test/mobilenet_v2.onnx
