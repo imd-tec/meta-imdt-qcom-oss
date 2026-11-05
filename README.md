@@ -173,8 +173,9 @@ Parsing /mnt/dtb/qclinux_fit.img
 		 fdt: fdt-qcs6490-imdt-sbc.dtb fdt-qcs6490-imdt-sbc-display.dtbo
 ```
 
-`-u -i <n> -f "<images>"` replaces the image list of entry `n`, base DTB first,
-then the overlays in the order they should be applied. The names are the FIT
+`-u -i <n> -f <image> -f <image> ...` replaces the image list of entry `n`, base DTB
+first, then the overlays in the order they should be applied. Give one `-f` per image:
+a single quoted list is stored as one bogus name and leaves UEFI with no DTB. The names are the FIT
 image names: the build's file names with an `fdt-` prefix.
 `-c`/`--compatible` updates the compatible string the same way.
 
@@ -194,8 +195,11 @@ Drop the camera overlay from config entry 1, leaving just the display one:
 
 ```bash
 adb shell qcom-metadata-editor -u -i 1 \
-    -f "fdt-qcs8550-imdt-sbc.dtb fdt-qcs8550-imdt-sbc-display.dtbo" \
+    -f fdt-qcs8550-imdt-sbc.dtb \
+    -f fdt-qcs8550-imdt-sbc-display.dtbo \
     /mnt/dtb/qclinux_fit.img
+adb shell sync
+adb shell umount /mnt/dtb
 adb reboot
 ```
 
@@ -209,7 +213,7 @@ the same device tree whichever slot it uses:
 adb shell 'mkdir -p /mnt/dtb; for p in dtb_a dtb_b; do
   mount /dev/disk/by-partlabel/$p /mnt/dtb &&
   qcom-metadata-editor -u -i 1 \
-    -f "fdt-qcs6490-imdt-sbc.dtb fdt-qcs6490-imdt-sbc-display.dtbo" \
+    -f fdt-qcs6490-imdt-sbc.dtb -f fdt-qcs6490-imdt-sbc-display.dtbo \
     /mnt/dtb/qclinux_fit.img && sync; umount /mnt/dtb; done'
 adb reboot
 ```
