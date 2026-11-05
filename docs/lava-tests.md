@@ -55,6 +55,7 @@ has no EFI variables.
 | `update-remote` | unpacked repo is registered as the throwaway `lava-local` remote |
 | `ostree-deploy` | `ostree-imdt-update` pulls the commit and stages it as a new deployment |
 | `root-unlocked` | ostree's immutable bit is cleared from the deployment roots, so `ssh-tests` can scp its overlay into `/lava-<id>` |
+| `dtb-overlays-default` | The DT overlay list in the `dtb` partition's FIT is reset to the build's defaults before the reboot, since hand-enabled overlays otherwise survive every deploy (skipped if the DUT has no `qcom-metadata-editor`) |
 | `reboot` | Device reboots and comes back with a **new** `boot_id` (a genuine reboot, immune to transient ssh drops) |
 | `deployment-switched` | Running deployment checksum differs from the pre-update one |
 | `boot-blessed` | No `+tries` BLS entry remains, i.e. the boot counter was blessed and the deployment will not roll back |

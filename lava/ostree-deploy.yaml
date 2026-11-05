@@ -131,6 +131,14 @@ actions:
           - $SSH "ls /boot/loader/entries/" || true
           # Both staging copies are consumed; reclaim the space before the reboot.
           - $SSH "rm -rf /var/ota" || true
+          # ── Reset the DT overlay list to the build's defaults ───────────────
+          # The FIT on the dtb partition is outside the ostree rootfs, so overlays
+          # enabled by hand survive every deploy and can swap the camera pipeline.
+          # One -f per overlay: a single quoted list is stored as one bogus name, which
+          # leaves UEFI with no DTB. Keep in step with KERNEL_DEVICETREE in imdt-8550-sbc.conf.
+          - 'if $SSH "command -v qcom-metadata-editor" >/dev/null 2>&1; then FIT=/mnt/dtb/qclinux_fit.img; BASE=fdt-qcs8550-imdt-sbc.dtb; DEF="fdt-qcs8550-imdt-sbc-display.dtbo fdt-qcs8550-imdt-sbc-ar1335-csi0.dtbo"; FIT_LIST=$($SSH "qcom-metadata-editor $FIT") || FIT_LIST=""; DT_RC=1; if [ -n "$FIT_LIST" ]; then DT_RC=0; for N in 1 2 3 4; do COMPAT=$(echo "$FIT_LIST" | sed -n "/conf-$N\$/{n;p}"); [ -n "$COMPAT" ] || continue; case "$COMPAT" in *subtype5) L="$BASE $DEF fdt-qcs8550-imdt-sbc-cypd6125.dtbo";; *) L="$BASE $DEF";; esac; FA=""; for X in $L; do FA="$FA -f $X"; done; $SSH "qcom-metadata-editor -u -i $N$FA $FIT" >/dev/null 2>&1 || DT_RC=1; done; $SSH sync || true; $SSH "umount /mnt/dtb" || true; fi; else DT_RC=2; fi'
+          - $SSH "qcom-metadata-editor /mnt/dtb/qclinux_fit.img" || true
+          - if [ "${DT_RC:-1}" = 0 ]; then lava-test-case dtb-overlays-default --result pass; elif [ "${DT_RC:-1}" = 2 ]; then lava-test-case dtb-overlays-default --result skip; else lava-test-case dtb-overlays-default --result fail; fi
           # ── Reboot into the new deployment ──────────────────────────────────
           # Record boot_id so the reboot is detected reliably across the possibly
           # flaky forwarded transport (every probe guarded with `|| ...` because
