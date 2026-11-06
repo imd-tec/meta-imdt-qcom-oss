@@ -434,7 +434,7 @@ flash_qcs8550_sbc() {
     [ -d "$dir" ] || dir="${image}-imdt-8550-sbc"
     # Program the CDT for this board revision (written to the cdt partition).
     cp "${dir}/cdt_imdt_8550_sbc_${rev}.bin" "${dir}/cdt.bin"
-    qdl -i "${dir}/" xbl_s_devprg_ns.melf "${dir}/rawprogram"*.xml "${dir}/patch"*.xml
+    qdl -i "${dir}/" "${dir}/xbl_s_devprg_ns.melf" "${dir}/rawprogram"*.xml "${dir}/patch"*.xml
 }
 ```
 
@@ -452,7 +452,7 @@ file alone:
 ```bash
 dir=<image>-imdt-8550-sbc.rootfs.qcomflash
 cp "${dir}/cdt_imdt_8550_sbc_rev3.bin" "${dir}/cdt.bin"   # or rev5
-qdl -i "${dir}/" xbl_s_devprg_ns.melf "${dir}/rawprogram3.xml"
+qdl -i "${dir}/" "${dir}/xbl_s_devprg_ns.melf" "${dir}/rawprogram3.xml"
 ```
 
 #### Flashing an image
@@ -507,7 +507,7 @@ flash_qcs6490_sbc() {
     local dir="${image}-imdt-6490-sbc.rootfs.qcomflash"
     # A release tarball extracts without the .rootfs.qcomflash suffix.
     [ -d "$dir" ] || dir="${image}-imdt-6490-sbc"
-    qdl -s emmc -i "${dir}/" prog_firehose_ddr.elf "${dir}/rawprogram"*.xml "${dir}/patch"*.xml
+    qdl -s emmc -i "${dir}/" "${dir}/prog_firehose_ddr.elf" "${dir}/rawprogram"*.xml "${dir}/patch"*.xml
 }
 ```
 
