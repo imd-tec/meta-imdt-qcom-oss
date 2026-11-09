@@ -69,7 +69,7 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 | PCIe Expansion (M.2 Key-B) | PCIe switch downstream Key-B port | PCIe1 (overlay) | qcom-pcie | ✅ Requires Key-B DTBO overlay | ✅ Requires Key-B DTBO overlay | 🚧 |
 | GPIO | PM8550 GPIO bank | SPMI | qcom-spmi-gpio | ✅ | ✅ | ✅ |
 | GPU (Adreno) | Adreno | — | msm drm | ✅ | ✅ | ❌ |
-| HDMI Display | DSI-to-HDMI adapter | DSI0 | drm/msm | ❌ | ❌ | ❌ |
+| HDMI Display (up to 4K60) | Lontium LT9611UXD (IM-PCA-0055-01) | DSI0 + DSI1 (dual DSI) | lt9611c | ❌ | ✅ Requires LT9611UXD DTBO overlay | ❌ |
 | I2C | QupV3 I2C hub | I2C | geni-i2c | ✅ | ✅ | ✅ |
 | IPA | Qualcomm IP Accelerator | — | ipa | ✅ | ✅ | ❌ |
 | ISP (CAMX) | Qualcomm proprietary camera framework | — | — | ❌ | ❌ | ❌ |
@@ -202,6 +202,75 @@ adb shell sync
 adb shell umount /mnt/dtb
 adb reboot
 ```
+
+Switch J41 from the DSI panel to the LT9611UXD HDMI adapter (IM-PCA-0055-01) on a
+Rev 5 board. The LT9611UXD overlay goes last, because it disables DisplayPort,
+which the CYPD6125 overlay enables:
+
+```bash
+adb shell qcom-metadata-editor -u -i 1 \
+    -f fdt-qcs8550-imdt-sbc.dtb \
+    -f fdt-qcs8550-imdt-sbc-ar1335-csi0.dtbo \
+    -f fdt-qcs8550-imdt-sbc-cypd6125.dtbo \
+    -f fdt-qcs8550-imdt-sbc-dsi-lt9611uxd.dtbo \
+    /mnt/dtb/qclinux_fit.img
+adb shell sync
+adb shell umount /mnt/dtb
+adb reboot
+```
+
+On a board that boots entry 2, give the same list without the CYPD6125 overlay
+to `-i 2`.
+
+The overlay choices for the J41 display connector are:
+
+| Display on J41 | Overlay |
+|---|---|
+| IM-MSC-0006 7" DSI panel (default) | `fdt-qcs8550-imdt-sbc-display.dtbo` |
+| LT9611UXD DSI to HDMI adapter (IM-PCA-0055-01) | `fdt-qcs8550-imdt-sbc-dsi-lt9611uxd.dtbo` |
+| Nothing fitted | none |
+
+Apply only one display overlay at a time. The HDMI adapter runs DSI0 and DSI1
+as a dual DSI pair and supports up to 3840x2160 at 60 Hz. Its firmware ships as
+`lt9611c-firmware`; a blank adapter is flashed by the driver on its first boot,
+which takes about 2.5 minutes before the display comes up.
+
+##### LT9611UXD firmware
+
+The driver only flashes an adapter that has no firmware. An adapter that
+already has other firmware keeps it, and the stock Lontium firmware does not
+decode video on this adapter. Both the stock and the shipped firmware report
+version `0x0101`, so reflash any adapter you have not flashed from this image.
+
+Check the version the bridge reports:
+
+```bash
+adb shell 'cat /sys/bus/i2c/devices/*-0049/firmware'
+```
+
+Reflash it from `/lib/firmware/Lontium/lt9611c_fw.bin`, which `lt9611c-firmware`
+installs. This takes about 2.5 minutes and the display drops while it runs.
+Reboot when it returns:
+
+```bash
+adb root
+adb shell 'for f in /sys/bus/i2c/devices/*-0049/firmware; do echo 1 > $f; done'
+adb reboot
+```
+
+To flash another image without rebuilding, put it in a directory as
+`Lontium/lt9611c_fw.bin` and point the firmware loader at that directory first:
+
+```bash
+adb shell mkdir -p /tmp/fw/Lontium
+adb push LT9611UXD_DSI_2Port_LaneSwap_V1.1.bin /tmp/fw/Lontium/lt9611c_fw.bin
+adb shell 'echo -n /tmp/fw > /sys/module/firmware_class/parameters/path'
+adb shell 'for f in /sys/bus/i2c/devices/*-0049/firmware; do echo 1 > $f; done'
+adb shell 'echo -n "" > /sys/module/firmware_class/parameters/path'
+adb reboot
+```
+
+`dmesg` shows `lt9611c firmware upgrade success` with the CRC when it is done.
 
 #### QCS6490 SBC
 
@@ -600,7 +669,7 @@ adb shell
 > On some SBCs the panel will flicker, this is
 > being investigated.
 
-The following section describes how to connect IMDT's display to the QCS8550 SBC. At the moment, only the IMDT DSI display is supported. However, work is in progress to add support for HDMI displays as well via a DSI to HDMI adapter. For more information about display connection see the [datasheet](#references).
+The following section describes how to connect IMDT's display to the QCS8550 SBC. The IMDT DSI display is supported, and HDMI displays are supported through the LT9611UXD DSI to HDMI adapter (IM-PCA-0055-01); see [Changing overlays on a running board](#changing-overlays-on-a-running-board) to select it. For more information about display connection see the [datasheet](#references).
 
 To use the IMDT display (PN:IM-MSC-0006), IMDT's IM-PCA-0029 DSI adapter must be connected to the display using the display flex cables. Once connected, the adapter can then be connected to the SBC display connector as shown in the following image:
 
