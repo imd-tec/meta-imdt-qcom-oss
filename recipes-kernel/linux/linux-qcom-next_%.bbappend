@@ -40,6 +40,10 @@ SRC_URI:append = " \
     file://0028-power-sequencing-pcie-m2-Drive-the-Key-E-SDIO_RESET-.patch \
     file://0029-power-sequencing-pcie-m2-Deassert-W_DISABLE2-without.patch \
     file://0030-arm64-dts-qcom-qcs6490-imdt-sbc-Describe-the-M.2-Key.patch \
+    file://0031-arm64-dts-qcom-qcs8550-imdt-sbc-Add-LT9611UXD-DSI-to.patch \
+    file://0032-drm-msm-dsi-Restore-the-bonded-mode-PLL-init.patch \
+    file://0033-drm-bridge-lt9611c-Select-the-dual-port-mode-for-dua.patch \
+    file://0034-drm-bridge-lt9611c-Reject-non-CEA-modes-above-300-MH.patch \
     file://configs/imdt.cfg \
 "
 

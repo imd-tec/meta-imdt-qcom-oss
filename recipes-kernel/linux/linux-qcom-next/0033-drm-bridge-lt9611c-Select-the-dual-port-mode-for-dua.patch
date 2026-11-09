@@ -1,0 +1,91 @@
+From 6c065fc0ac022012d35e3f0e95e351ec702552a6 Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Mon, 9 Nov 2026 13:09:14 +0000
+Subject: [PATCH] drm/bridge: lt9611c: Select the dual port mode for dual DSI
+
+With dual DSI the firmware has to be told which port carries each half
+of the line. Its dual port default puts port B on the left, so the
+halves of the picture come out swapped.
+
+When a second DSI host is wired, send the WM1 port mode once at probe,
+with port A (DSI0) as the left half and port B (DSI1) as the right
+half. Sending it while DSI is starting leaves the firmware without a
+PCR lock, so it is not sent before each timing update.
+
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+---
+ drivers/gpu/drm/bridge/lontium-lt9611c.c | 37 ++++++++++++++++++++++++
+ 1 file changed, 37 insertions(+)
+
+diff --git a/drivers/gpu/drm/bridge/lontium-lt9611c.c b/drivers/gpu/drm/bridge/lontium-lt9611c.c
+index ef1e9726fdd3..7fda09be01d4 100644
+--- a/drivers/gpu/drm/bridge/lontium-lt9611c.c
++++ b/drivers/gpu/drm/bridge/lontium-lt9611c.c
+@@ -99,6 +99,7 @@ struct lt9611c {
+ 	int fw_version;
+ 	const struct lt9611c_chip_data *cdata;
+ 	bool hdmi_connected;
++	bool dual_dsi;
+ };
+ 
+ DECLARE_CRC8_TABLE(lt9611c_crc8_table);
+@@ -613,6 +614,32 @@ lt9611c_hdmi_tmds_char_rate_valid(const struct drm_bridge *bridge,
+ 	return MODE_OK;
+ }
+ 
++/* WM1 port mode: bit 7 and bit 5 take the left and right half from port B */
++#define LT9611C_PORTS_DUAL	0x02
++#define LT9611C_PORT_MODE_AB	0x70
++
++static int lt9611c_set_dual_ports(struct lt9611c *lt9611c)
++{
++	static const u8 port_data[] = { LT9611C_PORTS_DUAL, LT9611C_PORT_MODE_AB };
++	u8 ack;
++	struct lt9611c_rsp rsp = {
++		.data = &ack,
++		.data_len = sizeof(ack),
++	};
++	struct lt9611c_cmd cmd = {
++		.hdr = { LT9611C_FUNC_WRITE, LT9611C_TYPE_MIPI, 0x31, LT9611C_CMD_SEP },
++		.data = port_data,
++		.data_len = sizeof(port_data),
++	};
++	int ret;
++
++	ret = lt9611c_read_write_flow(lt9611c, &cmd, &rsp);
++	if (ret)
++		return ret;
++
++	return ack ? 0 : -EIO;
++}
++
+ static void lt9611c_video_setup(struct lt9611c *lt9611c,
+ 				const struct drm_display_mode *mode)
+ {
+@@ -1082,6 +1109,8 @@ static int lt9611c_probe(struct i2c_client *client)
+ 	if (ret)
+ 		return dev_err_probe(dev, ret, "failed to parse device tree\n");
+ 
++	lt9611c->dual_dsi = !!dsi1_node;
++
+ 	lt9611c->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
+ 	if (IS_ERR(lt9611c->reset_gpio)) {
+ 		ret = PTR_ERR(lt9611c->reset_gpio);
+@@ -1131,6 +1160,14 @@ static int lt9611c_probe(struct i2c_client *client)
+ 	lt9611c_unlock(lt9611c);
+ 	dev_dbg(dev, "current version:0x%04x", lt9611c->fw_version);
+ 
++	if (lt9611c->dual_dsi) {
++		mutex_lock(&lt9611c->mcu_lock);
++		ret = lt9611c_set_dual_ports(lt9611c);
++		mutex_unlock(&lt9611c->mcu_lock);
++		if (ret)
++			dev_warn(dev, "dual port select failed: %d\n", ret);
++	}
++
+ 	INIT_WORK(&lt9611c->work, lt9611c_hpd_work);
+ 
+ 	ret = devm_request_threaded_irq(&client->dev, client->irq, NULL,
+-- 
+2.43.0
+

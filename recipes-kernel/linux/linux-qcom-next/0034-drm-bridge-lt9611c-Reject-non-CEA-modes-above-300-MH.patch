@@ -1,0 +1,35 @@
+From 1b751be8532e81b0d50413f748e9ccfabc5bdb5a Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Mon, 9 Nov 2026 12:11:53 +0000
+Subject: [PATCH] drm/bridge: lt9611c: Reject non-CEA modes above 300 MHz
+
+The bridge firmware picks its output timing from a built-in table, and
+above 300 MHz that table only has CEA modes. Monitors often prefer a
+reduced blanking 4K60 timing, which the firmware never locks to, so
+the display stays blank.
+
+Reject those modes so that the CEA 4K60 mode is used instead.
+
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+---
+ drivers/gpu/drm/bridge/lontium-lt9611c.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/drivers/gpu/drm/bridge/lontium-lt9611c.c b/drivers/gpu/drm/bridge/lontium-lt9611c.c
+index 7fda09be01d4..84e254d38773 100644
+--- a/drivers/gpu/drm/bridge/lontium-lt9611c.c
++++ b/drivers/gpu/drm/bridge/lontium-lt9611c.c
+@@ -611,6 +611,10 @@ lt9611c_hdmi_tmds_char_rate_valid(const struct drm_bridge *bridge,
+ 	if (tmds_rate < 25000000)
+ 		return MODE_CLOCK_LOW;
+ 
++	/* Above 300 MHz the firmware only has CEA timings */
++	if (mode->clock > 300000 && !drm_match_cea_mode(mode))
++		return MODE_BAD;
++
+ 	return MODE_OK;
+ }
+ 
+-- 
+2.43.0
+
