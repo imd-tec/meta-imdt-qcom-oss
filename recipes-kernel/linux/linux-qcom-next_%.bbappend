@@ -44,6 +44,7 @@ SRC_URI:append = " \
     file://0032-drm-msm-dsi-Restore-the-bonded-mode-PLL-init.patch \
     file://0033-drm-bridge-lt9611c-Select-the-dual-port-mode-for-dua.patch \
     file://0034-drm-bridge-lt9611c-Reject-non-CEA-modes-above-300-MH.patch \
+    file://0035-arm64-dts-qcom-qcs8550-imdt-sbc-Add-ADSP-FastRPC-rem.patch \
     file://configs/imdt.cfg \
 "
 

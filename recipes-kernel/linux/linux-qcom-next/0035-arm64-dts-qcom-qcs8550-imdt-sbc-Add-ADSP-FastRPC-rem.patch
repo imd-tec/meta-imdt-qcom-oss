@@ -1,0 +1,58 @@
+From: William Bright <william.bright@imd-tec.com>
+Date: Thu, 12 Nov 2026 12:00:00 +0000
+Subject: [PATCH] arm64: dts: qcom: qcs8550-imdt-sbc: Add ADSP FastRPC remote
+ heap
+
+The FastRPC driver refuses to create a static PD without a remote heap
+memory region and returns -ENOMEM, so adsprpcd audiopd exits and the
+APM GPR service times out. Add the remote heap pool and the ADSP heap
+VMIDs to the ADSP fastrpc node.
+
+The driver assigns the whole region to the ADSP at probe, so make it
+no-map. A reusable pool lets the page cache use it and any access then
+takes a synchronous external abort.
+
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+---
+ arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc.dts | 17 ++++++++++++++++++++
+ 1 file changed, 17 insertions(+)
+
+--- a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc.dts
++++ b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc.dts
+@@ -5,6 +5,7 @@
+ 
+ /dts-v1/;
+ 
++#include <dt-bindings/firmware/qcom,scm.h>
+ #include "qcs8550-imdt-som.dtsi"
+ 
+ / {
+@@ -476,10 +477,28 @@
+ 	status = "okay";
+ };
+ 
++&reserved_memory {
++	adsp_rpc_remote_heap_mem: adsp-rpc-remote-heap {
++		compatible = "shared-dma-pool";
++		alloc-ranges = <0x0 0x80000000 0x0 0x80000000>;
++		no-map;
++		alignment = <0x0 0x400000>;
++		size = <0x0 0x800000>;
++	};
++};
++
+ &remoteproc_adsp {
+ 	firmware-name = "qcom/sm8550/adsp.mbn",
+ 			"qcom/sm8550/adsp_dtb.mbn";
+ 	status = "okay";
++
++	glink-edge {
++		fastrpc {
++			memory-region = <&adsp_rpc_remote_heap_mem>;
++			qcom,vmids = <QCOM_SCM_VMID_LPASS
++				      QCOM_SCM_VMID_ADSP_HEAP>;
++		};
++	};
+ };
+ 
+ &remoteproc_cdsp {
