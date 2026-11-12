@@ -150,6 +150,17 @@ Currently skipped on the 8 GB fixture (no card fitted).
 | `fastrpc-remote-heap` | The fastrpc node was given the `adsp-rpc-remote-heap` region, which static PD creation needs |
 | `audiopd-active` | `adsprpcd_audiopd.service` is active |
 
+### `adsp-sensors` — SSC sensors through the ADSP
+
+| Test Case | Description |
+|-----------|-------------|
+| `sscrpcd-active` | `sscrpcd.service`, which serves the ADSP sensors registry files, is active |
+| `sensor-service` | The Sensor Core QMI service (400) appears within `SNS_WAIT` seconds |
+| `sensor-accel`, `sensor-gyro` | The LSM6DSV IMU streams via `see_workhorse` |
+| `sensor-mag` | The AK09918C magnetometer streams |
+| `sensor-ambient_temperature`, `sensor-humidity` | The SHT40 reports |
+| `adsp-no-crash-after-sensors` | Streaming caused no ADSP crash |
+
 ### `dsp-htp` — cDSP HTP (NPU) sustained inference
 
 Runs a real MobileNetV2 model on the cDSP's Hexagon Tensor Processor via
