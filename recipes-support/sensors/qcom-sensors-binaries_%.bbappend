@@ -2,12 +2,14 @@
 # Ship only the kalama-derived IOT_HDK configs with the SBC pin/bus changes.
 # The ADSP registry reads every file in the dir, so drop the stock ones.
 # The ADSP opens /vendor/etc/sensors over FastRPC, so link it to /etc/sensors.
+# sns_reg_config must name the soc_id file, or every config is rejected.
 FILESEXTRAPATHS:prepend:imdt-8550-sbc := "${THISDIR}/${PN}:"
-SRC_URI:append:imdt-8550-sbc = " file://config"
+SRC_URI:append:imdt-8550-sbc = " file://config file://sns_reg_config"
 
 do_install:append:imdt-8550-sbc() {
     rm -f ${D}${sysconfdir}/sensors/config/*
     install -m 0644 ${UNPACKDIR}/config/* ${D}${sysconfdir}/sensors/config/
+    install -m 0644 ${UNPACKDIR}/sns_reg_config ${D}${sysconfdir}/sensors/sns_reg_config
     install -d ${D}/vendor/etc
     ln -sfn ${sysconfdir}/sensors ${D}/vendor/etc/sensors
 }

@@ -1,0 +1,4 @@
+version=2
+file=soc_id=/sys/devices/soc0/soc_id
+file=input=json.lst
+file=output=/var/cache/sensors/registry/registry
