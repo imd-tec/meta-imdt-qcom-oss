@@ -7,10 +7,8 @@ require imdt-image-common.inc
 # open-source multimedia image. qcs8550-only, see docs/lava-tests.md (dsp-htp).
 IMAGE_INSTALL:append:qcs8550 = " cdsp-htp-test"
 
-# SSC sensors (IMU, mag, temp/humidity) through sscrpcd and libssc
+# SSC sensors (IMU, mag, temp/humidity) through sscrpcd
 IMAGE_INSTALL:append:imdt-8550-sbc = " \
     qrtr \
-    libssc \
-    hexagonrpc \
     qcom-sensors-binaries \
 "
