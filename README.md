@@ -42,8 +42,11 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 > CDSP FastRPC works on the QCS8550 SBC: unsigned-PD module loading and
 > real NPU inference (via onnxruntime-qnn's HTP backend) both run
 > reliably, covered by the `dsp-htp` LAVA suite (see
-> [docs/lava-tests.md](docs/lava-tests.md)). ADSP and IPA have only been
-> proven to probe successfully in Linux and remain WiP.
+> [docs/lava-tests.md](docs/lava-tests.md)). On the Rev 5 board the ADSP
+> runs the audio PD and the SSC sensor hub, which reads the IMU,
+> magnetometer and temperature/humidity sensor (see
+> [ADSP Sensors and Audio](#adsp-sensors-and-audio)), covered by the `adsp`
+> and `adsp-sensors` LAVA suites.
 >
 > Bluetooth is not supported at the moment due to an issue with RTS/CTS
 > lines.
@@ -56,9 +59,9 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 
 | Feature | Hardware | Interface | Kernel Driver | QCS8550 SBC Rev 2 (12GB) Status | QCS8550 SBC Rev 5 (8GB) Status | QCS6490 SBC (4GB) Status |
 |---|---|---|---|---|---|---|
-| ADSP | Hexagon v73 DSP | — | remoteproc | 🚧 | 🚧 | ✅ |
+| ADSP | Hexagon v73 DSP | — | remoteproc, fastrpc | 🚧 | ✅ Audio PD and SSC sensors | ✅ |
 | Android Debug Bridge (ADB) | — | USB | — | ✅ | ✅ | ✅ |
-| Audio (LPASS) | — | — | — | 🚧 Planned | 🚧 Planned | ❌ |
+| Audio (LPASS) | TI TLV320AIC3101 | Primary MI2S via the ADSP (AudioReach) | q6apm, tlv320aic3x | 🚧 Planned | 🚧 Card registers, audible output untested | ❌ |
 | Bluetooth | NXP IW416 | UART14 | btnxpuart | ❌ | ❌ | ❌ |
 | Camera (AR1335 - 13MP) | ON Semiconductor AR1335 | CSI0 | ar1335 | ✅ | ✅ | ✅ |
 | CDSP | Hexagon DSP | — | remoteproc | ✅ | ✅ | ✅ |
@@ -78,6 +81,7 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 | microSD Card | — | SDHC2 | sdhci | ✅ | ✅ | — |
 | MIPI DSI Display | Team Source TST070WSBE-196C 7" | DSI0 | drm/msm | ✅ | 🚧 Not supported yet | ❌ |
 | OTA Rootfs Updates | — | — | — | ✅ | ✅ | 🚧 |
+| Sensors (IMU, magnetometer, temperature/humidity) | ST LSM6DSV, AKM AK09918C, Sensirion SHT40 | SSC I3C / I2C via the ADSP | — (sscrpcd, userspace) | 🚧 | ✅ | ❌ |
 | PCIe Expansion (M.2 Key-E) | M.2 Key-E slot | PCIe0 | qcom-pcie | ✅ | ✅ | ✅ |
 | Remote Desktop (VNC) | — | Network | — | ✅ Multimedia images | ✅ Multimedia images | ❌ |
 | systemd-boot as ARM64 UEFI App| — | — | — | ✅ | ✅ | ✅ |
@@ -827,6 +831,61 @@ python3 lava/demosaic.py frame.raw frame.png
 ```
 
 Pass `--width`, `--height` and `--bpl` to override the sensor defaults, or `--out-size 1920x1080` to downscale the output.
+
+### ADSP Sensors and Audio
+
+The ADSP on the QCS8550 SBC Rev 5 hosts the sensor hub (SSC) and the audio
+path. Linux does not drive the sensors directly: `sscrpcd` serves the ADSP its
+sensor registry and config files over FastRPC, and clients talk to the sensor
+hub over QRTR.
+
+#### Reading the sensors
+
+The board's sensors are the LSM6DSV IMU (accelerometer and gyroscope), the
+AK09918C magnetometer and the SHT40 temperature/humidity sensor. Once
+`sscrpcd` is running, the Sensor Core service (QMI 400) shows up on the ADSP:
+
+```bash
+systemctl status sscrpcd
+qrtr-lookup | grep "Sensor Core"
+```
+
+Stream a sensor with `see_workhorse`, for example the accelerometer at 50 Hz
+for 3 seconds:
+
+```bash
+see_workhorse -sensor=accel -sample_rate=50 -duration=3
+```
+
+The other sensor types are `gyro`, `mag`, `ambient_temperature` and
+`humidity`. With the board lying flat the accelerometer reads about 9.81 m/s²
+on Z.
+
+The sensor configs live in `/etc/sensors/config`, and `/vendor/etc/sensors`
+links to `/etc/sensors` because the ADSP opens that path. The ADSP registry
+reads every file in the config directory, and `/etc/sensors/sns_reg_config`
+must name the `soc_id` file, or the board configs are rejected and no sensor
+probes.
+
+#### Audio
+
+The TLV320AIC3101 codec is wired to Primary MI2S and driven through the ADSP
+(AudioReach). Route MultiMedia1 to the codec and play a test tone on both
+channels:
+
+```bash
+amixer -c 0 cset name="PRIMARY_MI2S_RX Audio Mixer MultiMedia1" 1
+amixer -c 0 cset name="Left DAC Mux" DAC_L1
+amixer -c 0 cset name="Right DAC Mux" DAC_R1
+amixer -c 0 cset name="Left HP Mixer DACL1 Switch" on
+amixer -c 0 cset name="Right HP Mixer DACR1 Switch" on
+speaker-test -D hw:0,0 -c 2 -r 48000 -F S16_LE -t sine -f 440 -l 1
+```
+
+Capture comes from Primary MI2S TX on `hw:0,2` after
+`amixer -c 0 cset name="MultiMedia3 Mixer PRIMARY_MI2S_TX" 1`. Playback and
+capture both stream through the ADSP, but audible output has not been checked
+yet. `/dev/snd` is root only, so over ADB run `adb root` first.
 
 ### Hardware Video Encode and Decode
 
