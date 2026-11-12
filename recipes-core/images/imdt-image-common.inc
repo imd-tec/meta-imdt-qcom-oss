@@ -12,5 +12,7 @@ IMAGE_INSTALL:append = " \
 
 # meta-updater now builds the commit archive as .tar.zst, but the installed DUT
 # images and the lava-adb container have no zstd. Keep the .tar.xz archive.
+# Only on the OTA distro: the plain qcom-distro has no ostreecommit image type,
+# and bitbake then fails parsing on the "tar" conversion.
 IMAGE_FSTYPES:remove = "ostreecommit.tar.zst"
-IMAGE_FSTYPES:append = " ostreecommit.tar.xz"
+IMAGE_FSTYPES:append = "${@bb.utils.contains('DISTRO_FEATURES', 'sota', ' ostreecommit.tar.xz', '', d)}"
