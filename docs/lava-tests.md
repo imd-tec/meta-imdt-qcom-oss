@@ -139,6 +139,17 @@ Currently skipped on the 8 GB fixture (no card fitted).
 | `iommu-groups` | At least one IOMMU group present under `/sys/kernel/iommu_groups/` |
 | `hwrng-readable` | `/dev/hwrng` yields at least 16 bytes |
 
+### `adsp` — ADSP bring-up and audio PD
+
+| Test Case | Description |
+|-----------|-------------|
+| `adsp-running` | The ADSP remoteproc state is `running` |
+| `adsp-booted` | The kernel log shows `remote processor adsp is now up` |
+| `adsp-no-crash` | No `crash detected in adsp` recovery cycle since boot |
+| `fastrpc-adsp-node` | `/dev/fastrpc-adsp` exists |
+| `fastrpc-remote-heap` | The fastrpc node was given the `adsp-rpc-remote-heap` region, which static PD creation needs |
+| `audiopd-active` | `adsprpcd_audiopd.service` is active |
+
 ### `dsp-htp` — cDSP HTP (NPU) sustained inference
 
 Runs a real MobileNetV2 model on the cDSP's Hexagon Tensor Processor via

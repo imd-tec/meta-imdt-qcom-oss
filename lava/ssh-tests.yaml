@@ -222,9 +222,7 @@ actions:
           description: CDSP remoteproc bring-up and IPA driver init checks
         run:
           steps:
-          # No ADSP cases: the ADSP does not come up reliably on this hardware
-          # and the checks were only ever reporting that, so they are left out
-          # until the ADSP side is fixed. The state is still echoed for context.
+          # ADSP cases live in the adsp suite below.
           - ADSP_RP=$(for r in /sys/class/remoteproc/remoteproc*; do [ "$(cat "$r/name" 2>/dev/null)" = adsp ] && echo "$r" && break; done) || true
           - 'echo "ADSP remoteproc node: ${ADSP_RP:-<not found>} (state: $(cat "$ADSP_RP/state" 2>/dev/null))"'
           - CDSP_RP=$(for r in /sys/class/remoteproc/remoteproc*; do [ "$(cat "$r/name" 2>/dev/null)" = cdsp ] && echo "$r" && break; done) || true
@@ -237,6 +235,30 @@ actions:
           - 'echo "IPA device bound: ${IPA_DEV:-<not found>}"'
           - if [ -n "$IPA_DEV" ]; then lava-test-case ipa-driver-bound --result pass; else lava-test-case ipa-driver-bound --result fail; fi
           - if dmesg | grep -q "IPA driver setup completed successfully"; then lava-test-case ipa-setup-complete --result pass; else lava-test-case ipa-setup-complete --result fail; fi
+
+    - from: inline
+      name: adsp
+      path: inline/adsp.yaml
+      repository:
+        metadata:
+          format: Lava-Test Test Definition 1.0
+          name: adsp
+          description: ADSP remoteproc bring-up, stability and FastRPC audio PD
+        run:
+          steps:
+          - ADSP_RP=$(for r in /sys/class/remoteproc/remoteproc*; do [ "$(cat "$r/name" 2>/dev/null)" = adsp ] && echo "$r" && break; done) || true
+          - ADSP_STATE=$(cat "$ADSP_RP/state" 2>/dev/null) || true
+          - 'echo "ADSP remoteproc: ${ADSP_RP:-<not found>} state: ${ADSP_STATE:-<unknown>} fw: $(cat "$ADSP_RP/firmware" 2>/dev/null)"'
+          - if [ "$ADSP_STATE" = "running" ]; then lava-test-case adsp-running --result pass; else lava-test-case adsp-running --result fail; fi
+          - if dmesg | grep -q "remote processor adsp is now up"; then lava-test-case adsp-booted --result pass; else lava-test-case adsp-booted --result fail; fi
+          # A crash in the ADSP shows as a recovery cycle in the kernel log.
+          - ADSP_CRASHES=$(dmesg | grep -c "crash detected in adsp" || true)
+          - 'echo "ADSP crashes since boot: $ADSP_CRASHES"'
+          - if [ "$ADSP_CRASHES" = "0" ]; then lava-test-case adsp-no-crash --result pass; else dmesg | grep -E "fatal error received|crash detected in adsp" | tail -n 5; lava-test-case adsp-no-crash --result fail; fi
+          - lava-test-case fastrpc-adsp-node --shell test -c /dev/fastrpc-adsp
+          # The remote heap region lets the kernel create the audio static PD.
+          - if dmesg | grep -q "assigned reserved memory node adsp-rpc-remote-heap"; then lava-test-case fastrpc-remote-heap --result pass; else lava-test-case fastrpc-remote-heap --result fail; fi
+          - lava-test-case audiopd-active --shell systemctl is-active --quiet adsprpcd_audiopd
 
     - from: inline
       name: dsp-htp
