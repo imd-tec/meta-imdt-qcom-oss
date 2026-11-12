@@ -1,14 +1,15 @@
 # imdt-8550-sbc SSC sensors: LSM6DSV on SSC SE0 (I3C), AK09918C and SHT40 on SE1.
-# Kalama-derived IOT_HDK configs with the SBC pin/bus changes and a json.lst
-# naming only those. sscrpcd stays off: while it runs the ADSP sns_registry
-# asserts and crash-loops, even with only these configs.
+# Ship only the kalama-derived IOT_HDK configs with the SBC pin/bus changes.
+# The ADSP registry reads every file in the dir, so drop the stock ones.
+# The ADSP opens /vendor/etc/sensors over FastRPC, so link it to /etc/sensors.
 FILESEXTRAPATHS:prepend:imdt-8550-sbc := "${THISDIR}/${PN}:"
-SRC_URI:append:imdt-8550-sbc = " file://config file://imdt-sscrpcd-off.conf"
+SRC_URI:append:imdt-8550-sbc = " file://config"
 
 do_install:append:imdt-8550-sbc() {
+    rm -f ${D}${sysconfdir}/sensors/config/*
     install -m 0644 ${UNPACKDIR}/config/* ${D}${sysconfdir}/sensors/config/
-    install -Dm 0644 ${UNPACKDIR}/imdt-sscrpcd-off.conf \
-        ${D}${systemd_system_unitdir}/sscrpcd.service.d/imdt-sscrpcd-off.conf
+    install -d ${D}/vendor/etc
+    ln -sfn ${sysconfdir}/sensors ${D}/vendor/etc/sensors
 }
 
-FILES:${PN}:append:imdt-8550-sbc = " ${systemd_system_unitdir}/sscrpcd.service.d"
+FILES:${PN}:append:imdt-8550-sbc = " /vendor/etc/sensors"
