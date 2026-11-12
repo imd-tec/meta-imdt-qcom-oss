@@ -1,0 +1,65 @@
+From 43f9da3f2bba59e3193f448b1bb470ee30bd0603 Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Fri, 23 Oct 2026 12:59:51 +0100
+Subject: [PATCH] ASoC: tlv320aic3x: Use the MCLK from the clocks property
+
+The binding allows a clocks property, but the driver ignores it and
+relies on the machine driver calling set_sysclk(). Machine drivers that
+do not, such as the Qualcomm sc8280xp one, leave sysclk at zero and
+hw_params() then divides by zero.
+
+Get the optional clock, enable it and use its rate as the default
+sysclk, as MCLK is the reset default PLL and CLKDIV input. Also fail
+hw_params() cleanly when no sysclk is known.
+
+Assisted-by: Claude:claude-opus-5-5
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+---
+ sound/soc/codecs/tlv320aic3x.c | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/sound/soc/codecs/tlv320aic3x.c b/sound/soc/codecs/tlv320aic3x.c
+index b38393a8130f..d7ee21ddd79a 100644
+--- a/sound/soc/codecs/tlv320aic3x.c
++++ b/sound/soc/codecs/tlv320aic3x.c
+@@ -29,6 +29,7 @@
+  */
+ 
+ #include <linux/module.h>
++#include <linux/clk.h>
+ #include <linux/moduleparam.h>
+ #include <linux/init.h>
+ #include <linux/delay.h>
+@@ -71,6 +72,7 @@ struct aic3x_setup_data {
+ struct aic3x_priv {
+ 	struct snd_soc_component *component;
+ 	struct regmap *regmap;
++	struct clk *mclk;
+ 	struct regulator_bulk_data supplies[AIC3X_NUM_SUPPLIES];
+ 	struct aic3x_disable_nb disable_nb[AIC3X_NUM_SUPPLIES];
+ 	struct aic3x_setup_data *setup;
+@@ -1079,6 +1081,11 @@ static int aic3x_hw_params(struct snd_pcm_substream *substream,
+ 	}
+ 	snd_soc_component_write(component, AIC3X_ASD_INTF_CTRLB, data);
+ 
++	if (!aic3x->sysclk) {
++		dev_err(component->dev, "No system clock set\n");
++		return -EINVAL;
++	}
++
+ 	/* Fsref can be 44100 or 48000 */
+ 	fsref = (params_rate(params) % 11025 == 0) ? 44100 : 48000;
+ 	dual_rate = params_rate(params) >= 64000;
+@@ -1845,6 +1852,12 @@ int aic3x_probe(struct device *dev, struct regmap *regmap, kernel_ulong_t driver
+ 	if (ret)
+ 		return dev_err_probe(dev, ret, "Failed to request supplies\n");
+ 
++	/* MCLK is the default PLL and CLKDIV input until set_sysclk() picks another */
++	aic3x->mclk = devm_clk_get_optional_enabled(dev, NULL);
++	if (IS_ERR(aic3x->mclk))
++		return dev_err_probe(dev, PTR_ERR(aic3x->mclk), "Failed to get MCLK\n");
++	aic3x->sysclk = clk_get_rate(aic3x->mclk);
++
+ 	aic3x_configure_ocmv(dev, aic3x);
+ 
+ 	ret = devm_snd_soc_register_component(dev, &soc_component_dev_aic3x, &aic3x_dai, 1);

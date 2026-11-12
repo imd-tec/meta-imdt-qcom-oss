@@ -11,6 +11,8 @@ inherit packagegroup
 
 RDEPENDS:${PN} = " \
     iproute2 \
+    alsa-utils-aplay \
+    alsa-utils-speaker-test \
     i2c-tools \
     iperf3 \
     libgpiod-tools \
@@ -31,3 +33,5 @@ RDEPENDS:${PN}:append:qcs8550 = " \
     ostree-imdt-update \
     imdt-ostree-bless \
 "
+
+RDEPENDS:${PN}:append:qcs8550 = " audioreach-topology-imdt"

@@ -1,0 +1,229 @@
+From: William Bright <william.bright@imd-tec.com>
+Date: Thu, 12 Nov 2026 14:00:00 +0000
+Subject: [PATCH] arm64: dts: qcom: qcs8550-imdt-sbc: Add the audio sound card
+
+Add an AudioReach sound card (qcom,sm8550-sndcard) with the
+TLV320AIC3101 (U18, APPS_I2C 0x18) on Primary MI2S (GPIO 126-129 per
+the netlist) and DisplayPort audio on DP0 when the CYPD6125 overlay
+enables it. The codec takes the on-board 12.288 MHz MCLK and its reset
+is GPIO 171 (NAUDIO_RESET_1V8).
+
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+---
+diff --git a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-cypd6125.dtso b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-cypd6125.dtso
+index 4b16085..141dfbc 100644
+--- a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-cypd6125.dtso
++++ b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-cypd6125.dtso
+@@ -18,6 +18,7 @@
+ /plugin/;
+ 
+ #include <dt-bindings/interrupt-controller/irq.h>
++#include <dt-bindings/sound/qcom,q6dsp-lpass-ports.h>
+ 
+ &i2c_hub_2 {
+ 	#address-cells = <1>;
+@@ -79,6 +80,24 @@
+ 	status = "okay";
+ };
+ 
++&sound {
++	dp0-dai-link {
++		link-name = "DP0 Playback";
++
++		codec {
++			sound-dai = <&mdss_dp0>;
++		};
++
++		cpu {
++			sound-dai = <&q6apmbedai DISPLAY_PORT_RX_0>;
++		};
++
++		platform {
++			sound-dai = <&q6apm>;
++		};
++	};
++};
++
+ &tlmm {
+ 	ccg_irq_default: ccg-irq-default-state {
+ 		pins = "gpio10";
+diff --git a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc.dts b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc.dts
+index 8559a9d..603bd5b 100644
+--- a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc.dts
++++ b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc.dts
+@@ -6,6 +6,7 @@
+ /dts-v1/;
+ 
+ #include <dt-bindings/firmware/qcom,scm.h>
++#include <dt-bindings/sound/qcom,q6dsp-lpass-ports.h>
+ #include "qcs8550-imdt-som.dtsi"
+ 
+ / {
+@@ -19,6 +20,17 @@
+ 		serial1 = &uart14;
+ 	};
+ 
++	/* Y2, the TLV320AIC3101 MCLK */
++	audio_mclk: audio-mclk {
++		compatible = "fixed-clock";
++		#clock-cells = <0>;
++		clock-frequency = <12288000>;
++		clock-output-names = "audio_mclk";
++	};
++
++	sound: sound {
++	};
++
+ 	chosen {
+ 		stdout-path = "serial0:115200n8";
+ 	};
+@@ -147,6 +159,26 @@
+ 		vin-supply = <&per_pwr>;
+ 	};
+ 
++	/* U21, always on with +5V_PER */
++	vreg_audio_1v8: regulator-audio-1v8 {
++		compatible = "regulator-fixed";
++		regulator-name = "AUDIO_1V8";
++		regulator-min-microvolt = <1800000>;
++		regulator-max-microvolt = <1800000>;
++
++		vin-supply = <&per_5v_reg>;
++	};
++
++	/* U19, always on with +5V_PER */
++	vreg_audio_3v3: regulator-audio-3v3 {
++		compatible = "regulator-fixed";
++		regulator-name = "AUDIO_3V3";
++		regulator-min-microvolt = <3300000>;
++		regulator-max-microvolt = <3300000>;
++
++		vin-supply = <&per_5v_reg>;
++	};
++
+ 	per_3v3_reg: regulator-per-3v3 {
+ 		compatible = "regulator-fixed";
+ 		regulator-name = "per_3v3_reg";
+@@ -307,6 +339,29 @@
+ 	clock-frequency = <400000>;
+ 	status = "okay";
+ 
++	/* U18 on Primary MI2S, playback on DATA1 and capture on DATA0 */
++	audio_codec: audio-codec@18 {
++		compatible = "ti,tlv320aic3x";
++		reg = <0x18>;
++		#sound-dai-cells = <0>;
++
++		/* NAUDIO_RESET_1V8 */
++		reset-gpios = <&tlmm 171 GPIO_ACTIVE_LOW>;
++
++		pinctrl-0 = <&audio_reset_default>;
++		pinctrl-names = "default";
++
++		clocks = <&audio_mclk>;
++
++		AVDD-supply = <&vreg_audio_3v3>;
++		DRVDD-supply = <&vreg_audio_3v3>;
++		IOVDD-supply = <&vreg_audio_1v8>;
++		DVDD-supply = <&vreg_audio_1v8>;
++
++		/* MICBIAS feeds the headset mic */
++		ai3x-micbias-vg = <2>;
++	};
++
+ 	ptn3222: redriver@43 {
+ 		compatible = "nxp,ptn3222";
+ 		reg = <0x43>;
+@@ -566,10 +621,57 @@
+ 	status = "okay";
+ };
+ 
++&sound {
++	compatible = "qcom,sm8550-sndcard", "qcom,sm8450-sndcard";
++	model = "QCS8550-IMDT-SBC";
++
++	pinctrl-0 = <&mi2s0_data0>, <&mi2s0_data1>, <&mi2s0_sclk>, <&mi2s0_ws>;
++	pinctrl-names = "default";
++
++	mi2s0-playback-dai-link {
++		link-name = "Primary MI2S Playback";
++
++		codec {
++			sound-dai = <&audio_codec>;
++		};
++
++		cpu {
++			sound-dai = <&q6apmbedai PRIMARY_MI2S_RX>;
++		};
++
++		platform {
++			sound-dai = <&q6apm>;
++		};
++	};
++
++	mi2s0-capture-dai-link {
++		link-name = "Primary MI2S Capture";
++
++		codec {
++			sound-dai = <&audio_codec>;
++		};
++
++		cpu {
++			sound-dai = <&q6apmbedai PRIMARY_MI2S_TX>;
++		};
++
++		platform {
++			sound-dai = <&q6apm>;
++		};
++	};
++};
++
+ &tlmm {
+ 	/* Reserved I/Os for NFC */
+ 	gpio-reserved-ranges = <32 8>;
+ 
++	audio_reset_default: audio-reset-default-state {
++		pins = "gpio171";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-disable;
++	};
++
+ 	bt_default: bt-default-state {
+ 		bt-en-pins {
+ 			pins = "gpio81";
+@@ -585,6 +687,34 @@
+ 		};
+ 	};
+ 
++	mi2s0_data0: mi2s0-data0-state {
++		pins = "gpio127";
++		function = "i2s0_data0";
++		drive-strength = <8>;
++		bias-disable;
++	};
++
++	mi2s0_data1: mi2s0-data1-state {
++		pins = "gpio128";
++		function = "i2s0_data1";
++		drive-strength = <8>;
++		bias-disable;
++	};
++
++	mi2s0_sclk: mi2s0-sclk-state {
++		pins = "gpio126";
++		function = "i2s0_sck";
++		drive-strength = <8>;
++		bias-disable;
++	};
++
++	mi2s0_ws: mi2s0-ws-state {
++		pins = "gpio129";
++		function = "i2s0_ws";
++		drive-strength = <8>;
++		bias-disable;
++	};
++
+ 	dsi_5v_en_default: dsi-5v-en-default-state {
+ 		pins = "gpio140";
+ 		function = "gpio";
