@@ -51,6 +51,9 @@ actions:
         # Self-contained archive ostree repo holding this build's commit, staged
         # into /images by CI and named with the commit sha. Set by the workflow.
         COMMIT_FILE: 'qcom-minimal-image-imdt-8550-sbc.rootfs.ostreecommit.tar.xz'
+        # This build's FIT (base DTB and overlays), staged into /images by CI.
+        # Empty or missing skips the dtb partition update. Set by the workflow.
+        FIT_FILE: ''
         # ref (branch) inside that repo, and the OS name the DUT deploys under.
         OSTREE_REF: 'imdt-8550-sbc'
         OSTREE_OSNAME: 'nodistro'
@@ -131,6 +134,14 @@ actions:
           - $SSH "ls /boot/loader/entries/" || true
           # Both staging copies are consumed; reclaim the space before the reboot.
           - $SSH "rm -rf /var/ota" || true
+          # ── Install this build's FIT on the dtb partition ───────────────────
+          # UEFI boots the base DTB from the FIT on the dtb partition, which is
+          # outside the ostree rootfs, so without this a PR's DT changes never
+          # reach the board. The new FIT must arrive intact and parse before it
+          # replaces the old one, and the old one is restored on any failure.
+          - FIT_RC=2; if [ -n "$FIT_FILE" ] && [ -f "/images/$FIT_FILE" ]; then FIT_RC=1; FIT_MD5=$(md5sum "/images/$FIT_FILE" | cut -d" " -f1); $SSH_PIPE "cat > /var/tmp/qclinux_fit.new" < "/images/$FIT_FILE" || true; DUT_FIT_MD5=$($SSH "md5sum /var/tmp/qclinux_fit.new" | cut -d" " -f1) || DUT_FIT_MD5=""; if [ "$DUT_FIT_MD5" = "$FIT_MD5" ] && $SSH "qcom-metadata-editor /var/tmp/qclinux_fit.new" >/dev/null 2>&1; then if $SSH "cp /mnt/dtb/qclinux_fit.img /var/tmp/qclinux_fit.prev && cp /var/tmp/qclinux_fit.new /mnt/dtb/qclinux_fit.img && sync && cmp /var/tmp/qclinux_fit.new /mnt/dtb/qclinux_fit.img"; then FIT_RC=0; else $SSH "cp /var/tmp/qclinux_fit.prev /mnt/dtb/qclinux_fit.img && sync" || true; fi; fi; $SSH "rm -f /var/tmp/qclinux_fit.new" || true; fi
+          - 'echo "dtb FIT: ${FIT_FILE:-<none>} md5=${FIT_MD5:-<none>} rc=$FIT_RC"'
+          - if [ "$FIT_RC" = 0 ]; then lava-test-case dtb-fit-updated --result pass; elif [ "$FIT_RC" = 2 ]; then lava-test-case dtb-fit-updated --result skip; else lava-test-case dtb-fit-updated --result fail; fi
           # ── Reset the DT overlay list to the build's defaults ───────────────
           # The FIT on the dtb partition is outside the ostree rootfs, so overlays
           # enabled by hand survive every deploy and can swap the camera pipeline.

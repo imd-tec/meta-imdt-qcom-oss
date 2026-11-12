@@ -210,7 +210,10 @@ jobs:
           # dot, so mirror that here rather than assume where the sha lands.
           ARTIFACT="${{ inputs.image-name }}-imdt-8550-sbc.rootfs.ostreecommit.tar.xz"
           COMMIT_FILE="${ARTIFACT%.*}-${{ github.sha }}.${ARTIFACT##*.}"
+          # The FIT has no extension, so its stem and extension are both the name.
+          FIT_FILE="qclinuxfitImage-${{ github.sha }}.qclinuxfitImage"
           sed -e "s|COMMIT_FILE: '.*'|COMMIT_FILE: '${COMMIT_FILE}'|" \
+              -e "s|FIT_FILE: '.*'|FIT_FILE: '${FIT_FILE}'|" \
               /tmp/lava-jobs/ostree-deploy.yaml > /tmp/lava-ostree-deploy.yaml
           JOB_ID=$(lavacli --identity lava-ci jobs submit /tmp/lava-ostree-deploy.yaml)
           echo "ostree-deploy: $JOB_ID — http://${{ vars.LAVA_HOST }}/scheduler/job/$JOB_ID"
