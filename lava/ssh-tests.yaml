@@ -278,7 +278,7 @@ actions:
           - SNS_UP=0; W=0; while [ "$W" -lt "$SNS_WAIT" ]; do if qrtr-lookup | grep -q -E '^ +400 '; then SNS_UP=1; break; fi; sleep 2; W=$((W+2)); done
           - echo "sensor service wait ${W}s"
           - if [ "$SNS_UP" = 1 ]; then lava-test-case sensor-service --result pass; else lava-test-case sensor-service --result fail; fi
-          - for s in accel gyro mag ambient_temperature humidity; do OUT=$(timeout 60 see_workhorse -sensor=$s -sample_rate=10 -duration=2 2>&1) || true; echo "$OUT" | grep -E 'msg_id: 1025|PASS|FAIL' | tail -n 2; if echo "$OUT" | grep -q '^PASS'; then lava-test-case sensor-$s --result pass; else lava-test-case sensor-$s --result fail; fi; done
+          - for s in accel gyro mag ambient_temperature humidity; do OUT=$(timeout 60 see_workhorse -sensor=$s -sample_rate=10 -duration=2 2>&1) || true; echo "$OUT" | grep -E 'num_events|PASS|FAIL' | tail -n 2; if echo "$OUT" | grep -q '^PASS'; then lava-test-case sensor-$s --result pass; else lava-test-case sensor-$s --result fail; fi; done
           - ADSP_CRASHES=$(dmesg | grep -c "crash detected in adsp" || true)
           - if [ "$ADSP_CRASHES" = "0" ]; then lava-test-case adsp-no-crash-after-sensors --result pass; else lava-test-case adsp-no-crash-after-sensors --result fail; fi
 
