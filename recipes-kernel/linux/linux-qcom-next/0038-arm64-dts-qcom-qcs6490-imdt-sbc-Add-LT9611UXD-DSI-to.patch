@@ -1,0 +1,145 @@
+From a805710e202a0b4328d39e6c013e200b3f1da5d5 Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Fri, 13 Nov 2026 10:00:00 +0000
+Subject: [PATCH] arm64: dts: qcom: qcs6490-imdt-sbc: Add LT9611UXD DSI to
+ HDMI overlay
+
+Add an overlay for the Lontium LT9611UXD DSI to HDMI adapter on the J41
+display connector. The bridge sits at 0x49 on i2c13 (J41 pins 40/44)
+and is fed by DSI0 with four lanes. J41 pin 4 is the interrupt and pin
+57 is reset. The driver drives reset to 1 and then 0, so it is active
+low. Use it instead of the display and dsi-hdmi overlays.
+
+Assisted-by: Claude:claude-opus-5-5
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+---
+ arch/arm64/boot/dts/qcom/Makefile                  |   1 +
+ .../dts/qcom/qcs6490-imdt-sbc-dsi-lt9611uxd.dtso   | 107 +++++++++++++
+ 2 files changed, 108 insertions(+)
+ create mode 100644 arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc-dsi-lt9611uxd.dtso
+
+diff --git a/arch/arm64/boot/dts/qcom/Makefile b/arch/arm64/boot/dts/qcom/Makefile
+index 5da8cbb9effb..b4f1dd054863 100644
+--- a/arch/arm64/boot/dts/qcom/Makefile
++++ b/arch/arm64/boot/dts/qcom/Makefile
+@@ -239,6 +239,7 @@ dtb-$(CONFIG_ARCH_QCOM)	+= qcs6490-imdt-sbc-ar1335-csi2.dtbo
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs6490-imdt-sbc-ar1335-csi3.dtbo
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs6490-imdt-sbc-display.dtbo
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs6490-imdt-sbc-dsi-hdmi.dtbo
++dtb-$(CONFIG_ARCH_QCOM)	+= qcs6490-imdt-sbc-dsi-lt9611uxd.dtbo
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs6490-imdt-sbc-pcie-keyb.dtbo
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs6490-radxa-dragon-q6a.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs6490-rb3gen2.dtb
+diff --git a/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc-dsi-lt9611uxd.dtso b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc-dsi-lt9611uxd.dtso
+new file mode 100644
+index 000000000000..a1b2c3d4e5f6
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/qcs6490-imdt-sbc-dsi-lt9611uxd.dtso
+@@ -0,0 +1,107 @@
++// SPDX-License-Identifier: BSD-3-Clause
++/*
++ * Copyright (c) 2026 IMD Technologies Ltd
++ *
++ * Lontium LT9611UXD DSI to HDMI adapter (IM-PCA-0055-01) on the display
++ * connector J41, fed by DSI0 on port A. Use instead of the
++ * qcs6490-imdt-sbc-display overlay.
++ */
++
++/dts-v1/;
++/plugin/;
++
++#include <dt-bindings/gpio/gpio.h>
++#include <dt-bindings/interrupt-controller/irq.h>
++
++&{/} {
++	hdmi-connector {
++		compatible = "hdmi-connector";
++		type = "a";
++
++		port {
++			hdmi_con_in: endpoint {
++				remote-endpoint = <&lt9611_out>;
++			};
++		};
++	};
++};
++
++&tlmm {
++	lt9611_int_default: lt9611-int-default-state {
++		pins = "gpio24";
++		function = "gpio";
++		bias-disable;
++	};
++
++	lt9611_reset_default: lt9611-reset-default-state {
++		pins = "gpio44";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-disable;
++	};
++};
++
++/* J41 pins 40/44, the display connector I2C */
++&i2c13 {
++	#address-cells = <1>;
++	#size-cells = <0>;
++	clock-frequency = <100000>;
++	status = "okay";
++
++	hdmi-bridge@49 {
++		compatible = "lontium,lt9611uxd";
++		reg = <0x49>;
++
++		/* J41 pin 4 */
++		interrupts-extended = <&tlmm 24 IRQ_TYPE_EDGE_FALLING>;
++		/* J41 pin 57; the driver drives reset to 1 and then 0 */
++		reset-gpios = <&tlmm 44 GPIO_ACTIVE_LOW>;
++
++		pinctrl-0 = <&lt9611_reset_default>, <&lt9611_int_default>;
++		pinctrl-names = "default";
++
++		/* The adapter derives its 3V3 and 1V2 rails from +DSI_5V */
++		vcc-supply = <&dsi_5v_en>;
++		vdd-supply = <&dsi_5v_en>;
++
++		ports {
++			#address-cells = <1>;
++			#size-cells = <0>;
++
++			port@0 {
++				reg = <0>;
++
++				lt9611_a: endpoint {
++					remote-endpoint = <&mdss_dsi0_out>;
++				};
++			};
++
++			port@2 {
++				reg = <2>;
++
++				lt9611_out: endpoint {
++					remote-endpoint = <&hdmi_con_in>;
++				};
++			};
++		};
++	};
++};
++
++&mdss {
++	status = "okay";
++};
++
++&mdss_dsi {
++	vdda-supply = <&vreg_l6b_1p2>;
++	status = "okay";
++};
++
++&mdss_dsi0_out {
++	remote-endpoint = <&lt9611_a>;
++	data-lanes = <0 1 2 3>;
++};
++
++&mdss_dsi_phy {
++	vdds-supply = <&vreg_l10c_0p88>;
++	status = "okay";
++};

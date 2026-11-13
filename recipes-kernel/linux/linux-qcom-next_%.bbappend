@@ -47,6 +47,7 @@ SRC_URI:append = " \
     file://0035-arm64-dts-qcom-qcs8550-imdt-sbc-Add-ADSP-FastRPC-rem.patch \
     file://0036-ASoC-tlv320aic3x-Use-the-MCLK-from-the-clocks-proper.patch \
     file://0037-arm64-dts-qcom-qcs8550-imdt-sbc-Add-the-audio-sound-.patch \
+    file://0038-arm64-dts-qcom-qcs6490-imdt-sbc-Add-LT9611UXD-DSI-to.patch \
     file://configs/imdt.cfg \
 "
 
