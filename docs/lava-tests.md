@@ -152,6 +152,9 @@ Currently skipped on the 8 GB fixture (no card fitted).
 
 ### `adsp-sensors` — SSC sensors through the ADSP
 
+`qcom-sensors-binaries` is LICENSE.qcom, so it is not in the open-source
+multimedia image. Every case is skipped on an image without it.
+
 | Test Case | Description |
 |-----------|-------------|
 | `sscrpcd-active` | `sscrpcd.service`, which serves the ADSP sensors registry files, is active |

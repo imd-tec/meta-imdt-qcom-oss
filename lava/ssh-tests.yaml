@@ -273,6 +273,8 @@ actions:
           description: SSC sensors through the ADSP (LSM6DSV, AK09918C, SHT40)
         run:
           steps:
+          # qcom-sensors-binaries is LICENSE.qcom, so not on the open-source multimedia image
+          - if ! command -v see_workhorse >/dev/null 2>&1; then echo "SSC sensor tools not installed on this image - skipping"; for c in sscrpcd-active sensor-service sensor-accel sensor-gyro sensor-mag sensor-ambient_temperature sensor-humidity adsp-no-crash-after-sensors; do lava-test-case $c --result skip; done; exit 0; fi
           - lava-test-case sscrpcd-active --shell systemctl is-active --quiet sscrpcd
           # QMI service 400 is the Snapdragon Sensor Core client service.
           - SNS_UP=0; W=0; while [ "$W" -lt "$SNS_WAIT" ]; do if qrtr-lookup | grep -q -E '^ +400 '; then SNS_UP=1; break; fi; sleep 2; W=$((W+2)); done
