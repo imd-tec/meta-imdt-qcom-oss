@@ -72,7 +72,7 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 | PCIe Expansion (M.2 Key-B) | PCIe switch downstream Key-B port | PCIe1 (overlay) | qcom-pcie | ✅ Requires Key-B DTBO overlay | ✅ Requires Key-B DTBO overlay | 🚧 |
 | GPIO | PM8550 GPIO bank | SPMI | qcom-spmi-gpio | ✅ | ✅ | ✅ |
 | GPU (Adreno) | Adreno | — | msm drm | ✅ | ✅ | ❌ |
-| HDMI Display (up to 4K60) | Lontium LT9611UXD (IM-PCA-0055-01) | DSI0 + DSI1 (dual DSI) | lt9611c | ❌ | ✅ Requires LT9611UXD DTBO overlay | ❌ |
+| HDMI Display (up to 4K60) | Lontium LT9611UXD (IM-PCA-0055-01) | DSI0 + DSI1 (dual DSI) | lt9611c | ❌ | ✅ Requires LT9611UXD DTBO overlay | ✅ Requires LT9611UXD DTBO overlay |
 | I2C | QupV3 I2C hub | I2C | geni-i2c | ✅ | ✅ | ✅ |
 | IPA | Qualcomm IP Accelerator | — | ipa | ✅ | ✅ | ❌ |
 | ISP (CAMX) | Qualcomm proprietary camera framework | — | — | ❌ | ❌ | ❌ |
@@ -297,9 +297,10 @@ The overlay choices for the J41 display connector are:
 |---|---|
 | TST070WSBE-196C 7" DSI panel (default) | `fdt-qcs6490-imdt-sbc.dtb fdt-qcs6490-imdt-sbc-display.dtbo` |
 | ST B-LCDAD-HDMI1 DSI to HDMI adapter | `fdt-qcs6490-imdt-sbc.dtb fdt-qcs6490-imdt-sbc-dsi-hdmi.dtbo` |
+| LT9611UXD DSI to HDMI adapter (IM-PCA-0055-01) | `fdt-qcs6490-imdt-sbc.dtb fdt-qcs6490-imdt-sbc-dsi-lt9611uxd.dtbo` |
 | Nothing fitted | `fdt-qcs6490-imdt-sbc.dtb` |
 
-Apply only one display overlay at a time: both drive DSI0 and GPIO 44. To check a
+Apply only one display overlay at a time: they all drive DSI0 and GPIO 44. To check a
 slot, mount it as above and run `qcom-metadata-editor /mnt/dtb/qclinux_fit.img`.
 
 ## UFS Layout
