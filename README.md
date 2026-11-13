@@ -72,7 +72,7 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 | PCIe Expansion (M.2 Key-B) | PCIe switch downstream Key-B port | PCIe1 (overlay) | qcom-pcie | ✅ Requires Key-B DTBO overlay | ✅ Requires Key-B DTBO overlay | 🚧 |
 | GPIO | PM8550 GPIO bank | SPMI | qcom-spmi-gpio | ✅ | ✅ | ✅ |
 | GPU (Adreno) | Adreno | — | msm drm | ✅ | ✅ | ❌ |
-| HDMI Display (up to 4K60) | Lontium LT9611UXD (IM-PCA-0055-01) | DSI0 + DSI1 (dual DSI) | lt9611c | ❌ | ✅ Requires LT9611UXD DTBO overlay | ✅ Requires LT9611UXD DTBO overlay |
+| HDMI Display (up to 4K60) | Lontium LT9611UXD (IM-PCA-0055-01) | DSI0 + DSI1 (dual DSI) | lt9611c | ❌ | ✅ Requires LT9611UXD DTBO overlay | ✅ Up to 4K30 (DSI0 only), requires LT9611UXD DTBO overlay |
 | I2C | QupV3 I2C hub | I2C | geni-i2c | ✅ | ✅ | ✅ |
 | IPA | Qualcomm IP Accelerator | — | ipa | ✅ | ✅ | ❌ |
 | ISP (CAMX) | Qualcomm proprietary camera framework | — | — | ❌ | ❌ | ❌ |
