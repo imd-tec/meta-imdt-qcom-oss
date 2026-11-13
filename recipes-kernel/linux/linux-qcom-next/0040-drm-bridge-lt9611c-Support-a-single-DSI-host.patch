@@ -1,0 +1,185 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Fri, 13 Nov 2026 12:00:00 +0000
+Subject: [PATCH] drm/bridge: lt9611c: Support a single DSI host
+
+The LT9611UXD firmware defaults to its dual port mode, which takes the
+left half from port B. With a single DSI host on port A it decodes
+nothing, so the display stays blank.
+
+Generalise the dual port select to send the WM1 port mode for port A
+alone with one DSI host, or A and B in order with two. Reset the bridge
+and send it in pre_enable, before DSI starts, as well as at probe. The
+reset drops the mode, so the command has to follow it.
+
+With one host the firmware also decodes nothing at 49 MHz and below,
+while 64 MHz and up works, so reject modes under 60 MHz. A single
+4-lane port cannot carry 4K60, so reject modes above 297 MHz too.
+
+A small panel may then have no usable mode left. A 1024x600 panel lists
+only 1024x600 and 800x450, both too slow. With one host, add 1024x768
+and 1280x720 at 60 Hz to the EDID base block so there is one to pick.
+
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+---
+ drivers/gpu/drm/bridge/lontium-lt9611c.c | 79 ++++++++++++++++++++++++------
+ 1 file changed, 69 insertions(+), 10 deletions(-)
+
+diff --git a/drivers/gpu/drm/bridge/lontium-lt9611c.c b/drivers/gpu/drm/bridge/lontium-lt9611c.c
+--- a/drivers/gpu/drm/bridge/lontium-lt9611c.c
++++ b/drivers/gpu/drm/bridge/lontium-lt9611c.c
+@@ -35,6 +35,7 @@
+ #define LT9611C_CMD_HDR_SIZE 4
+ #define LT9611C_CMD_Y0_SIZE  1  /* Y0 echo byte in ACK response */
+ #define LT9611C_EDID_BUF_SIZE 32
++#define LT9611C_SINGLE_MIN_CLOCK 60000 /* kHz */
+ 
+ struct lt9611c_cmd_hdr {
+ 	u8 func;
+@@ -615,16 +616,24 @@
+ 	if (mode->clock > 300000 && !drm_match_cea_mode(mode))
+ 		return MODE_BAD;
+ 
++	/* One 4-lane port tops out at 4K30 */
++	if (!lt9611c->dual_dsi && mode->clock > 297000)
++		return MODE_CLOCK_HIGH;
++
++	/* One port decodes nothing at 49 MHz and below, 64 MHz works */
++	if (!lt9611c->dual_dsi && mode->clock < LT9611C_SINGLE_MIN_CLOCK)
++		return MODE_CLOCK_LOW;
++
+ 	return MODE_OK;
+ }
+ 
+ /* WM1 port mode: bit 7 and bit 5 take the left and right half from port B */
+-#define LT9611C_PORTS_DUAL	0x02
++#define LT9611C_PORT_MODE_A	0x40
+ #define LT9611C_PORT_MODE_AB	0x70
+ 
+-static int lt9611c_set_dual_ports(struct lt9611c *lt9611c)
++static int lt9611c_set_ports(struct lt9611c *lt9611c)
+ {
+-	static const u8 port_data[] = { LT9611C_PORTS_DUAL, LT9611C_PORT_MODE_AB };
++	u8 port_data[] = { 0x01, LT9611C_PORT_MODE_A };
+ 	u8 ack;
+ 	struct lt9611c_rsp rsp = {
+ 		.data = &ack,
+@@ -637,6 +646,11 @@
+ 	};
+ 	int ret;
+ 
++	if (lt9611c->dual_dsi) {
++		port_data[0] = 0x02;
++		port_data[1] = LT9611C_PORT_MODE_AB;
++	}
++
+ 	ret = lt9611c_read_write_flow(lt9611c, &cmd, &rsp);
+ 	if (ret)
+ 		return ret;
+@@ -644,6 +658,22 @@
+ 	return ack ? 0 : -EIO;
+ }
+ 
++static void lt9611c_bridge_atomic_pre_enable(struct drm_bridge *bridge,
++					     struct drm_atomic_commit *state)
++{
++	struct lt9611c *lt9611c = bridge_to_lt9611c(bridge);
++	int ret;
++
++	/* The reset drops the port mode, so set it again before DSI starts */
++	lt9611c_reset(lt9611c);
++
++	mutex_lock(&lt9611c->mcu_lock);
++	ret = lt9611c_set_ports(lt9611c);
++	mutex_unlock(&lt9611c->mcu_lock);
++	if (ret)
++		dev_warn(lt9611c->dev, "port select failed: %d\n", ret);
++}
++
+ static void lt9611c_video_setup(struct lt9611c *lt9611c,
+ 				const struct drm_display_mode *mode)
+ {
+@@ -787,11 +817,56 @@
+ 	return 0;
+ }
+ 
++/* Standard timing for 1280x720 at 60 Hz, 16:9 */
++#define LT9611C_STD_720P	0x81c0
++
++/*
++ * A small panel may list only modes below the single port clock floor,
++ * which leaves no usable mode. Advertise 1024x768 and 1280x720 at 60 Hz
++ * in the base block so there is always one to pick.
++ */
++static void lt9611c_edid_add_modes(u8 *buf)
++{
++	int i, sum = 0;
++
++	buf[0x24] |= BIT(3);
++
++	for (i = 0x26; i < 0x36; i += 2) {
++		if ((buf[i] << 8 | buf[i + 1]) == LT9611C_STD_720P)
++			break;
++		if (buf[i] == 0x01 && buf[i + 1] == 0x01) {
++			buf[i] = LT9611C_STD_720P >> 8;
++			buf[i + 1] = LT9611C_STD_720P & 0xff;
++			break;
++		}
++	}
++
++	for (i = 0; i < EDID_LENGTH - 1; i++)
++		sum += buf[i];
++	buf[EDID_LENGTH - 1] = (0x100 - (sum & 0xff)) & 0xff;
++}
++
++static int lt9611c_get_edid_block_single(void *data, u8 *buf,
++					 unsigned int block, size_t len)
++{
++	int ret = lt9611c_get_edid_block(data, buf, block, len);
++
++	if (!ret && block == 0 && len == EDID_LENGTH)
++		lt9611c_edid_add_modes(buf);
++
++	return ret;
++}
++
+ static const struct drm_edid *lt9611c_bridge_edid_read(struct drm_bridge *bridge,
+ 						       struct drm_connector *connector)
+ {
+ 	struct lt9611c *lt9611c = bridge_to_lt9611c(bridge);
+ 
++	if (!lt9611c->dual_dsi)
++		return drm_edid_read_custom(connector,
++					    lt9611c_get_edid_block_single,
++					    lt9611c);
++
+ 	return drm_edid_read_custom(connector, lt9611c_get_edid_block, lt9611c);
+ }
+ 
+@@ -935,6 +1010,7 @@
+ 	.attach = lt9611c_bridge_attach,
+ 	.detect = lt9611c_bridge_detect,
+ 	.edid_read = lt9611c_bridge_edid_read,
++	.atomic_pre_enable = lt9611c_bridge_atomic_pre_enable,
+ 	.atomic_enable = lt9611c_bridge_atomic_enable,
+ 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
+ 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+@@ -1164,13 +1240,11 @@
+ 	lt9611c_unlock(lt9611c);
+ 	dev_dbg(dev, "current version:0x%04x", lt9611c->fw_version);
+ 
+-	if (lt9611c->dual_dsi) {
+-		mutex_lock(&lt9611c->mcu_lock);
+-		ret = lt9611c_set_dual_ports(lt9611c);
+-		mutex_unlock(&lt9611c->mcu_lock);
+-		if (ret)
+-			dev_warn(dev, "dual port select failed: %d\n", ret);
+-	}
++	mutex_lock(&lt9611c->mcu_lock);
++	ret = lt9611c_set_ports(lt9611c);
++	mutex_unlock(&lt9611c->mcu_lock);
++	if (ret)
++		dev_warn(dev, "port select failed: %d\n", ret);
+ 
+ 	INIT_WORK(&lt9611c->work, lt9611c_hpd_work);
+ 

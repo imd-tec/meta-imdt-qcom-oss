@@ -48,6 +48,7 @@ SRC_URI:append = " \
     file://0036-ASoC-tlv320aic3x-Use-the-MCLK-from-the-clocks-proper.patch \
     file://0037-arm64-dts-qcom-qcs8550-imdt-sbc-Add-the-audio-sound-.patch \
     file://0038-arm64-dts-qcom-qcs6490-imdt-sbc-Add-LT9611UXD-DSI-to.patch \
+    file://0040-drm-bridge-lt9611c-Support-a-single-DSI-host.patch \
     file://configs/imdt.cfg \
 "
 
