@@ -353,6 +353,8 @@ firmware, flash XMLs and QDL programmer:
 | QCS8550 | multimedia | `qcom-multimedia-image-imdt-8550-sbc.rootfs.qcomflash.tar.gz` |
 | QCS8550 | multimedia with proprietary components | `qcom-multimedia-proprietary-image-imdt-8550-sbc.rootfs.qcomflash.tar.gz` |
 | QCS6490 | minimal | `qcom-minimal-image-imdt-6490-sbc.rootfs.qcomflash.tar.gz` |
+| QCS8550 | [Ubuntu 26.04 desktop](#ubuntu-images) | `ubuntu-desktop-imdt-8550-sbc.qcomflash.tar.zst` |
+| QCS6490 | [Ubuntu 26.04 desktop](#ubuntu-images) | `ubuntu-desktop-imdt-6490-sbc.qcomflash.tar.zst` |
 
 Each image also has a `.rootfs.manifest` asset listing its packages.
 
@@ -541,29 +543,78 @@ image name and your board revision (`rev3` or `rev5`):
 flash_qcs8550_sbc qcom-minimal-image rev5
 ```
 
-### Flashing a plain Ubuntu rootfs
+### Ubuntu images
 
-[`scripts/build-ubuntu-rootfs.sh`](scripts/build-ubuntu-rootfs.sh) builds a
-stock Ubuntu Server 26.04 arm64 rootfs as an ext4 image labelled `otaroot` —
-a drop-in replacement for the `rootfs.img` a `qcomflash` build produces, for
-testing against a non-Yocto userspace. Root password defaults to
-`oelinux123`, matching the Yocto images.
+CI also builds an Ubuntu 26.04 desktop image for each board (GNOME on
+Wayland, RDP remote desktop, OpenSSH, ADB over USB, NetworkManager and the same
+tools as the Yocto images). The userspace comes from `ubuntu-base` and
+[debos](https://github.com/go-debos/debos)
+([`ubuntu/`](ubuntu/)); the kernel, modules, firmware and boot firmware come
+from the Yocto minimal image. Every CI run uploads them as workflow artifacts,
+and tagged releases attach them as `ubuntu-desktop-<machine>.qcomflash.tar.zst`.
 
-> [!IMPORTANT]
-> Build with `imdt-8550-minimal-plain.yml`, not the usual
-> `imdt-8550-minimal.yml`. The OTA build's `/boot` is OSTree's hard-linked
-> deployment layout, and a plain rootfs won't boot under it.
-
-Build the plain image, then the Ubuntu one, and swap it into the
-`qcomflash` output before flashing:
+The tarball flashes like a Yocto image:
 
 ```bash
-kas-container build meta-imdt-qcom-oss/kas/imdt-8550-minimal-plain.yml
-./meta-imdt-qcom-oss/scripts/build-ubuntu-rootfs.sh
+tar --zstd -xf ubuntu-desktop-imdt-8550-sbc.qcomflash.tar.zst
+flash_qcs8550_sbc ubuntu-desktop rev5
 
-dir=qcom-minimal-image-imdt-8550-sbc.rootfs.qcomflash
-cp rootfs.img "$dir/rootfs.img"
-flash_qcs8550_sbc qcom-minimal-image rev5
+tar --zstd -xf ubuntu-desktop-imdt-6490-sbc.qcomflash.tar.zst
+flash_qcs6490_sbc ubuntu-desktop
+```
+
+The display logs in to the desktop as `ubuntu` automatically (set in
+`/etc/gdm3/custom.conf`). For SSH and the console, log in as `ubuntu` or
+`root`, both with password `oelinux123`. The rootfs grows to fill its
+partition on first boot.
+
+`qcom-metadata-editor` is included, and on the QCS8550 the `dtb` partition is
+mounted at `/mnt/dtb`, so the [overlay commands](#changing-overlays-on-a-running-board)
+work as on the Yocto images (with `sudo` instead of `adb shell`). On the
+QCS6490, mount `dtb_a` or `dtb_b` yourself.
+
+#### Remote desktop over RDP
+
+GNOME Remote Desktop is set up on two ports, both with the RDP credentials
+`ubuntu` / `oelinux123` and a TLS certificate generated on the board. It is
+faster than VNC.
+
+| Port | Mode | What you get |
+|---|---|---|
+| 3390 | Desktop sharing | The desktop already logged in on the display, enabled on its first login |
+| 3389 | Remote login | A new session of its own, from the GDM login screen; works without a monitor |
+
+```bash
+# Linux (FreeRDP); Remmina, Windows Remote Desktop and Windows App also work
+xfreerdp3 /v:<board-ip>:3390 /u:ubuntu /p:oelinux123 /cert:ignore /dynamic-resolution
+```
+
+To change the RDP credentials on the board:
+
+```bash
+grdctl rdp set-credentials <user> <password>                # desktop sharing
+sudo grdctl --system rdp set-credentials <user> <password>  # remote login
+```
+
+Limitations:
+- The kernel is the Yocto one, so apt never installs or updates a kernel
+  (`linux-image-*` and `linux-firmware` are pinned out). Reflash to update it.
+- Ubuntu has no `fastrpc` package, so the DSP RPC daemons and the SSC sensors
+  are not available.
+- No snaps are preinstalled, as they can't be seeded at build time. `snapd`
+  is, so install them on the board, e.g. `sudo snap install firefox`. The
+  kernel has no AppArmor, so snaps run with partial confinement.
+
+To build one locally from a minimal image build:
+
+```bash
+./meta-imdt-qcom-oss/ubuntu/build-rootfs.sh out
+d=build/tmp-imdt-8550-sbc/deploy/images/imdt-8550-sbc
+sudo ./meta-imdt-qcom-oss/ubuntu/assemble.sh imdt-8550-sbc \
+    out/ubuntu-26.04-desktop-arm64.tar.zst \
+    $d/qcom-minimal-image-imdt-8550-sbc.rootfs.ubuntu-bsp.tar.zst \
+    $d/qcom-minimal-image-imdt-8550-sbc.rootfs.qcomflash-boot.tar.gz \
+    out
 ```
 
 ### Flashing the QCS6490 SBC
