@@ -99,6 +99,10 @@ jobs:
       # ${OSTREE_REPO}). Shipping the directory as well added ~1.7 GB of
       # duplicate objects to the 8550 release asset for nothing.
       pack-exclude: 'ostree_repo'
+      # Board files and boot bundle for the ubuntu-image job
+      artifact-files: >-
+        qcom-minimal-image-*.rootfs.ubuntu-bsp.tar.zst
+        qcom-minimal-image-*.rootfs.qcomflash-boot.tar.gz
       rsync-enabled: true
       # Only the 8550 has LAVA coverage. Stage the self-contained per-image
       # OSTree commit archive, ostree-deploy pulls the new commit from it. The
@@ -113,6 +117,101 @@ jobs:
       clean-checkout: false
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # Generic Ubuntu desktop rootfs (ubuntu/), built while the Yocto build runs.
+  # Cached for a week so most runs only restore it.
+  ubuntu-rootfs:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: week
+        run: echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+
+      - id: cache
+        uses: actions/cache@v4
+        with:
+          path: out/ubuntu-26.04-desktop-arm64.tar.zst
+          key: ubuntu-rootfs-${{ steps.week.outputs.week }}-${{ hashFiles('ubuntu/build-rootfs.sh', 'ubuntu/imdt-ubuntu.yaml', 'ubuntu/overlays/**', 'ubuntu/scripts/**') }}
+
+      - name: Build the rootfs with debos
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: ./ubuntu/build-rootfs.sh out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ubuntu-rootfs-${{ github.sha }}
+          path: out/ubuntu-26.04-desktop-arm64.tar.zst
+          compression-level: 0
+          retention-days: 2
+
+  # Ubuntu flash bundle per board: the rootfs above plus the Yocto kernel,
+  # firmware and boot bundle. Attached to the release on tag builds.
+  ubuntu-image:
+    needs: [build, ubuntu-rootfs]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        machine: [imdt-8550-sbc, imdt-6490-sbc]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache /usr/local/share/boost
+          df -h /
+
+      - name: Install tools
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q dosfstools e2fsprogs kmod mtools zstd
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ubuntu-rootfs-${{ github.sha }}
+          path: in
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: qcom-imdt-images-files-${{ github.sha }}
+          path: in
+
+      - name: Assemble
+        env:
+          M: ${{ matrix.machine }}
+        run: |
+          sudo WORKDIR="$RUNNER_TEMP" ./ubuntu/assemble.sh "$M" \
+            in/ubuntu-26.04-desktop-arm64.tar.zst \
+            "in/$M/qcom-minimal-image-$M.rootfs.ubuntu-bsp.tar.zst" \
+            "in/$M/qcom-minimal-image-$M.rootfs.qcomflash-boot.tar.gz" \
+            out
+          rm -rf in
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ubuntu-desktop-${{ matrix.machine }}-${{ github.sha }}
+          path: out/ubuntu-desktop-${{ matrix.machine }}.qcomflash.tar.zst
+          compression-level: 0
+          retention-days: 7
+
+      # The build job has published the release by now. Same 1900 MiB split as kas-gh-ci.
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          M: ${{ matrix.machine }}
+        run: |
+          set -euo pipefail
+          F="out/ubuntu-desktop-$M.qcomflash.tar.zst"
+          if [ "$(stat -c%s "$F")" -ge $((1900 * 1024 * 1024)) ]; then
+            (cd out && sha256sum "$(basename "$F")" > "$(basename "$F").sha256")
+            split --bytes=1900M --numeric-suffixes --suffix-length=2 "$F" "$F.part"
+            rm "$F"
+          fi
+          gh release upload "$GITHUB_REF_NAME" out/ubuntu-desktop-"$M".* --clobber
 
   # One job per board so the two DUTs test in parallel, with max-parallel
   # serialising the images on each. Leaving all six matrix entries to the
