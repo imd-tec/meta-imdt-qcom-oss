@@ -1,0 +1,15 @@
+# The kernel, modules and firmware come from the Yocto build (assemble.sh).
+Package: linux-image-* linux-modules-* linux-generic* linux-firmware* grub* shim* flash-kernel
+Pin: release *
+Pin-Priority: -1
+
+# These debs install a snap from dpkg, which fails in the build chroot.
+# snapd itself is installed, so `snap install firefox` works on the board.
+Package: firefox thunderbird
+Pin: release *
+Pin-Priority: -1
+
+# Skip the first-login wizard, the image already has a user.
+Package: gnome-initial-setup
+Pin: release *
+Pin-Priority: -1

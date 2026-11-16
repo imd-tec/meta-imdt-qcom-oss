@@ -1,0 +1,11 @@
+[Unit]
+Description=Enable GNOME Remote Desktop RDP login on first boot
+ConditionPathExists=!/var/lib/imdt-rdp-enabled
+After=gnome-remote-desktop.service dbus.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/imdt-enable-rdp
+
+[Install]
+WantedBy=graphical.target

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=IMDT desktop sharing
+Comment=Share this desktop over RDP on first login
+Exec=/usr/libexec/imdt-enable-desktop-sharing
+OnlyShowIn=GNOME;
+NoDisplay=true

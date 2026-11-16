@@ -1,0 +1,18 @@
+#!/bin/sh
+# Turn on GNOME Remote Desktop's RDP login (port 3389) with a per-board TLS cert.
+set -eu
+
+user=gnome-remote-desktop
+dir=$(getent passwd "$user" | cut -d: -f6)/.local/share/gnome-remote-desktop
+mkdir -p "$dir"
+openssl req -new -newkey rsa:4096 -days 3650 -nodes -x509 \
+    -subj "/CN=$(hostname)" -keyout "$dir/tls.key" -out "$dir/tls.crt" 2>/dev/null
+chown -R "$user:$user" "$(dirname "$(dirname "$dir")")"
+chmod 600 "$dir/tls.key"
+
+grdctl --system rdp set-tls-key "$dir/tls.key"
+grdctl --system rdp set-tls-cert "$dir/tls.crt"
+grdctl --system rdp set-credentials ubuntu oelinux123
+grdctl --system rdp enable
+systemctl restart gnome-remote-desktop.service
+touch /var/lib/imdt-rdp-enabled

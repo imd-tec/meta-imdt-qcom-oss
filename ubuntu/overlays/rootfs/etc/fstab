@@ -1,0 +1,5 @@
+# <file system>   <mount point>  <type>  <options>                                       <dump> <pass>
+LABEL=otaroot     /              ext4    defaults,x-systemd.growfs                       0      1
+PARTLABEL=efi     /boot/efi      vfat    defaults,umask=0077,nofail                      0      2
+# The FIT with the DTB and overlays; the 6490 has dtb_a/dtb_b instead
+PARTLABEL=dtb     /mnt/dtb       vfat    defaults,nofail,x-systemd.device-timeout=5s     0      2

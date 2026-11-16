@@ -1,0 +1,16 @@
+#!/bin/sh
+# Firmware for drivers the initramfs loads before the rootfs is mounted.
+# msm doesn't declare the Adreno files, so initramfs-tools won't copy them.
+PREREQ=""
+prereqs() { echo "$PREREQ"; }
+case "$1" in
+    prereqs) prereqs; exit 0 ;;
+esac
+
+. /usr/share/initramfs-tools/hook-functions
+
+cd /usr/lib/firmware || exit 0
+for f in qcom/a*_sqe.fw qcom/gmu_*.bin qcom/*/a*_zap.* ccg_*.cyacd Lontium/*; do
+    [ -f "$f" ] && copy_file firmware "/usr/lib/firmware/$f" "/usr/lib/firmware/$f"
+done
+exit 0

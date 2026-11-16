@@ -1,0 +1,26 @@
+#!/bin/sh
+# Share the ubuntu user's desktop over RDP once, next to Remote Login on 3389.
+set -eu
+
+[ "$(id -un)" = ubuntu ] || exit 0
+dir="$HOME/.local/share/gnome-remote-desktop"
+[ -e "$dir/imdt-sharing-enabled" ] && exit 0
+
+mkdir -p "$dir"
+openssl req -new -newkey rsa:4096 -days 3650 -nodes -x509 \
+    -subj "/CN=$(hostname)" -keyout "$dir/tls.key" -out "$dir/tls.crt" 2>/dev/null
+chmod 600 "$dir/tls.key"
+
+grdctl rdp set-tls-key "$dir/tls.key"
+grdctl rdp set-tls-cert "$dir/tls.crt"
+# Auto-login creates the login keyring a little after autostart, so wait for it
+i=0
+until grdctl rdp set-credentials ubuntu oelinux123 2>/dev/null; do
+    i=$((i + 1))
+    [ "$i" -lt 60 ] || exit 1
+    sleep 2
+done
+grdctl rdp disable-view-only
+grdctl rdp enable
+systemctl --user enable --now gnome-remote-desktop.service
+touch "$dir/imdt-sharing-enabled"
