@@ -1,7 +1,7 @@
 [Unit]
 Description=Generate SSH host keys on first boot
 ConditionPathExistsGlob=!/etc/ssh/ssh_host_*_key
-Before=ssh.service ssh.socket
+Before=ssh.service
 
 [Service]
 Type=oneshot
