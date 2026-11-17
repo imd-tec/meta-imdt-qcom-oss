@@ -154,12 +154,13 @@ actions:
           # Record boot_id so the reboot is detected reliably across the possibly
           # flaky forwarded transport (every probe guarded with `|| ...` because
           # the LAVA test shell runs with `set -e`).
-          - i=0; BOOT_ID_BEFORE=""; while [ $i -lt 3 ] && [ -z "$BOOT_ID_BEFORE" ]; do BOOT_ID_BEFORE=$($SSH cat /proc/sys/kernel/random/boot_id 2>/dev/null) || BOOT_ID_BEFORE=""; i=$((i+1)); done
+          - i=0; BOOT_ID_BEFORE=""; while [ $i -lt 3 ] && [ -z "$BOOT_ID_BEFORE" ]; do BOOT_ID_BEFORE=$(timeout 20 $SSH cat /proc/sys/kernel/random/boot_id 2>/dev/null) || BOOT_ID_BEFORE=""; i=$((i+1)); done
           - 'echo "boot_id before reboot: ${BOOT_ID_BEFORE:-<unknown>}"'
           # `reboot` tears down the ssh connection, so detach it or the command
           # returns 255 and trips `set -e`.
           - $SSH 'nohup sh -c "sleep 1; reboot" >/dev/null 2>&1 &' || true
-          - i=0; REBOOTED=0; while [ $i -lt 150 ]; do BID=$($SSH cat /proc/sys/kernel/random/boot_id 2>/dev/null) || BID=""; if [ -n "$BID" ] && [ "$BID" != "$BOOT_ID_BEFORE" ]; then REBOOTED=1; break; fi; i=$((i+1)); sleep 2; done
+          # The relay's adb waits forever on a board hung in shutdown, so bound each probe and the wait.
+          - END=$(($(date +%s) + 600)); REBOOTED=0; while [ "$(date +%s)" -lt "$END" ]; do BID=$(timeout 20 $SSH cat /proc/sys/kernel/random/boot_id 2>/dev/null) || BID=""; if [ -n "$BID" ] && [ "$BID" != "$BOOT_ID_BEFORE" ]; then REBOOTED=1; break; fi; sleep 2; done
           - if [ "$REBOOTED" = 1 ] && [ -n "$BOOT_ID_BEFORE" ]; then lava-test-case reboot --result pass; else lava-test-case reboot --result fail; fi
           - $SSH "mountpoint -q /boot || mount /dev/disk/by-partlabel/efi /boot" || true
           # ── Verify the update took and committed ────────────────────────────
