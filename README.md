@@ -621,6 +621,11 @@ sudo ./meta-imdt-qcom-oss/ubuntu/assemble.sh imdt-8550-sbc \
     out
 ```
 
+`assemble.sh` checks the result before packing it: no drivers in the
+initramfs that need firmware from the rootfs, no device nodes outside `/dev`,
+file capabilities kept, no SSH host keys or machine-id baked in, first-boot
+key generation enabled, FastRPC present, and a clean `e2fsck`.
+
 ### Flashing the QCS6490 SBC
 
 The QCS6490 SBC boots from **eMMC** (there is no UFS), so it is flashed with the

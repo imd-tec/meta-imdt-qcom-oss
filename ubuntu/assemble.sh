@@ -54,6 +54,21 @@ for s in "$R"/usr/lib/systemd/system/*-ar1335.service; do
     [ -e "$s" ] && chroot "$R" systemctl enable "$(basename "$s")"
 done
 chroot "$R" update-initramfs -c -k "$KVER"
+
+echo "=== Checks"
+fail() { echo "CHECK FAILED: $*" >&2; exit 1; }
+# Drivers whose firmware lives on the rootfs must not load from the initramfs
+INITRD_LIST=$(chroot "$R" lsinitramfs "/boot/initrd.img-$KVER")
+grep -q '\.ko' <<<"$INITRD_LIST" || fail "could not list the initramfs"
+INITRD_KO=$(grep -E '/(qcom_q6v5_pas|qcom-iris|ipa)\.ko' <<<"$INITRD_LIST" || true)
+[ -z "$INITRD_KO" ] || fail "initramfs loads drivers without their firmware: $INITRD_KO"
+DEVS=$(find "$R" -path "$R/dev" -prune -o \( -type b -o -type c \) -print)
+[ -z "$DEVS" ] || fail "device nodes outside /dev: $DEVS"
+chroot "$R" getcap /usr/lib/snapd/snap-confine | grep -q cap_ || fail "file capabilities lost"
+! ls "$R"/etc/ssh/ssh_host_* >/dev/null 2>&1 || fail "SSH host keys baked in"
+[ ! -s "$R/etc/machine-id" ] || fail "machine-id baked in"
+[ -L "$R/etc/systemd/system/multi-user.target.wants/ssh-host-keys.service" ] || fail "ssh-host-keys.service not enabled"
+[ -x "$R/usr/sbin/cdsprpcd" ] && [ -e "$R/usr/lib/libcdsprpc.so" ] || fail "FastRPC missing"
 for m in dev/pts dev sys proc; do umount "$R/$m"; done
 
 echo "=== Boot bundle"
@@ -98,6 +113,7 @@ mke2fs -q -F -t ext4 -b 4096 -L otaroot -d "$R" "$IMG"
 e2fsck -fy "$IMG" >/dev/null || [ $? -le 1 ]
 # Shrink to fit; x-systemd.growfs grows it on first boot
 resize2fs -M "$IMG"
+e2fsck -fn "$IMG" >/dev/null || fail "rootfs.img not clean after resize"
 rm -rf "$R"
 
 echo "=== Pack"
