@@ -56,42 +56,47 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 > probe rather than being runtime-tested. That board boots from eMMC (there is
 > no UFS). The Hardware / Interface / Kernel Driver columns describe the
 > QCS8550 SBC.
+>
+> The Ubuntu column is the [Ubuntu image](#ubuntu-images) on a QCS8550 SBC
+> Rev 5. It uses the same kernel and firmware as the Yocto images, so ❔ means
+> not yet tried on Ubuntu rather than expected to fail. The Ubuntu image on the
+> QCS6490 SBC has not been booted yet.
 
-| Feature | Hardware | Interface | Kernel Driver | QCS8550 SBC Rev 2 (12GB) Status | QCS8550 SBC Rev 5 (8GB) Status | QCS6490 SBC (4GB) Status |
-|---|---|---|---|---|---|---|
-| ADSP | Hexagon v73 DSP | — | remoteproc, fastrpc | 🚧 | ✅ Audio PD and SSC sensors | ✅ |
-| Android Debug Bridge (ADB) | — | USB | — | ✅ | ✅ | ✅ |
-| Audio (LPASS) | TI TLV320AIC3101 | Primary MI2S via the ADSP (AudioReach) | q6apm, tlv320aic3x | 🚧 Planned | 🚧 Card registers, audible output untested | ❌ |
-| Bluetooth | NXP IW416 | UART14 | btnxpuart | ❌ | ❌ | ❌ |
-| Camera (AR1335 - 13MP) | ON Semiconductor AR1335 | CSI0 | ar1335 | ✅ | ✅ | ✅ |
-| CDSP | Hexagon DSP | — | remoteproc | ✅ | ✅ | ✅ |
-| Debug Serial Console (J19)| — | UART7 (115200 baud) | qcom-geni-serial | ✅ | ✅ | ✅ |
-| DDR Memory | 8GB / 12GB LPDDR5 | — | — | ✅ 12GB | ✅ 8GB | ✅ 4GB |
-| DisplayPort over USB Type-C | Cypress CYPD6125 | DWC3 (QCOM) / USB-C DP Alt Mode | ucsi_ccg | ❌ | ✅ | ❌ |
-| Gigabit Ethernet | Microchip LAN7430 | PCIe1 (default) | lan743x | ✅ | ✅ | ✅ |
-| PCIe Expansion (M.2 Key-B) | PCIe switch downstream Key-B port | PCIe1 (overlay) | qcom-pcie | ✅ Requires Key-B DTBO overlay | ✅ Requires Key-B DTBO overlay | 🚧 |
-| GPIO | PM8550 GPIO bank | SPMI | qcom-spmi-gpio | ✅ | ✅ | ✅ |
-| GPU (Adreno) | Adreno | — | msm drm | ✅ | ✅ | ❌ |
-| HDMI Display (up to 4K60) | Lontium LT9611UXD (IM-PCA-0055-01) | DSI0 + DSI1 (dual DSI) | lt9611c | ❌ | ✅ Requires LT9611UXD DTBO overlay | ✅ Up to 4K30 (DSI0 only), requires LT9611UXD DTBO overlay |
-| I2C | QupV3 I2C hub | I2C | geni-i2c | ✅ | ✅ | ✅ |
-| IPA | Qualcomm IP Accelerator | — | ipa | ✅ | ✅ | ❌ |
-| ISP (CAMX) | Qualcomm proprietary camera framework | — | — | ❌ | ❌ | ❌ |
-| libcamera (AR1335) | ON Semiconductor AR1335 | CSI0 | ar1335 | ✅ | ✅ | ❌ |
-| libcamera tuning (AR1335) | ON Semiconductor AR1335 | CSI0 | ar1335 | 🚧 WiP | 🚧 WiP | ❌ |
-| microSD Card | — | SDHC2 | sdhci | ✅ | ✅ | — |
-| MIPI DSI Display | Team Source TST070WSBE-196C 7" | DSI0 | drm/msm | ✅ | 🚧 Not supported yet | ❌ |
-| OTA Rootfs Updates | — | — | — | ✅ | ✅ | 🚧 |
-| Sensors (IMU, magnetometer, temperature/humidity) | ST LSM6DSV, AKM AK09918C, Sensirion SHT40 | SSC I3C / I2C via the ADSP | — (sscrpcd, userspace) | 🚧 | ✅ | ❌ |
-| PCIe Expansion (M.2 Key-E) | M.2 Key-E slot | PCIe0 | qcom-pcie | ✅ | ✅ | ✅ |
-| Remote Desktop (VNC) | — | Network | — | ✅ Multimedia images | ✅ Multimedia images | ❌ |
-| systemd-boot as ARM64 UEFI App| — | — | — | ✅ | ✅ | ✅ |
-| UFS Storage | — | UFS | ufshcd | ✅ | ✅ | — |
-| eMMC Storage | on-SoM 32 GB eMMC | SDHC1 | sdhci-msm | — | — | ✅ |
-| USB 3.0 Type-C | NXP PTN3222 eUSB2 redriver | DWC3 (QCOM) | dwc3-qcom | ✅ Peripheral mode | ✅ Host or peripheral mode | ✅ Peripheral mode |
-| Video Encode (Iris VPU) | Qualcomm Iris VPU | — | qcom-iris | ✅ H.264 / HEVC | ✅ H.264 / HEVC | ❌ |
-| Video Decode (Iris VPU) | Qualcomm Iris VPU | — | qcom-iris | ✅ H.264 / HEVC | ✅ H.264 / HEVC | ❌ |
-| Wi-Fi 802.11a/b/g/n/ac | NXP IW416 | SDIO (SDHC4) | mwifiex_sdio | ✅ | 🚧 Planned | ✅ |
-| Yocto / OpenEmbedded Master branch | — | — | — | ✅ | ✅ | ✅ |
+| Feature | Hardware | Interface | Kernel Driver | QCS8550 SBC Rev 2 (12GB) Status | QCS8550 SBC Rev 5 (8GB) Status | QCS6490 SBC (4GB) Status | Ubuntu 26.04 on QCS8550 SBC Rev 5 |
+|---|---|---|---|---|---|---|---|
+| ADSP | Hexagon v73 DSP | — | remoteproc, fastrpc | 🚧 | ✅ Audio PD and SSC sensors | ✅ | 🚧 Running, `adsprpcd` up; no SSC sensors |
+| Android Debug Bridge (ADB) | — | USB | — | ✅ | ✅ | ✅ | ✅ |
+| Audio (LPASS) | TI TLV320AIC3101 | Primary MI2S via the ADSP (AudioReach) | q6apm, tlv320aic3x | 🚧 Planned | 🚧 Card registers, audible output untested | ❌ | 🚧 Card registers, untested |
+| Bluetooth | NXP IW416 | UART14 | btnxpuart | ❌ | ❌ | ❌ | ❌ |
+| Camera (AR1335 - 13MP) | ON Semiconductor AR1335 | CSI0 | ar1335 | ✅ | ✅ | ✅ | ❔ Untested |
+| CDSP | Hexagon DSP | — | remoteproc | ✅ | ✅ | ✅ | ✅ FastRPC (`fastrpc_test`) |
+| Debug Serial Console (J19)| — | UART7 (115200 baud) | qcom-geni-serial | ✅ | ✅ | ✅ | ✅ |
+| DDR Memory | 8GB / 12GB LPDDR5 | — | — | ✅ 12GB | ✅ 8GB | ✅ 4GB | ✅ 8GB |
+| DisplayPort over USB Type-C | Cypress CYPD6125 | DWC3 (QCOM) / USB-C DP Alt Mode | ucsi_ccg | ❌ | ✅ | ❌ | ❔ Untested |
+| Gigabit Ethernet | Microchip LAN7430 | PCIe1 (default) | lan743x | ✅ | ✅ | ✅ | ✅ |
+| PCIe Expansion (M.2 Key-B) | PCIe switch downstream Key-B port | PCIe1 (overlay) | qcom-pcie | ✅ Requires Key-B DTBO overlay | ✅ Requires Key-B DTBO overlay | 🚧 | ❔ Untested |
+| GPIO | PM8550 GPIO bank | SPMI | qcom-spmi-gpio | ✅ | ✅ | ✅ | 🚧 Probes |
+| GPU (Adreno) | Adreno | — | msm drm | ✅ | ✅ | ❌ | ✅ glmark2 at 4K |
+| HDMI Display (up to 4K60) | Lontium LT9611UXD (IM-PCA-0055-01) | DSI0 + DSI1 (dual DSI) | lt9611c | ❌ | ✅ Requires LT9611UXD DTBO overlay | ✅ Up to 4K30 (DSI0 only), requires LT9611UXD DTBO overlay | ✅ GNOME desktop, requires LT9611UXD DTBO overlay |
+| I2C | QupV3 I2C hub | I2C | geni-i2c | ✅ | ✅ | ✅ | 🚧 Probes |
+| IPA | Qualcomm IP Accelerator | — | ipa | ✅ | ✅ | ❌ | 🚧 Probes |
+| ISP (CAMX) | Qualcomm proprietary camera framework | — | — | ❌ | ❌ | ❌ | ❌ |
+| libcamera (AR1335) | ON Semiconductor AR1335 | CSI0 | ar1335 | ✅ | ✅ | ❌ | ❔ Untested |
+| libcamera tuning (AR1335) | ON Semiconductor AR1335 | CSI0 | ar1335 | 🚧 WiP | 🚧 WiP | ❌ | ❔ Untested |
+| microSD Card | — | SDHC2 | sdhci | ✅ | ✅ | — | ❔ Untested |
+| MIPI DSI Display | Team Source TST070WSBE-196C 7" | DSI0 | drm/msm | ✅ | 🚧 Not supported yet | ❌ | ❔ Untested |
+| OTA Rootfs Updates | — | — | — | ✅ | ✅ | 🚧 | ❌ Reflash to update |
+| Sensors (IMU, magnetometer, temperature/humidity) | ST LSM6DSV, AKM AK09918C, Sensirion SHT40 | SSC I3C / I2C via the ADSP | — (sscrpcd, userspace) | 🚧 | ✅ | ❌ | ❌ No `sscrpcd` |
+| PCIe Expansion (M.2 Key-E) | M.2 Key-E slot | PCIe0 | qcom-pcie | ✅ | ✅ | ✅ | ❔ Untested |
+| Remote Desktop (VNC) | — | Network | — | ✅ Multimedia images | ✅ Multimedia images | ❌ | ✅ RDP (GNOME Remote Desktop) |
+| systemd-boot as ARM64 UEFI App| — | — | — | ✅ | ✅ | ✅ | ✅ |
+| UFS Storage | — | UFS | ufshcd | ✅ | ✅ | — | ✅ |
+| eMMC Storage | on-SoM 32 GB eMMC | SDHC1 | sdhci-msm | — | — | ✅ | — |
+| USB 3.0 Type-C | NXP PTN3222 eUSB2 redriver | DWC3 (QCOM) | dwc3-qcom | ✅ Peripheral mode | ✅ Host or peripheral mode | ✅ Peripheral mode | ✅ Peripheral mode (ADB) |
+| Video Encode (Iris VPU) | Qualcomm Iris VPU | — | qcom-iris | ✅ H.264 / HEVC | ✅ H.264 / HEVC | ❌ | ✅ H.264 (GStreamer) |
+| Video Decode (Iris VPU) | Qualcomm Iris VPU | — | qcom-iris | ✅ H.264 / HEVC | ✅ H.264 / HEVC | ❌ | ✅ H.264 (GStreamer, FFmpeg) |
+| Wi-Fi 802.11a/b/g/n/ac | NXP IW416 | SDIO (SDHC4) | mwifiex_sdio | ✅ | 🚧 Planned | ✅ | ❔ Untested |
+| Yocto / OpenEmbedded Master branch | — | — | — | ✅ | ✅ | ✅ | — |
 
 ## Upstreaming Status
 An effort is being made into upstreaming our board and patches into Linux.
