@@ -1,0 +1,2 @@
+# Start rmtfs when its memory region appears, as meta-qcom does
+ACTION=="add", KERNEL=="qcom_rmtfs_mem*", TAG+="systemd", ENV{SYSTEMD_WANTS}+="rmtfs.service"
