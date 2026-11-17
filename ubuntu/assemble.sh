@@ -92,11 +92,12 @@ cat > "$WORK/loader.conf" <<EOF
 default ubuntu.conf
 timeout 0
 EOF
+# The 4K desktop leaves the default 32 MiB CMA too small for libcamera's soft ISP
 cat > "$WORK/ubuntu.conf" <<EOF
 title   Ubuntu 26.04 (${MACHINE})
 linux   /Image
 initrd  /initrd.img
-options root=LABEL=otaroot rw rootwait ${CMDLINE}
+options root=LABEL=otaroot rw rootwait ${CMDLINE} cma=256M
 EOF
 export MTOOLS_SKIP_CHECK=1
 mmd -i "$ESP" ::/EFI ::/EFI/BOOT ::/loader ::/loader/entries
