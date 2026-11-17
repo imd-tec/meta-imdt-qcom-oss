@@ -50,6 +50,7 @@ SRC_URI:append = " \
     file://0038-arm64-dts-qcom-qcs6490-imdt-sbc-Add-LT9611UXD-DSI-to.patch \
     file://0040-drm-bridge-lt9611c-Support-a-single-DSI-host.patch \
     file://configs/imdt.cfg \
+    file://configs/ubuntu-support.cfg \
 "
 
 # Not every patch carries an Upstream-Status tag yet.
