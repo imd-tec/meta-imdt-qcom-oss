@@ -16,6 +16,7 @@ apt-get -y install \
     network-manager \
     sudo \
     initramfs-tools \
+    iputils-ping \
     systemd-boot-efi \
     zstd
 
