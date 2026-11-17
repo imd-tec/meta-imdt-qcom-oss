@@ -1,0 +1,48 @@
+{{- $base := or .base "ubuntu-26.04-desktop-arm64.tar.zst" -}}
+{{- $out := or .out "product-arm64.tar.zst" -}}
+{{- $desktop := or .desktop "true" -}}
+# Example product rootfs built on the IMDT generic Ubuntu rootfs. Copy this
+# directory into your own repo, then feed its output to ubuntu/assemble.sh.
+architecture: arm64
+
+actions:
+  - action: run
+    description: Unpack the IMDT Ubuntu rootfs
+    chroot: false
+    command: zstd -dc "$RECIPEDIR/{{ $base }}" | tar -xpf - --numeric-owner --xattrs --xattrs-include='*' --acls -C "$ROOTDIR"
+
+  - action: apt
+    description: Product packages from the Ubuntu archive
+    packages:
+      - htop
+      - mosquitto
+
+  - action: overlay
+    description: Product files (config, units)
+    source: overlay
+
+  - action: overlay
+    description: Local .debs
+    source: debs
+    destination: /var/tmp/debs
+
+  - action: run
+    description: Product setup
+    chroot: true
+    command: |
+      set -e
+      if ls /var/tmp/debs/*.deb >/dev/null 2>&1; then apt-get install -y /var/tmp/debs/*.deb; fi
+      rm -rf /var/tmp/debs
+      {{- if ne $desktop "true" }}
+      # Headless: boot to a console and drop remote desktop
+      systemctl disable gnome-remote-desktop.service imdt-enable-rdp.service
+      rm -f /etc/xdg/autostart/imdt-desktop-sharing.desktop
+      systemctl set-default multi-user.target
+      {{- end }}
+      apt-get clean
+      rm -rf /var/lib/apt/lists/*
+
+  - action: run
+    description: Pack the rootfs
+    chroot: false
+    command: tar --numeric-owner --xattrs --xattrs-include='*' --acls -C "$ROOTDIR" -cf - . | zstd -T0 -10 > "$ARTIFACTDIR/{{ $out }}"

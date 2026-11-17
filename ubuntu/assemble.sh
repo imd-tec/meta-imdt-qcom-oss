@@ -4,7 +4,8 @@
 # Overlays the Yocto board files (kernel, modules, firmware) onto the debos
 # rootfs, builds its initramfs, an ESP with systemd-boot and an ext4 rootfs
 # labelled otaroot, and puts both into the Yocto boot bundle in place of the
-# OSTree efi.bin and rootfs.img. Run as root; needs zstd, mtools, dosfstools,
+# OSTree efi.bin and rootfs.img. The rootfs must derive from the IMDT generic
+# one (ubuntu/imdt-ubuntu.yaml). Run as root; needs zstd, mtools, dosfstools,
 # e2fsprogs, kmod, and arm64 binfmt when not on an arm64 host.
 set -euo pipefail
 
@@ -17,7 +18,8 @@ ROOTFS_TAR=$(realpath "$2")
 BSP_TAR=$(realpath "$3")
 BOOT_TAR=$(realpath "$4")
 OUT=$(realpath "$5")
-NAME="ubuntu-desktop-${MACHINE}"
+# BUNDLE_NAME picks the bundle name, e.g. for a product rootfs
+NAME="${BUNDLE_NAME:-ubuntu-desktop}-${MACHINE}"
 
 WORK=$(mktemp -d -p "${WORKDIR:-/var/tmp}" ubuntu-assemble.XXXXXX)
 R="$WORK/rootfs"

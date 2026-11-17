@@ -358,6 +358,11 @@ firmware, flash XMLs and QDL programmer:
 
 Each image also has a `.rootfs.manifest` asset listing its packages.
 
+For [your own Ubuntu rootfs](#building-a-product-rootfs), releases also carry
+the generic `ubuntu-26.04-desktop-arm64.tar.zst` and, per board,
+`qcom-minimal-image-<machine>.rootfs.ubuntu-bsp.tar.zst` and
+`qcom-minimal-image-<machine>.rootfs.qcomflash-boot.tar.gz`.
+
 ```bash
 base="https://github.com/imd-tec/meta-imdt-qcom-oss/releases/latest/download"
 name="qcom-minimal-image-imdt-8550-sbc.rootfs.qcomflash.tar.gz"
@@ -625,6 +630,35 @@ sudo ./meta-imdt-qcom-oss/ubuntu/assemble.sh imdt-8550-sbc \
 initramfs that need firmware from the rootfs, no device nodes outside `/dev`,
 file capabilities kept, no SSH host keys or machine-id baked in, first-boot
 key generation enabled, FastRPC present, and a clean `e2fsck`.
+
+#### Building a product rootfs
+
+The evaluation image is meant to be changed on the board. A product image
+instead needs its packages, files and settings built in, and may not want the
+desktop or RDP. Keep that in your own repo as a debos recipe that starts from
+the generic rootfs, like [`ubuntu/examples/product/`](ubuntu/examples/product/):
+
+1. It unpacks `ubuntu-26.04-desktop-arm64.tar.zst` (from a release, or
+   `build-rootfs.sh`).
+2. It adds packages with an `apt` step, files with an `overlay` step, and
+   local `.deb`s from `debs/`.
+3. With `-t desktop:false`, it boots to a console without remote desktop.
+4. It packs `product-arm64.tar.zst`, which `assemble.sh` turns into a
+   flashable bundle with the release's board files.
+
+```bash
+cp ubuntu-26.04-desktop-arm64.tar.zst ubuntu/examples/product/
+docker run --rm --privileged --tmpfs /dev/shm:exec -v /dev:/dev \
+    -v "$PWD/ubuntu/examples/product:/recipes" -v "$PWD/out:/artifacts" -w /artifacts \
+    ghcr.io/go-debos/debos:latest --disable-fakemachine --artifactdir /artifacts \
+    /recipes/product.yaml
+sudo BUNDLE_NAME=product ./ubuntu/assemble.sh imdt-8550-sbc out/product-arm64.tar.zst \
+    qcom-minimal-image-imdt-8550-sbc.rootfs.ubuntu-bsp.tar.zst \
+    qcom-minimal-image-imdt-8550-sbc.rootfs.qcomflash-boot.tar.gz out
+```
+
+This writes `out/product-imdt-8550-sbc.qcomflash.tar.zst`, which flashes with
+`flash_qcs8550_sbc product rev5`.
 
 ### Flashing the QCS6490 SBC
 

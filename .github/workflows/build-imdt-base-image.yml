@@ -188,7 +188,7 @@ jobs:
             "in/$M/qcom-minimal-image-$M.rootfs.ubuntu-bsp.tar.zst" \
             "in/$M/qcom-minimal-image-$M.rootfs.qcomflash-boot.tar.gz" \
             out
-          rm -rf in
+          rm -f in/ubuntu-26.04-desktop-arm64.tar.zst
 
       - uses: actions/upload-artifact@v4
         with:
@@ -212,6 +212,26 @@ jobs:
             rm "$F"
           fi
           gh release upload "$GITHUB_REF_NAME" out/ubuntu-desktop-"$M".* --clobber
+          # The board files, so product rootfs builds can run assemble.sh
+          gh release upload "$GITHUB_REF_NAME" \
+            "in/$M/qcom-minimal-image-$M.rootfs.ubuntu-bsp.tar.zst" \
+            "in/$M/qcom-minimal-image-$M.rootfs.qcomflash-boot.tar.gz" --clobber
+
+  # The generic rootfs on the release, as the base of product rootfs recipes
+  ubuntu-rootfs-release:
+    needs: [build, ubuntu-rootfs]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ubuntu-rootfs-${{ github.sha }}
+          path: out
+
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" out/ubuntu-26.04-desktop-arm64.tar.zst --clobber -R "$GITHUB_REPOSITORY"
 
   # One job per board so the two DUTs test in parallel, with max-parallel
   # serialising the images on each. Leaving all six matrix entries to the
