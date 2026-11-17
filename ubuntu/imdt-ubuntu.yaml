@@ -19,6 +19,11 @@ actions:
     chroot: true
     script: scripts/packages.sh
 
+  - action: run
+    description: Build FastRPC
+    chroot: true
+    script: scripts/fastrpc.sh
+
   - action: overlay
     description: Board-independent config
     source: overlays/rootfs

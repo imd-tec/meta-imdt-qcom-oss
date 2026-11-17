@@ -6,7 +6,7 @@ echo imdt-ubuntu > /etc/hostname
 printf '127.0.0.1\tlocalhost\n127.0.1.1\timdt-ubuntu\n' > /etc/hosts
 
 # Same password as the Yocto images
-useradd -m -s /bin/bash -G sudo,adm,audio,video,render,plugdev,dialout ubuntu
+useradd -m -s /bin/bash -G sudo,adm,audio,video,render,plugdev,dialout,fastrpc ubuntu
 echo 'root:oelinux123' | chpasswd
 echo 'ubuntu:oelinux123' | chpasswd
 

@@ -19,7 +19,7 @@ apt-get -y install \
     systemd-boot-efi \
     zstd
 
-# Qualcomm remote processor services (no fastrpc package in 26.04)
+# Qualcomm remote processor services (fastrpc.sh builds FastRPC)
 apt-get -y install \
     qrtr-tools \
     rmtfs \

@@ -599,8 +599,12 @@ sudo grdctl --system rdp set-credentials <user> <password>  # remote login
 Limitations:
 - The kernel is the Yocto one, so apt never installs or updates a kernel
   (`linux-image-*` and `linux-firmware` are pinned out). Reflash to update it.
-- Ubuntu has no `fastrpc` package, so the DSP RPC daemons and the SSC sensors
-  are not available.
+- Ubuntu has no `fastrpc` package, so the image builds Qualcomm's
+  [fastrpc](https://github.com/qualcomm/fastrpc) 1.0.8, the same release as
+  Yocto. `cdsprpcd` and `adsprpcd` start from udev, and users in the
+  `fastrpc` group (`ubuntu` is) can open the DSPs, e.g.
+  `fastrpc_test -d 3 -U 1 -a v75`. The SSC sensors (`sscrpcd`) are not
+  available.
 - No snaps are preinstalled, as they can't be seeded at build time. `snapd`
   is, so install them on the board, e.g. `sudo snap install firefox`. The
   kernel has no AppArmor, so snaps run with partial confinement.
