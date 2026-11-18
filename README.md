@@ -1229,6 +1229,51 @@ OS to pass as `--os=` if the board carries more than one. `ostree admin cleanup`
 reclaims superseded deployments, which is worth running before a pull if the
 rootfs is tight on space.
 
+### Updating the boot firmware
+
+OSTree only updates the rootfs. The boot firmware (XBL, TrustZone, the
+hypervisor, UEFI, AOP, the DSP and modem images, ...) lives on A/B partitions
+outside it, so an OSTree update leaves the board on the firmware it was last
+flashed with. Each image ships a manifest of the firmware it was built with,
+and [`imdt-boot`](https://github.com/imd-tec/qcom-oss-boot-updater) checks the
+board against it:
+
+- At boot, `imdt-boot.service` warns in the journal and on the console when the
+  booted slot does not match the running deployment.
+- After a deploy, `ostree-imdt-update` warns when the new deployment expects
+  other firmware.
+
+To bring the firmware in line with the deployment you are about to boot:
+
+```bash
+adb shell ostree-imdt-update
+adb shell imdt-boot check --pending
+adb shell imdt-boot update --pending --yes
+adb reboot
+```
+
+`imdt-boot update` writes the firmware to the slot that is not running, reads
+every partition back to check it, and only then switches the board to that
+slot. The old firmware stays on the other slot, and `imdt-boot switch --yes`
+goes back to it. The first boot after a switch resets once more before it
+comes up. `imdt-boot status` shows the booted slot, the next boot's slot and
+which partitions match on each. The QCS8550 SBC is supported, as its A/B
+switch uses the UFS boot LUN.
+
+The images add 58 MB to the rootfs, though OSTree only downloads them again
+when the firmware changes. To leave them out, set
+`IMDT_BOOT_IMAGES_IN_ROOTFS = "0"`. The image then carries only the manifest,
+and `update` takes the firmware bundle each build deploys and each release
+attaches, `imdt-boot-<machine>.tar.zst`:
+
+```bash
+adb push imdt-boot-imdt-8550-sbc.tar.zst /var/tmp/
+adb shell imdt-boot update --pending --images /var/tmp/imdt-boot-imdt-8550-sbc.tar.zst --yes
+```
+
+The CDT, which depends on the board revision, and the `dtb` partition, which
+holds the overlay selection, are not part of the manifest.
+
 ### Unlocking the deployment root
 
 OSTree marks each deployment's root directory immutable, so creating anything

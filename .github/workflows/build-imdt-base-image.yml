@@ -93,6 +93,7 @@ jobs:
         qcom-minimal-image-*.rootfs.qcomflash.tar.gz
         qcom-multimedia-image-*.rootfs.qcomflash.tar.gz
         qcom-multimedia-proprietary-image-*.rootfs.qcomflash.tar.gz
+        imdt-boot-*.tar.zst
       # ostree_repo is the shared archive repo bitbake commits every image into,
       # and each image's .ostreecommit.tar.xz is itself a tar of that same repo
       # (meta-updater sets TAR_IMAGE_ROOTFS:task-image-ostreecommit =
