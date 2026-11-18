@@ -29,3 +29,8 @@ echo "ostree-imdt-update: deploying ${OSNAME} from ${REMOTE}:${BRANCH}"
 ostree admin deploy --os="${OSNAME}" "${REMOTE}:${BRANCH}"
 
 echo "ostree-imdt-update: update staged (BLS boot-counting armed) — reboot to apply"
+
+# The boot firmware is outside OSTree, so say when the new deployment expects other firmware.
+if command -v imdt-boot >/dev/null 2>&1; then
+    imdt-boot check --pending || true
+fi
