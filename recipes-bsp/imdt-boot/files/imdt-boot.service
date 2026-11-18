@@ -1,0 +1,13 @@
+[Unit]
+Description=Check the boot firmware against this deployment
+After=local-fs.target systemd-udev-trigger.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/imdt-boot record
+ExecStart=/usr/bin/imdt-boot check --warn-only
+StandardOutput=journal+console
+
+[Install]
+WantedBy=multi-user.target

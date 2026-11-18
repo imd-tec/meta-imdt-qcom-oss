@@ -35,3 +35,12 @@ RDEPENDS:${PN}:append:qcs8550 = " \
 "
 
 RDEPENDS:${PN}:append:qcs8550 = " audioreach-topology-imdt"
+
+# Boot firmware check and A/B update, it needs ufs-utils from meta-filesystems.
+# IMDT_BOOT_IMAGES_IN_ROOTFS = "0" leaves out the 58 MB of firmware images,
+# then imdt-boot update takes the deployed imdt-boot-<machine>.tar.zst instead.
+IMDT_BOOT_IMAGES_IN_ROOTFS ??= "1"
+IMDT_BOOT_PACKAGES = "imdt-boot ${@'imdt-boot-firmware-images' if d.getVar('IMDT_BOOT_IMAGES_IN_ROOTFS') == '1' else ''}"
+RDEPENDS:${PN}:append:qcs8550 = " \
+    ${@bb.utils.contains('BBFILE_COLLECTIONS', 'filesystems-layer', d.getVar('IMDT_BOOT_PACKAGES'), '', d)} \
+"
