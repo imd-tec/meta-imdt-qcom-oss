@@ -13,6 +13,9 @@ SRC_URI += "file://imdt-boot.service"
 
 inherit cargo cargo-update-recipe-crates systemd
 
+# bitbake strips the binary into -dbg itself
+export CARGO_PROFILE_RELEASE_STRIP = "false"
+
 # Regenerate after a SRCREV bump: bitbake -c update_crates imdt-boot
 require ${BPN}-crates.inc
 
