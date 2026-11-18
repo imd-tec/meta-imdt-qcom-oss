@@ -12,6 +12,9 @@ IMDT_QCOMFLASH_PROGRAMMER ??= ""
 # Also pack the bundle without rootfs.img and efi.bin, for the Ubuntu image.
 IMDT_QCOMFLASH_BOOT ??= "0"
 
+# Deploy imdt-boot's firmware bundle next to the qcomflash bundle it matches.
+do_image_qcomflash[depends] += "${@'imdt-boot-firmware:do_deploy' if 'qcs8550' in d.getVar('MACHINEOVERRIDES').split(':') else ''}"
+
 create_qcomflash_pkg:append() {
     for f in $(sed -n 's/.*filename="\([^"]\+\)".*/\1/p' rawprogram*.xml | sort -u) \
              ${IMDT_QCOMFLASH_PROGRAMMER}; do
@@ -23,6 +26,17 @@ create_qcomflash_pkg:append() {
         fi
     done
     rm -f vmlinux
+
+    # imdt-boot's manifest must describe exactly what this bundle flashes.
+    manifest="${IMAGE_ROOTFS}${nonarch_libdir}/imdt-boot/manifest"
+    if [ -f "$manifest" ]; then
+        grep -v '^#' "$manifest" > ${WORKDIR}/imdt-boot-manifest.check
+        while read -r base name size sha; do
+            flashed=$(sed -n "s/.*filename=\"\([^\"]*\)\".*label=\"${base}_a\".*/\1/p" rawprogram*.xml | head -n1)
+            [ "$flashed" = "$name" ] || bbfatal "imdt-boot: ${base}_a flashes '$flashed', the manifest says $name"
+            echo "$sha  $name" | sha256sum -c --status || bbfatal "imdt-boot: $name in the bundle differs from the manifest"
+        done < ${WORKDIR}/imdt-boot-manifest.check
+    fi
 
     # Same tarball as meta-qcom builds, now with the files above.
     ${IMAGE_CMD_TAR} --sparse --numeric-owner --transform="s,^\./,${IMAGE_BASENAME}-${MACHINE}/," -cf- . | pigz -p ${BB_NUMBER_THREADS} -9 -n --rsyncable > ${IMGDEPLOYDIR}/${IMAGE_NAME}.qcomflash.tar.gz
