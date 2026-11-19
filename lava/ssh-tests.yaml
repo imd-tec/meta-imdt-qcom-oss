@@ -396,7 +396,7 @@ actions:
           - lava-test-case gpu-in-use --shell sh -c "ls -l /proc/$RD_PID/fd | grep -q renderD128"
 
           # Check that the local compositor is running on its own.
-          - WESTON_BEFORE=$(systemctl is-active weston)
+          - WESTON_BEFORE=$(systemctl is-active weston || true)
           - 'echo "weston before stop: $WESTON_BEFORE"'
           - if [ "$WESTON_BEFORE" = active ]; then lava-test-case weston-active --result pass; else lava-test-case weston-active --result fail; fi
 
@@ -404,7 +404,7 @@ actions:
           # and that the local compositor's state does not change.
           - systemctl stop remote-desktop && sleep 3
           - if python3 -c "$VNC_CHECK" 2>/dev/null; then lava-test-case vnc-absent-when-stopped --result fail; else lava-test-case vnc-absent-when-stopped --result pass; fi
-          - WESTON_AFTER=$(systemctl is-active weston)
+          - WESTON_AFTER=$(systemctl is-active weston || true)
           - 'echo "weston after stop: $WESTON_AFTER"'
           - if [ "$WESTON_AFTER" = "$WESTON_BEFORE" ]; then lava-test-case weston-unaffected-by-stop --result pass; else lava-test-case weston-unaffected-by-stop --result fail; fi
 
