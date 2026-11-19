@@ -150,11 +150,6 @@ actions:
           - 'if $SSH "command -v qcom-metadata-editor" >/dev/null 2>&1; then FIT=/mnt/dtb/qclinux_fit.img; BASE=fdt-qcs8550-imdt-sbc.dtb; DEF="fdt-qcs8550-imdt-sbc-display.dtbo fdt-qcs8550-imdt-sbc-ar1335-csi0.dtbo"; FIT_LIST=$($SSH "qcom-metadata-editor $FIT") || FIT_LIST=""; DT_RC=1; if [ -n "$FIT_LIST" ]; then DT_RC=0; for N in 1 2 3 4; do COMPAT=$(echo "$FIT_LIST" | sed -n "/conf-$N\$/{n;p}"); [ -n "$COMPAT" ] || continue; case "$COMPAT" in *subtype5) L="$BASE $DEF fdt-qcs8550-imdt-sbc-cypd6125.dtbo";; *) L="$BASE $DEF";; esac; FA=""; for X in $L; do FA="$FA -f $X"; done; $SSH "qcom-metadata-editor -u -i $N$FA $FIT" >/dev/null 2>&1 || DT_RC=1; done; $SSH sync || true; $SSH "umount /mnt/dtb" || true; fi; else DT_RC=2; fi'
           - $SSH "qcom-metadata-editor /mnt/dtb/qclinux_fit.img" || true
           - if [ "${DT_RC:-1}" = 0 ]; then lava-test-case dtb-overlays-default --result pass; elif [ "${DT_RC:-1}" = 2 ]; then lava-test-case dtb-overlays-default --result skip; else lava-test-case dtb-overlays-default --result fail; fi
-          # ── Bring the boot firmware in line with the new deployment ─────────
-          # It lives outside OSTree. When this build changes it, imdt-boot writes
-          # the other slot and switches, so the reboot below boots it.
-          - 'FW_OUT=$($SSH "command -v imdt-boot >/dev/null || { echo FW_NOTOOL; exit 0; }; imdt-boot check --pending && echo FW_SAME || { imdt-boot update --pending --yes && echo FW_UPDATED; }" 2>&1) || true; echo "$FW_OUT"'
-          - 'FW_SWITCHED=0; case "$FW_OUT" in *FW_UPDATED*) FW_SWITCHED=1; lava-test-case boot-firmware-update --result pass ;; *FW_SAME*|*FW_NOTOOL*) lava-test-case boot-firmware-update --result skip ;; *) lava-test-case boot-firmware-update --result fail ;; esac'
           # ── Reboot into the new deployment ──────────────────────────────────
           # Record boot_id so the reboot is detected reliably across the possibly
           # flaky forwarded transport (every probe guarded with `|| ...` because
@@ -167,8 +162,6 @@ actions:
           # The relay's adb waits forever on a board hung in shutdown, so bound each probe and the wait.
           - END=$(($(date +%s) + 600)); REBOOTED=0; while [ "$(date +%s)" -lt "$END" ]; do BID=$(timeout 20 $SSH cat /proc/sys/kernel/random/boot_id 2>/dev/null) || BID=""; if [ -n "$BID" ] && [ "$BID" != "$BOOT_ID_BEFORE" ]; then REBOOTED=1; break; fi; sleep 2; done
           - if [ "$REBOOTED" = 1 ] && [ -n "$BOOT_ID_BEFORE" ]; then lava-test-case reboot --result pass; else lava-test-case reboot --result fail; fi
-          # The first boot after a slot switch can reset once more, wait for that.
-          - if [ "$FW_SWITCHED" = 1 ]; then END=$(($(date +%s) + 180)); while [ "$(date +%s)" -lt "$END" ]; do B2=$(timeout 20 $SSH cat /proc/sys/kernel/random/boot_id 2>/dev/null) || B2=""; if [ -n "$B2" ] && [ "$B2" != "$BID" ]; then echo "reset once more after the slot switch"; break; fi; sleep 5; done; fi
           - $SSH "mountpoint -q /boot || mount /dev/disk/by-partlabel/efi /boot" || true
           # ── Verify the update took and committed ────────────────────────────
           - DEPLOY_AFTER=$($SSH "ostree admin status 2>/dev/null | awk '/^\\*/{print \$3}'") || DEPLOY_AFTER=""
