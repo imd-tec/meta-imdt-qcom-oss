@@ -32,7 +32,7 @@ create_qcomflash_pkg:append() {
     if [ -f "$manifest" ]; then
         grep -v '^#' "$manifest" > ${WORKDIR}/imdt-boot-manifest.check
         while read -r base name size sha; do
-            flashed=$(sed -n "s/.*filename=\"\([^\"]*\)\".*label=\"${base}_a\".*/\1/p" rawprogram*.xml | head -n1)
+            flashed=$(sed -n "s/.*filename=\"\([^\"]*\)\".*label=\"${base}_a\".*/\1/p" rawprogram[0-9].xml | head -n1)
             [ "$flashed" = "$name" ] || bbfatal "imdt-boot: ${base}_a flashes '$flashed', the manifest says $name"
             echo "$sha  $name" | sha256sum -c --status || bbfatal "imdt-boot: $name in the bundle differs from the manifest"
         done < ${WORKDIR}/imdt-boot-manifest.check

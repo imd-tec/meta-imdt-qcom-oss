@@ -1255,7 +1255,7 @@ adb reboot
 `imdt-boot update` writes the firmware to the slot that is not running, reads
 every partition back to check it, and only then switches the board to that
 slot. The old firmware stays on the other slot, and `imdt-boot switch --yes`
-goes back to it. The first boot after a switch resets once more before it
+goes back to it. The first boot after a switch can reset once more before it
 comes up. `imdt-boot status` shows the booted slot, the next boot's slot and
 which partitions match on each. The QCS8550 SBC is supported, as its A/B
 switch uses the UFS boot LUN.
