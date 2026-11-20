@@ -67,11 +67,21 @@ jobs:
             echo 'images={"image-name":["qcom-minimal-image"]}' >> "$GITHUB_OUTPUT"
           fi
 
+  # Red runs keep their staged images, so age them out before staging more.
+  # ctime is when the file landed here, rsync -a would carry over an old mtime.
+  prune-lava-images:
+    runs-on: imx-runner
+    steps:
+      - name: Delete staged images older than 3 days on the LAVA server
+        run: |
+          ssh -o StrictHostKeyChecking=accept-new "${{ vars.LAVA_USER }}@${{ vars.LAVA_HOST }}" \
+            "find ${{ vars.LAVA_IMAGES_DIR }} -maxdepth 1 -type f -regextype posix-extended -regex '.*/[^/]+-[0-9a-f]{40}\.[^./]+' -ctime +3 -print -delete"
+
   build:
     # One multiconfig build covers both boards and every image, so the shared
     # package set is built once instead of once per board/image. Each machine
     # is packed and uploaded as its own artifact.
-    needs: setup
+    needs: [setup, prune-lava-images]
     # Scoped to this job rather than the whole workflow: cancelling at workflow
     # level took running LAVA jobs down with it, leaving a DUT mid-test. A
     # superseded push now only cancels the build it supersedes.
@@ -308,4 +318,4 @@ jobs:
       - name: Delete this commit's staged OSTree archives on the LAVA server
         run: |
           ssh -o StrictHostKeyChecking=accept-new "${{ vars.LAVA_USER }}@${{ vars.LAVA_HOST }}" \
-            "rm -f ${{ vars.LAVA_IMAGES_DIR }}/*-imdt-8550-sbc.rootfs-${{ github.sha }}.ostreecommit.tar.xz ${{ vars.LAVA_IMAGES_DIR }}/qclinuxfitImage-${{ github.sha }}.qclinuxfitImage"
+            "rm -f ${{ vars.LAVA_IMAGES_DIR }}/*.ostreecommit.tar-${{ github.sha }}.xz ${{ vars.LAVA_IMAGES_DIR }}/qclinuxfitImage-${{ github.sha }}.qclinuxfitImage"
