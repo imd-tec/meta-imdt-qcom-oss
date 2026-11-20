@@ -32,6 +32,26 @@ Within a run the LAVA jobs execute sequentially: the OSTree deploy must
 succeed (and boots the board into the deployment under test) before the
 SSH/camera jobs run against the freshly-deployed rootfs.
 
+## Staging and board locking
+
+The private (`meta-imdt-qcom-oss-dev`) and public (`meta-imdt-qcom-oss`) repos
+run this workflow against the same LAVA server and boards, often for the same
+commit.
+
+- Each repo stages into its own directory, `<LAVA_IMAGES_DIR>/<repo>/`, created
+  by the `prune-lava-images` job, so one repo never overwrites the other's
+  archives, FIT or camera frames. Branch builds stage only the minimal image they
+  built; tag builds stage every image.
+- Staged files older than three days are deleted before each build, and a run
+  whose LAVA jobs all pass deletes its own.
+- The concurrency group serialises a repo's jobs per board, but not the two
+  repos against each other. So each `lava-test` job also takes a per-board lock,
+  `<LAVA_IMAGES_DIR>/.locks/<board-tag>`, with `lava/board-lock.sh` before it
+  deploys, and releases it once its LAVA jobs finish, even on failure. A job
+  waits up to 150 minutes for the lock. A lock older than four hours is treated
+  as left by a dead job and broken. To see who holds a board, read
+  `<LAVA_IMAGES_DIR>/.locks/<board-tag>/owner` on the LAVA server.
+
 ## Job 1 — OSTree Deploy (`ostree-deploy`)
 
 Pushes the build's OSTree commit archive (`*.ostreecommit.tar.xz`) to the DUT
@@ -49,7 +69,7 @@ has no EFI variables.
 | Test Case | Description |
 |-----------|-------------|
 | `ssh-detect` | DUT is reachable over ssh |
-| `commit-present` | commit archive is staged in `/images` on the LAVA worker |
+| `commit-present` | commit archive is staged in `/images/<repo>` on the LAVA worker |
 | `push-commit` | archive is pushed to the device and its md5 matches |
 | `unpack-commit` | archive unpacks into a local ostree repo on the DUT |
 | `update-remote` | unpacked repo is registered as the throwaway `lava-local` remote |
@@ -205,13 +225,13 @@ allowed for the service to start before the VNC server answers).
 
 ## Job 3 — AR1335 Frame Capture (`ar1335-capture`)
 
-Captures a raw frame from the AR1335 camera over ssh and de-mosaics it to a PNG, which is uploaded as a CI artifact. This job only runs on boards with the camera module attached (currently both). The output PNG is board-specific (`/images/ar1335_<board-tag>.png`) so parallel board runs don't overwrite each other's frame.
+Captures a raw frame from the AR1335 camera over ssh and de-mosaics it to a PNG, which is uploaded as a CI artifact. This job only runs on boards with the camera module attached (currently both). The output PNG is board-specific (`/images/<repo>/ar1335_<board-tag>.png`) so parallel board runs don't overwrite each other's frame.
 
 | Test Case | Description |
 |-----------|-------------|
 | `pipeline-setup` | CSI0 pipeline script exits 0 (run via ssh) |
 | `capture-raw-frame` | `v4l2-ctl --stream-to` captures one raw frame to `/tmp/ar1335_frame.raw` |
-| `demosaic` | `demosaic.py` converts the raw frame to `/images/ar1335_<board-tag>.png` |
+| `demosaic` | `demosaic.py` converts the raw frame to `/images/<repo>/ar1335_<board-tag>.png` |
 
 ## PCIe M.2 Key-B — not covered by CI
 
