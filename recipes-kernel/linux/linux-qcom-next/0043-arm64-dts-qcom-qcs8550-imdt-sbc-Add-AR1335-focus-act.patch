@@ -1,0 +1,297 @@
+From: William Bright <william.bright@imd-tec.com>
+Subject: [PATCH] arm64: dts: qcom: qcs8550-imdt-sbc: Add AR1335 focus actuator
+ overlays
+
+Some AR1335 modules carry a DW9718S voice coil motor driver at 0x0c on the
+sensor's I2C bus, others do not. Add one overlay per CSI connector that
+describes the actuator and links it to the sensor with lens-focus, so a
+module without one only needs its camera overlay.
+
+The overlays reference the camera buses and sensors by path, so they do
+not depend on the symbols of the camera overlays they are applied after.
+
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+Upstream-Status: Inappropriate [IMDT board specific]
+---
+diff --git a/arch/arm64/boot/dts/qcom/Makefile b/arch/arm64/boot/dts/qcom/Makefile
+--- a/arch/arm64/boot/dts/qcom/Makefile
++++ b/arch/arm64/boot/dts/qcom/Makefile
+@@ -288,6 +288,14 @@ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-ar1335-csi5.dtbo
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-ar1335-csi6.dtbo
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-ar1335-csi7.dtbo
++dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-ar1335-csi0-vcm.dtbo
++dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-ar1335-csi1-vcm.dtbo
++dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-ar1335-csi2-vcm.dtbo
++dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-ar1335-csi3-vcm.dtbo
++dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-ar1335-csi4-vcm.dtbo
++dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-ar1335-csi5-vcm.dtbo
++dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-ar1335-csi6-vcm.dtbo
++dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-ar1335-csi7-vcm.dtbo
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-pcie-keyb.dtbo
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-cypd6125.dtbo
+ 
+diff --git a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi0-vcm.dtso b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi0-vcm.dtso
+new file mode 100644
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi0-vcm.dtso
+@@ -0,0 +1,28 @@
++// SPDX-License-Identifier: BSD-3-Clause
++/*
++ * QCS8550 IMDT SBC AR1335 CSI0 (J40) focus actuator overlay
++ *
++ * Apply after qcs8550-imdt-sbc-ar1335-csi0, only for a module with a
++ * DW9718S voice coil motor driver.
++ *
++ * Copyright (c) 2026 IMD Technologies Ltd
++ */
++
++/dts-v1/;
++/plugin/;
++
++&cci0_i2c0 {
++	#address-cells = <1>;
++	#size-cells = <0>;
++
++	ar1335_csi0_vcm: actuator@c {
++		compatible = "dongwoon,dw9718s";
++		reg = <0x0c>;
++
++		vdd-supply = <&cam_3v3_reg>;
++	};
++};
++
++&{/soc@0/cci@ac15000/i2c-bus@0/sensor@36} {
++	lens-focus = <&ar1335_csi0_vcm>;
++};
+diff --git a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi1-vcm.dtso b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi1-vcm.dtso
+new file mode 100644
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi1-vcm.dtso
+@@ -0,0 +1,28 @@
++// SPDX-License-Identifier: BSD-3-Clause
++/*
++ * QCS8550 IMDT SBC AR1335 CSI1 (J57) focus actuator overlay
++ *
++ * Apply after qcs8550-imdt-sbc-ar1335-csi1, only for a module with a
++ * DW9718S voice coil motor driver.
++ *
++ * Copyright (c) 2026 IMD Technologies Ltd
++ */
++
++/dts-v1/;
++/plugin/;
++
++&cci2_i2c0 {
++	#address-cells = <1>;
++	#size-cells = <0>;
++
++	ar1335_csi1_vcm: actuator@c {
++		compatible = "dongwoon,dw9718s";
++		reg = <0x0c>;
++
++		vdd-supply = <&cam_3v3_reg>;
++	};
++};
++
++&{/soc@0/cci@ac17000/i2c-bus@0/sensor@36} {
++	lens-focus = <&ar1335_csi1_vcm>;
++};
+diff --git a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi2-vcm.dtso b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi2-vcm.dtso
+new file mode 100644
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi2-vcm.dtso
+@@ -0,0 +1,28 @@
++// SPDX-License-Identifier: BSD-3-Clause
++/*
++ * QCS8550 IMDT SBC AR1335 CSI2 (J35) focus actuator overlay
++ *
++ * Apply after qcs8550-imdt-sbc-ar1335-csi2, only for a module with a
++ * DW9718S voice coil motor driver.
++ *
++ * Copyright (c) 2026 IMD Technologies Ltd
++ */
++
++/dts-v1/;
++/plugin/;
++
++&cci0_i2c1 {
++	#address-cells = <1>;
++	#size-cells = <0>;
++
++	ar1335_csi2_vcm: actuator@c {
++		compatible = "dongwoon,dw9718s";
++		reg = <0x0c>;
++
++		vdd-supply = <&cam_3v3_reg>;
++	};
++};
++
++&{/soc@0/cci@ac15000/i2c-bus@1/sensor@36} {
++	lens-focus = <&ar1335_csi2_vcm>;
++};
+diff --git a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi3-vcm.dtso b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi3-vcm.dtso
+new file mode 100644
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi3-vcm.dtso
+@@ -0,0 +1,28 @@
++// SPDX-License-Identifier: BSD-3-Clause
++/*
++ * QCS8550 IMDT SBC AR1335 CSI3 (J58) focus actuator overlay
++ *
++ * Apply after qcs8550-imdt-sbc-ar1335-csi3, only for a module with a
++ * DW9718S voice coil motor driver.
++ *
++ * Copyright (c) 2026 IMD Technologies Ltd
++ */
++
++/dts-v1/;
++/plugin/;
++
++&cci1_i2c0 {
++	#address-cells = <1>;
++	#size-cells = <0>;
++
++	ar1335_csi3_vcm: actuator@c {
++		compatible = "dongwoon,dw9718s";
++		reg = <0x0c>;
++
++		vdd-supply = <&cam_3v3_reg>;
++	};
++};
++
++&{/soc@0/cci@ac16000/i2c-bus@0/sensor@36} {
++	lens-focus = <&ar1335_csi3_vcm>;
++};
+diff --git a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi4-vcm.dtso b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi4-vcm.dtso
+new file mode 100644
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi4-vcm.dtso
+@@ -0,0 +1,28 @@
++// SPDX-License-Identifier: BSD-3-Clause
++/*
++ * QCS8550 IMDT SBC AR1335 CSI4 (J59) focus actuator overlay
++ *
++ * Apply after qcs8550-imdt-sbc-ar1335-csi4, only for a module with a
++ * DW9718S voice coil motor driver.
++ *
++ * Copyright (c) 2026 IMD Technologies Ltd
++ */
++
++/dts-v1/;
++/plugin/;
++
++&{/soc@0/cci@ac16000/i2c-bus@1/i2c-mux@74/i2c@0} {
++	#address-cells = <1>;
++	#size-cells = <0>;
++
++	ar1335_csi4_vcm: actuator@c {
++		compatible = "dongwoon,dw9718s";
++		reg = <0x0c>;
++
++		vdd-supply = <&cam_3v3_reg>;
++	};
++};
++
++&{/soc@0/cci@ac16000/i2c-bus@1/i2c-mux@74/i2c@0/sensor@36} {
++	lens-focus = <&ar1335_csi4_vcm>;
++};
+diff --git a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi5-vcm.dtso b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi5-vcm.dtso
+new file mode 100644
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi5-vcm.dtso
+@@ -0,0 +1,28 @@
++// SPDX-License-Identifier: BSD-3-Clause
++/*
++ * QCS8550 IMDT SBC AR1335 CSI5 (J60) focus actuator overlay
++ *
++ * Apply after qcs8550-imdt-sbc-ar1335-csi5, only for a module with a
++ * DW9718S voice coil motor driver.
++ *
++ * Copyright (c) 2026 IMD Technologies Ltd
++ */
++
++/dts-v1/;
++/plugin/;
++
++&{/soc@0/cci@ac16000/i2c-bus@1/i2c-mux@74/i2c@1} {
++	#address-cells = <1>;
++	#size-cells = <0>;
++
++	ar1335_csi5_vcm: actuator@c {
++		compatible = "dongwoon,dw9718s";
++		reg = <0x0c>;
++
++		vdd-supply = <&cam_3v3_reg>;
++	};
++};
++
++&{/soc@0/cci@ac16000/i2c-bus@1/i2c-mux@74/i2c@1/sensor@36} {
++	lens-focus = <&ar1335_csi5_vcm>;
++};
+diff --git a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi6-vcm.dtso b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi6-vcm.dtso
+new file mode 100644
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi6-vcm.dtso
+@@ -0,0 +1,28 @@
++// SPDX-License-Identifier: BSD-3-Clause
++/*
++ * QCS8550 IMDT SBC AR1335 CSI6 (J61) focus actuator overlay
++ *
++ * Apply after qcs8550-imdt-sbc-ar1335-csi6, only for a module with a
++ * DW9718S voice coil motor driver.
++ *
++ * Copyright (c) 2026 IMD Technologies Ltd
++ */
++
++/dts-v1/;
++/plugin/;
++
++&{/soc@0/cci@ac16000/i2c-bus@1/i2c-mux@74/i2c@2} {
++	#address-cells = <1>;
++	#size-cells = <0>;
++
++	ar1335_csi6_vcm: actuator@c {
++		compatible = "dongwoon,dw9718s";
++		reg = <0x0c>;
++
++		vdd-supply = <&cam_3v3_reg>;
++	};
++};
++
++&{/soc@0/cci@ac16000/i2c-bus@1/i2c-mux@74/i2c@2/sensor@36} {
++	lens-focus = <&ar1335_csi6_vcm>;
++};
+diff --git a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi7-vcm.dtso b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi7-vcm.dtso
+new file mode 100644
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi7-vcm.dtso
+@@ -0,0 +1,28 @@
++// SPDX-License-Identifier: BSD-3-Clause
++/*
++ * QCS8550 IMDT SBC AR1335 CSI7 (J62) focus actuator overlay
++ *
++ * Apply after qcs8550-imdt-sbc-ar1335-csi7, only for a module with a
++ * DW9718S voice coil motor driver.
++ *
++ * Copyright (c) 2026 IMD Technologies Ltd
++ */
++
++/dts-v1/;
++/plugin/;
++
++&{/soc@0/cci@ac16000/i2c-bus@1/i2c-mux@74/i2c@3} {
++	#address-cells = <1>;
++	#size-cells = <0>;
++
++	ar1335_csi7_vcm: actuator@c {
++		compatible = "dongwoon,dw9718s";
++		reg = <0x0c>;
++
++		vdd-supply = <&cam_3v3_reg>;
++	};
++};
++
++&{/soc@0/cci@ac16000/i2c-bus@1/i2c-mux@74/i2c@3/sensor@36} {
++	lens-focus = <&ar1335_csi7_vcm>;
++};

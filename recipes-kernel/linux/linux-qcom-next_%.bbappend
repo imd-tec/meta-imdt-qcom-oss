@@ -51,6 +51,7 @@ SRC_URI:append = " \
     file://0040-drm-bridge-lt9611c-Support-a-single-DSI-host.patch \
     file://0041-arm64-dts-qcom-qcs8550-imdt-sbc-Add-AR1335-overlays-.patch \
     file://0042-arm64-dts-qcom-qcs8550-imdt-sbc-Add-AR1335-overlays-.patch \
+    file://0043-arm64-dts-qcom-qcs8550-imdt-sbc-Add-AR1335-focus-act.patch \
     file://configs/imdt.cfg \
     file://configs/ubuntu-support.cfg \
 "
