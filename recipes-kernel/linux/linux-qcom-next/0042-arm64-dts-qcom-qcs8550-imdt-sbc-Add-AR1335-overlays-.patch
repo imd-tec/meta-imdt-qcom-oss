@@ -1,0 +1,552 @@
+From b6592ab9e0f71da0e7b486b525f915f1eb8cd657 Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Wed, 14 Oct 2026 15:58:22 +0100
+Subject: [PATCH] arm64: dts: qcom: qcs8550-imdt-sbc: Add AR1335 overlays for
+ CSI4 to CSI7
+
+CSI4 to CSI7 share the always-on camera I2C bus, CCI1 bus 1 on the AON
+CCI pins, through a TCA9546 switch at 0x74 with one channel per
+connector. Each overlay adds the bus, the switch and its sensor on the
+right channel, with MCLK4 to MCLK7 and the reset GPIOs from the IMDT
+CamX device tree:
+
+  CSI4  channel 0  MCLK4 (AON)  GPIO120
+  CSI5  channel 1  MCLK5        GPIO69
+  CSI6  channel 2  MCLK6        GPIO71
+  CSI7  channel 3  MCLK7        GPIO109
+
+The switch runs from the camera 1.8 V rail and its reset is pulled up
+on the board.
+
+Assisted-by: Claude:claude-opus-5-5
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+---
+ arch/arm64/boot/dts/qcom/Makefile             |   4 +
+ .../qcom/qcs8550-imdt-sbc-ar1335-csi4.dtso    | 120 ++++++++++++++++++
+ .../qcom/qcs8550-imdt-sbc-ar1335-csi5.dtso    | 120 ++++++++++++++++++
+ .../qcom/qcs8550-imdt-sbc-ar1335-csi6.dtso    | 120 ++++++++++++++++++
+ .../qcom/qcs8550-imdt-sbc-ar1335-csi7.dtso    | 120 ++++++++++++++++++
+ 5 files changed, 484 insertions(+)
+ create mode 100644 arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi4.dtso
+ create mode 100644 arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi5.dtso
+ create mode 100644 arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi6.dtso
+ create mode 100644 arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi7.dtso
+
+diff --git a/arch/arm64/boot/dts/qcom/Makefile b/arch/arm64/boot/dts/qcom/Makefile
+--- a/arch/arm64/boot/dts/qcom/Makefile
++++ b/arch/arm64/boot/dts/qcom/Makefile
+@@ -284,6 +284,10 @@ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-ar1335-csi1.dtbo
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-ar1335-csi2.dtbo
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-ar1335-csi3.dtbo
++dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-ar1335-csi4.dtbo
++dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-ar1335-csi5.dtbo
++dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-ar1335-csi6.dtbo
++dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-ar1335-csi7.dtbo
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-pcie-keyb.dtbo
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-cypd6125.dtbo
+ 
+diff --git a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi4.dtso b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi4.dtso
+new file mode 100644
+index 000000000000..b30e8296da31
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi4.dtso
+@@ -0,0 +1,120 @@
++// SPDX-License-Identifier: BSD-3-Clause
++/*
++ * QCS8550 IMDT SBC AR1335 CSI4 camera overlay
++ *
++ * CSI4 to CSI7 share the always-on camera I2C bus (CCI1 bus 1), split by a
++ * TCA9546 switch at 0x74. CSI4 is on switch channel 0.
++ *
++ * Copyright (c) 2026 IMD Technologies Ltd
++ */
++
++#include <dt-bindings/clock/qcom,sm8550-camcc.h>
++#include <dt-bindings/gpio/gpio.h>
++
++/dts-v1/;
++/plugin/;
++
++&tlmm {
++	cci1_aon_csi4_default: cci1-aon-csi4-default-state {
++		sda-pins {
++			pins = "gpio208";
++			function = "aon_cci";
++			drive-strength = <2>;
++			bias-pull-up;
++		};
++
++		scl-pins {
++			pins = "gpio209";
++			function = "aon_cci";
++			drive-strength = <2>;
++			bias-pull-up;
++		};
++	};
++
++	ar1335_csi4_rst_default: ar1335-csi4-rst-default {
++		mux {
++			pins = "gpio120";
++			function = "gpio";
++		};
++
++		config {
++			pins = "gpio120";
++			drive-strength = <16>;
++			bias-disable;
++		};
++	};
++};
++
++&camss {
++	status = "okay";
++
++	vdda-phy-supply = <&vreg_l1e_0p88>;
++	vdda-pll-supply = <&vreg_l3e_1p2>;
++
++	ports {
++		port@4 {
++			csiphy4_ep: endpoint {
++				clock-lanes = <4>;
++				data-lanes = <0 1 2 3>;
++				remote-endpoint = <&ar1335_csi4_ep>;
++			};
++		};
++	};
++};
++
++&cci1 {
++	#address-cells = <1>;
++	#size-cells = <0>;
++	status = "okay";
++	pinctrl-0 = <&cci1_0_default &cci1_aon_csi4_default>;
++
++	i2c-bus@1 {
++		reg = <1>;
++		clock-frequency = <100000>;
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		i2c-mux@74 {
++			compatible = "nxp,pca9546";
++			reg = <0x74>;
++			vdd-supply = <&cam_1v8_reg>;
++			#address-cells = <1>;
++			#size-cells = <0>;
++
++			i2c@0 {
++				reg = <0>;
++				#address-cells = <1>;
++				#size-cells = <0>;
++
++				ar1335_csi4: sensor@36 {
++					compatible = "onnn,ar1335";
++					reg = <0x36>;
++
++					clocks = <&camcc CAM_CC_MCLK4_CLK>;
++					clock-names = "extclk";
++					assigned-clocks = <&camcc CAM_CC_MCLK4_CLK>;
++					assigned-clock-rates = <19200000>;
++
++					reset-gpios = <&tlmm 120 GPIO_ACTIVE_LOW>;
++
++					pinctrl-names = "default";
++					pinctrl-0 = <&cam4_default &ar1335_csi4_rst_default>;
++
++					vdd_io-supply = <&cam_1v8_reg>;
++					vdd-supply = <&cam_1v2_reg>;
++					vaa-supply = <&hr_cam_pwr>;
++
++					orientation = <0>;	/* Front */
++					rotation = <0>;
++
++					port {
++						ar1335_csi4_ep: endpoint {
++							data-lanes = <1 2 3 4>;
++							remote-endpoint = <&csiphy4_ep>;
++						};
++					};
++				};
++			};
++		};
++	};
++};
+diff --git a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi5.dtso b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi5.dtso
+new file mode 100644
+index 000000000000..5a7c125dabe1
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi5.dtso
+@@ -0,0 +1,120 @@
++// SPDX-License-Identifier: BSD-3-Clause
++/*
++ * QCS8550 IMDT SBC AR1335 CSI5 camera overlay
++ *
++ * CSI4 to CSI7 share the always-on camera I2C bus (CCI1 bus 1), split by a
++ * TCA9546 switch at 0x74. CSI5 is on switch channel 1.
++ *
++ * Copyright (c) 2026 IMD Technologies Ltd
++ */
++
++#include <dt-bindings/clock/qcom,sm8550-camcc.h>
++#include <dt-bindings/gpio/gpio.h>
++
++/dts-v1/;
++/plugin/;
++
++&tlmm {
++	cci1_aon_csi5_default: cci1-aon-csi5-default-state {
++		sda-pins {
++			pins = "gpio208";
++			function = "aon_cci";
++			drive-strength = <2>;
++			bias-pull-up;
++		};
++
++		scl-pins {
++			pins = "gpio209";
++			function = "aon_cci";
++			drive-strength = <2>;
++			bias-pull-up;
++		};
++	};
++
++	ar1335_csi5_rst_default: ar1335-csi5-rst-default {
++		mux {
++			pins = "gpio69";
++			function = "gpio";
++		};
++
++		config {
++			pins = "gpio69";
++			drive-strength = <16>;
++			bias-disable;
++		};
++	};
++};
++
++&camss {
++	status = "okay";
++
++	vdda-phy-supply = <&vreg_l1e_0p88>;
++	vdda-pll-supply = <&vreg_l3e_1p2>;
++
++	ports {
++		port@5 {
++			csiphy5_ep: endpoint {
++				clock-lanes = <4>;
++				data-lanes = <0 1 2 3>;
++				remote-endpoint = <&ar1335_csi5_ep>;
++			};
++		};
++	};
++};
++
++&cci1 {
++	#address-cells = <1>;
++	#size-cells = <0>;
++	status = "okay";
++	pinctrl-0 = <&cci1_0_default &cci1_aon_csi5_default>;
++
++	i2c-bus@1 {
++		reg = <1>;
++		clock-frequency = <100000>;
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		i2c-mux@74 {
++			compatible = "nxp,pca9546";
++			reg = <0x74>;
++			vdd-supply = <&cam_1v8_reg>;
++			#address-cells = <1>;
++			#size-cells = <0>;
++
++			i2c@1 {
++				reg = <1>;
++				#address-cells = <1>;
++				#size-cells = <0>;
++
++				ar1335_csi5: sensor@36 {
++					compatible = "onnn,ar1335";
++					reg = <0x36>;
++
++					clocks = <&camcc CAM_CC_MCLK5_CLK>;
++					clock-names = "extclk";
++					assigned-clocks = <&camcc CAM_CC_MCLK5_CLK>;
++					assigned-clock-rates = <19200000>;
++
++					reset-gpios = <&tlmm 69 GPIO_ACTIVE_LOW>;
++
++					pinctrl-names = "default";
++					pinctrl-0 = <&cam5_default &ar1335_csi5_rst_default>;
++
++					vdd_io-supply = <&cam_1v8_reg>;
++					vdd-supply = <&cam_1v2_reg>;
++					vaa-supply = <&hr_cam_pwr>;
++
++					orientation = <0>;	/* Front */
++					rotation = <0>;
++
++					port {
++						ar1335_csi5_ep: endpoint {
++							data-lanes = <1 2 3 4>;
++							remote-endpoint = <&csiphy5_ep>;
++						};
++					};
++				};
++			};
++		};
++	};
++};
+diff --git a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi6.dtso b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi6.dtso
+new file mode 100644
+index 000000000000..2f8d85572c1d
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi6.dtso
+@@ -0,0 +1,120 @@
++// SPDX-License-Identifier: BSD-3-Clause
++/*
++ * QCS8550 IMDT SBC AR1335 CSI6 camera overlay
++ *
++ * CSI4 to CSI7 share the always-on camera I2C bus (CCI1 bus 1), split by a
++ * TCA9546 switch at 0x74. CSI6 is on switch channel 2.
++ *
++ * Copyright (c) 2026 IMD Technologies Ltd
++ */
++
++#include <dt-bindings/clock/qcom,sm8550-camcc.h>
++#include <dt-bindings/gpio/gpio.h>
++
++/dts-v1/;
++/plugin/;
++
++&tlmm {
++	cci1_aon_csi6_default: cci1-aon-csi6-default-state {
++		sda-pins {
++			pins = "gpio208";
++			function = "aon_cci";
++			drive-strength = <2>;
++			bias-pull-up;
++		};
++
++		scl-pins {
++			pins = "gpio209";
++			function = "aon_cci";
++			drive-strength = <2>;
++			bias-pull-up;
++		};
++	};
++
++	ar1335_csi6_rst_default: ar1335-csi6-rst-default {
++		mux {
++			pins = "gpio71";
++			function = "gpio";
++		};
++
++		config {
++			pins = "gpio71";
++			drive-strength = <16>;
++			bias-disable;
++		};
++	};
++};
++
++&camss {
++	status = "okay";
++
++	vdda-phy-supply = <&vreg_l1e_0p88>;
++	vdda-pll-supply = <&vreg_l3e_1p2>;
++
++	ports {
++		port@6 {
++			csiphy6_ep: endpoint {
++				clock-lanes = <4>;
++				data-lanes = <0 1 2 3>;
++				remote-endpoint = <&ar1335_csi6_ep>;
++			};
++		};
++	};
++};
++
++&cci1 {
++	#address-cells = <1>;
++	#size-cells = <0>;
++	status = "okay";
++	pinctrl-0 = <&cci1_0_default &cci1_aon_csi6_default>;
++
++	i2c-bus@1 {
++		reg = <1>;
++		clock-frequency = <100000>;
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		i2c-mux@74 {
++			compatible = "nxp,pca9546";
++			reg = <0x74>;
++			vdd-supply = <&cam_1v8_reg>;
++			#address-cells = <1>;
++			#size-cells = <0>;
++
++			i2c@2 {
++				reg = <2>;
++				#address-cells = <1>;
++				#size-cells = <0>;
++
++				ar1335_csi6: sensor@36 {
++					compatible = "onnn,ar1335";
++					reg = <0x36>;
++
++					clocks = <&camcc CAM_CC_MCLK6_CLK>;
++					clock-names = "extclk";
++					assigned-clocks = <&camcc CAM_CC_MCLK6_CLK>;
++					assigned-clock-rates = <19200000>;
++
++					reset-gpios = <&tlmm 71 GPIO_ACTIVE_LOW>;
++
++					pinctrl-names = "default";
++					pinctrl-0 = <&cam6_default &ar1335_csi6_rst_default>;
++
++					vdd_io-supply = <&cam_1v8_reg>;
++					vdd-supply = <&cam_1v2_reg>;
++					vaa-supply = <&hr_cam_pwr>;
++
++					orientation = <0>;	/* Front */
++					rotation = <0>;
++
++					port {
++						ar1335_csi6_ep: endpoint {
++							data-lanes = <1 2 3 4>;
++							remote-endpoint = <&csiphy6_ep>;
++						};
++					};
++				};
++			};
++		};
++	};
++};
+diff --git a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi7.dtso b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi7.dtso
+new file mode 100644
+index 000000000000..3e13e44792e2
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-ar1335-csi7.dtso
+@@ -0,0 +1,120 @@
++// SPDX-License-Identifier: BSD-3-Clause
++/*
++ * QCS8550 IMDT SBC AR1335 CSI7 camera overlay
++ *
++ * CSI4 to CSI7 share the always-on camera I2C bus (CCI1 bus 1), split by a
++ * TCA9546 switch at 0x74. CSI7 is on switch channel 3.
++ *
++ * Copyright (c) 2026 IMD Technologies Ltd
++ */
++
++#include <dt-bindings/clock/qcom,sm8550-camcc.h>
++#include <dt-bindings/gpio/gpio.h>
++
++/dts-v1/;
++/plugin/;
++
++&tlmm {
++	cci1_aon_csi7_default: cci1-aon-csi7-default-state {
++		sda-pins {
++			pins = "gpio208";
++			function = "aon_cci";
++			drive-strength = <2>;
++			bias-pull-up;
++		};
++
++		scl-pins {
++			pins = "gpio209";
++			function = "aon_cci";
++			drive-strength = <2>;
++			bias-pull-up;
++		};
++	};
++
++	ar1335_csi7_rst_default: ar1335-csi7-rst-default {
++		mux {
++			pins = "gpio109";
++			function = "gpio";
++		};
++
++		config {
++			pins = "gpio109";
++			drive-strength = <16>;
++			bias-disable;
++		};
++	};
++};
++
++&camss {
++	status = "okay";
++
++	vdda-phy-supply = <&vreg_l1e_0p88>;
++	vdda-pll-supply = <&vreg_l3e_1p2>;
++
++	ports {
++		port@7 {
++			csiphy7_ep: endpoint {
++				clock-lanes = <4>;
++				data-lanes = <0 1 2 3>;
++				remote-endpoint = <&ar1335_csi7_ep>;
++			};
++		};
++	};
++};
++
++&cci1 {
++	#address-cells = <1>;
++	#size-cells = <0>;
++	status = "okay";
++	pinctrl-0 = <&cci1_0_default &cci1_aon_csi7_default>;
++
++	i2c-bus@1 {
++		reg = <1>;
++		clock-frequency = <100000>;
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		i2c-mux@74 {
++			compatible = "nxp,pca9546";
++			reg = <0x74>;
++			vdd-supply = <&cam_1v8_reg>;
++			#address-cells = <1>;
++			#size-cells = <0>;
++
++			i2c@3 {
++				reg = <3>;
++				#address-cells = <1>;
++				#size-cells = <0>;
++
++				ar1335_csi7: sensor@36 {
++					compatible = "onnn,ar1335";
++					reg = <0x36>;
++
++					clocks = <&camcc CAM_CC_MCLK7_CLK>;
++					clock-names = "extclk";
++					assigned-clocks = <&camcc CAM_CC_MCLK7_CLK>;
++					assigned-clock-rates = <19200000>;
++
++					reset-gpios = <&tlmm 109 GPIO_ACTIVE_LOW>;
++
++					pinctrl-names = "default";
++					pinctrl-0 = <&cam7_default &ar1335_csi7_rst_default>;
++
++					vdd_io-supply = <&cam_1v8_reg>;
++					vdd-supply = <&cam_1v2_reg>;
++					vaa-supply = <&hr_cam_pwr>;
++
++					orientation = <0>;	/* Front */
++					rotation = <0>;
++
++					port {
++						ar1335_csi7_ep: endpoint {
++							data-lanes = <1 2 3 4>;
++							remote-endpoint = <&csiphy7_ep>;
++						};
++					};
++				};
++			};
++		};
++	};
++};

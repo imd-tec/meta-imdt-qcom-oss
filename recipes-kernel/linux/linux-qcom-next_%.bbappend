@@ -49,6 +49,8 @@ SRC_URI:append = " \
     file://0037-arm64-dts-qcom-qcs8550-imdt-sbc-Add-the-audio-sound-.patch \
     file://0038-arm64-dts-qcom-qcs6490-imdt-sbc-Add-LT9611UXD-DSI-to.patch \
     file://0040-drm-bridge-lt9611c-Support-a-single-DSI-host.patch \
+    file://0041-arm64-dts-qcom-qcs8550-imdt-sbc-Add-AR1335-overlays-.patch \
+    file://0042-arm64-dts-qcom-qcs8550-imdt-sbc-Add-AR1335-overlays-.patch \
     file://configs/imdt.cfg \
     file://configs/ubuntu-support.cfg \
 "
