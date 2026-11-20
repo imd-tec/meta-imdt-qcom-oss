@@ -34,7 +34,8 @@ on:
           jobs MUST NOT share a slot: WireGuard does not reject a duplicate
           peer, it overwrites that peer's endpoint, so the older tunnel dies
           silently mid-job. Safe assignment is per board-tag, because the
-          concurrency group below already serialises jobs per board.
+          concurrency group below already serialises jobs per board within
+          this repo, and the board lock serialises them across repos.
         type: string
         required: true
       is-pr:
@@ -57,7 +58,8 @@ jobs:
     # over a WireGuard tunnel brought up below, so these jobs no longer queue
     # behind each other on the single self-hosted builder.
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    # Up to 150 min waiting for the board lock, then up to 120 min of LAVA jobs
+    timeout-minutes: 270
     # Serialise per board: each physical DUT runs one pipeline at a time,
     # but the two boards' pipelines run in parallel.
     concurrency:
@@ -121,6 +123,26 @@ jobs:
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
           printf '%s\n' "$LAVA_SSH_KEY" > ~/.ssh/id_lava
           chmod 600 ~/.ssh/id_lava
+
+      # The concurrency group only serialises this repo's jobs. The private and
+      # public repos share the boards, so a lock on the LAVA server keeps their
+      # jobs from deploying to one board at once.
+      - name: Take the board lock
+        timeout-minutes: 150
+        run: |
+          OWNER="${{ github.repository }}#${{ github.run_id }}.${{ github.run_attempt }}/${{ inputs.image-name }}"
+          echo "BOARD_LOCK_OWNER=$OWNER" >> "$GITHUB_ENV"
+          LOCK="${{ vars.LAVA_IMAGES_DIR }}/.locks/${{ inputs.board-tag }}"
+          SSH="ssh -i $HOME/.ssh/id_lava -o StrictHostKeyChecking=accept-new ${{ vars.LAVA_USER }}@${{ vars.LAVA_HOST }}"
+          while :; do
+            RC=0
+            $SSH sh -s -- acquire "$LOCK" "$OWNER" < lava/board-lock.sh || RC=$?
+            case $RC in
+              0) break ;;
+              2) continue ;;
+              *) sleep 60 ;;
+            esac
+          done
 
       # The GitHub-hosted image does not ship pip3, unlike the self-hosted
       # builder this job used to run on, so bootstrap it instead of assuming
@@ -198,7 +220,7 @@ jobs:
                 -e "s|SDCARD_PRESENT: '[^']*'|SDCARD_PRESENT: '${SDCARD_PRESENT}'|" \
                 -e "s|WIFI_PRESENT: '[^']*'|WIFI_PRESENT: '${WIFI_PRESENT}'|" \
                 -e "s|EXPECTED_IMDT_VERSION: '[^']*'|EXPECTED_IMDT_VERSION: '${EXPECTED_IMDT_VERSION}'|" \
-                -e "s|FRAME_OUT: '[^']*'|FRAME_OUT: '/images/ar1335_${{ inputs.board-tag }}.png'|" \
+                -e "s|FRAME_OUT: '[^']*'|FRAME_OUT: '/images/${{ github.event.repository.name }}/ar1335_${{ inputs.board-tag }}.png'|" \
                 -e "s|^job_name: \(.*\)|job_name: \1 [${{ inputs.board-tag }}]|" \
                 "$f" > "/tmp/lava-jobs/$(basename "$f")"
           done
@@ -209,9 +231,9 @@ jobs:
           # kas-gh-ci stages each artifact as <stem>-<sha>.<ext>, splitting on the last
           # dot, so mirror that here rather than assume where the sha lands.
           ARTIFACT="${{ inputs.image-name }}-imdt-8550-sbc.rootfs.ostreecommit.tar.xz"
-          COMMIT_FILE="${ARTIFACT%.*}-${{ github.sha }}.${ARTIFACT##*.}"
+          COMMIT_FILE="${{ github.event.repository.name }}/${ARTIFACT%.*}-${{ github.sha }}.${ARTIFACT##*.}"
           # The FIT has no extension, so its stem and extension are both the name.
-          FIT_FILE="qclinuxfitImage-${{ github.sha }}.qclinuxfitImage"
+          FIT_FILE="${{ github.event.repository.name }}/qclinuxfitImage-${{ github.sha }}.qclinuxfitImage"
           sed -e "s|COMMIT_FILE: '.*'|COMMIT_FILE: '${COMMIT_FILE}'|" \
               -e "s|FIT_FILE: '.*'|FIT_FILE: '${FIT_FILE}'|" \
               /tmp/lava-jobs/ostree-deploy.yaml > /tmp/lava-ostree-deploy.yaml
@@ -243,6 +265,16 @@ jobs:
       - name: Wait for ar1335-capture
         if: inputs.has-camera
         run: bash lava/wait-job.sh "$CAPTURE_JOB_ID"
+
+      # Free the board as soon as the LAVA jobs are done, even on failure or
+      # cancellation. Only the holder's own lock is removed.
+      - name: Release the board lock
+        if: always() && env.BOARD_LOCK_OWNER != ''
+        run: |
+          LOCK="${{ vars.LAVA_IMAGES_DIR }}/.locks/${{ inputs.board-tag }}"
+          ssh -i "$HOME/.ssh/id_lava" -o StrictHostKeyChecking=accept-new \
+            ${{ vars.LAVA_USER }}@${{ vars.LAVA_HOST }} \
+            sh -s -- release "$LOCK" "$BOARD_LOCK_OWNER" < lava/board-lock.sh || true
 
       # ── Results ─────────────────────────────────────────────────────────
       - name: Show all LAVA job results
@@ -429,7 +461,7 @@ jobs:
           # so a missing rsync would drop the frame artifact silently.
           command -v rsync >/dev/null || { sudo apt-get update -qq; sudo apt-get install -y rsync >/dev/null; }
           rsync -av -e "ssh -i ~/.ssh/id_lava -o StrictHostKeyChecking=accept-new" \
-            ${{ vars.LAVA_USER }}@${{ vars.LAVA_HOST }}:${{ vars.LAVA_IMAGES_DIR }}/ar1335_${{ inputs.board-tag }}.png \
+            ${{ vars.LAVA_USER }}@${{ vars.LAVA_HOST }}:${{ vars.LAVA_IMAGES_DIR }}/${{ github.event.repository.name }}/ar1335_${{ inputs.board-tag }}.png \
             ar1335_${{ inputs.board-tag }}.png 2>/dev/null || true
 
       - name: Upload camera frame artifact
