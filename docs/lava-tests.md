@@ -133,7 +133,7 @@ camera attached.
 
 | Test Case | Description |
 |-----------|-------------|
-| `pipeline-setup` | `/usr/sbin/qcs8550-csi0-ar1335.sh` exits 0 |
+| `pipeline-setup` | `/usr/sbin/qcs8550-ar1335.sh` exits 0 |
 | `sensor-enumerated` | `ar1335` appears in `media-ctl -d /dev/media0 -p` output |
 | `video-node` | A `/dev/videoN` node is reported by the setup script |
 | `stream-30-frames` | `v4l2-ctl --stream-mmap --stream-count=30` completes within 60 s |

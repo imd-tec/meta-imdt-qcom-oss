@@ -1,0 +1,13 @@
+[Unit]
+Description=Configure the AR1335 camera media pipelines
+# The camss media device is created by the kernel once an AR1335 overlay
+# is applied; skip silently if no camera/overlay is present.
+ConditionPathExists=/dev/media0
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/qcs8550-ar1335.sh
+
+[Install]
+WantedBy=multi-user.target

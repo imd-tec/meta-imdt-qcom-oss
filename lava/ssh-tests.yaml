@@ -134,7 +134,7 @@ actions:
         run:
           steps:
           - if [ "$CAMERA_PRESENT" != "yes" ]; then echo "No AR1335 on this board - skipping camera suite"; lava-test-case pipeline-setup --result skip; lava-test-case sensor-enumerated --result skip; lava-test-case video-node --result skip; lava-test-case stream-30-frames --result skip; exit 0; fi
-          - SETUP_OUT=$(sh /usr/sbin/qcs8550-csi0-ar1335.sh 2>&1) && SETUP_RC=0 || SETUP_RC=$?
+          - SETUP_OUT=$(sh /usr/sbin/qcs8550-ar1335.sh 2>&1) && SETUP_RC=0 || SETUP_RC=$?
           - 'echo "$SETUP_OUT"'
           - if [ "$SETUP_RC" = "0" ]; then lava-test-case pipeline-setup --result pass; else lava-test-case pipeline-setup --result fail; fi
           - lava-test-case sensor-enumerated --shell sh -c "media-ctl -d /dev/media0 -p | grep -q ar1335"
