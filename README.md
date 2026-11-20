@@ -293,6 +293,19 @@ adb shell umount /mnt/dtb
 adb reboot
 ```
 
+Some AR1335 modules have an autofocus lens, driven by a DW9718S voice coil
+motor driver at 0x0c on the sensor's I2C bus. Each connector has a second
+overlay, `fdt-qcs8550-imdt-sbc-ar1335-csiN-vcm.dtbo`, that adds the actuator
+and links it to the sensor. Apply it after the camera overlay, and only for a
+module that has the actuator: the camera works the same without it, with a
+fixed focus. With it, the lens appears as a V4L2 sub-device with a
+`focus_absolute` control (0 to 1023). For example, CSI2 with its actuator:
+
+```bash
+    -f fdt-qcs8550-imdt-sbc-ar1335-csi2.dtbo \
+    -f fdt-qcs8550-imdt-sbc-ar1335-csi2-vcm.dtbo \
+```
+
 On a board that boots entry 2, give the same list without the CYPD6125 overlay
 to `-i 2`. To make a camera set the default for a build instead, list its
 overlays on the `imdt_qcs8550-sbc` lines of
