@@ -28,6 +28,7 @@ jobs:
     outputs:
       kas-config: ${{ steps.cfg.outputs.kas-config }}
       images: ${{ steps.cfg.outputs.images }}
+      rsync-pattern: ${{ steps.cfg.outputs.rsync-pattern }}
       wg-slot-8gb-1: ${{ steps.cfg.outputs.wg-slot-8gb-1 }}
       wg-slot-8gb-2: ${{ steps.cfg.outputs.wg-slot-8gb-2 }}
     steps:
@@ -62,20 +63,26 @@ jobs:
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "kas-config=kas/imdt-all.yml" >> "$GITHUB_OUTPUT"
             echo 'images={"image-name":["qcom-minimal-image","qcom-multimedia-image","qcom-multimedia-proprietary-image"]}' >> "$GITHUB_OUTPUT"
+            echo "rsync-pattern=*.ostreecommit.tar.xz qclinuxfitImage" >> "$GITHUB_OUTPUT"
           else
             echo "kas-config=kas/imdt-minimal.yml" >> "$GITHUB_OUTPUT"
             echo 'images={"image-name":["qcom-minimal-image"]}' >> "$GITHUB_OUTPUT"
+            # Only stage what this build made: the runner's deploy dir still holds
+            # older multimedia archives, which would go up named with this sha.
+            echo "rsync-pattern=qcom-minimal-image-*.ostreecommit.tar.xz qclinuxfitImage" >> "$GITHUB_OUTPUT"
           fi
 
   # Red runs keep their staged images, so age them out before staging more.
   # ctime is when the file landed here, rsync -a would carry over an old mtime.
+  # Each repo stages in its own directory, so the private and public repos
+  # building the same sha never overwrite each other's images.
   prune-lava-images:
     runs-on: imx-runner
     steps:
-      - name: Delete staged images older than 3 days on the LAVA server
+      - name: Create this repo's staging dir and delete staged images older than 3 days
         run: |
           ssh -o StrictHostKeyChecking=accept-new "${{ vars.LAVA_USER }}@${{ vars.LAVA_HOST }}" \
-            "find ${{ vars.LAVA_IMAGES_DIR }} -maxdepth 1 -type f -regextype posix-extended -regex '.*/[^/]+-[0-9a-f]{40}\.[^./]+' -ctime +3 -print -delete"
+            "mkdir -p ${{ vars.LAVA_IMAGES_DIR }}/${{ github.event.repository.name }} && find ${{ vars.LAVA_IMAGES_DIR }} -maxdepth 2 -type f -regextype posix-extended -regex '.*/[^/]+-[0-9a-f]{40}\.[^./]+' -ctime +3 -print -delete"
 
   build:
     # One multiconfig build covers both boards and every image, so the shared
@@ -123,8 +130,8 @@ jobs:
       rsync-machine: 'imdt-8550-sbc'
       rsync-host: ${{ vars.LAVA_HOST }}
       rsync-user: ${{ vars.LAVA_USER }}
-      rsync-dest: ${{ vars.LAVA_IMAGES_DIR }}/
-      rsync-pattern: '*.ostreecommit.tar.xz qclinuxfitImage'
+      rsync-dest: ${{ vars.LAVA_IMAGES_DIR }}/${{ github.event.repository.name }}/
+      rsync-pattern: ${{ needs.setup.outputs.rsync-pattern }}
       clean-checkout: false
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -318,4 +325,4 @@ jobs:
       - name: Delete this commit's staged OSTree archives on the LAVA server
         run: |
           ssh -o StrictHostKeyChecking=accept-new "${{ vars.LAVA_USER }}@${{ vars.LAVA_HOST }}" \
-            "rm -f ${{ vars.LAVA_IMAGES_DIR }}/*.ostreecommit.tar-${{ github.sha }}.xz ${{ vars.LAVA_IMAGES_DIR }}/qclinuxfitImage-${{ github.sha }}.qclinuxfitImage"
+            "rm -f ${{ vars.LAVA_IMAGES_DIR }}/${{ github.event.repository.name }}/*.ostreecommit.tar-${{ github.sha }}.xz ${{ vars.LAVA_IMAGES_DIR }}/${{ github.event.repository.name }}/qclinuxfitImage-${{ github.sha }}.qclinuxfitImage"
