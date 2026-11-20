@@ -68,7 +68,7 @@ The images are built on top of the [meta-qcom-distro](https://github.com/qualcom
 | Android Debug Bridge (ADB) | — | USB | — | ✅ | ✅ | ✅ | ✅ |
 | Audio (LPASS) | TI TLV320AIC3101 | Primary MI2S via the ADSP (AudioReach) | q6apm, tlv320aic3x | 🚧 Planned | 🚧 Card registers, audible output untested | ❌ | ❌ No sound card with the LT9611UXD overlay (its DP0 link has no codec) |
 | Bluetooth | NXP IW416 | UART14 | btnxpuart | ❌ | ❌ | ❌ | ❌ |
-| Camera (AR1335 - 13MP) | ON Semiconductor AR1335 | CSI0 | ar1335 | ✅ | ✅ | ✅ | ✅ Raw 4208x3120 capture |
+| Camera (AR1335 - 13MP) | ON Semiconductor AR1335 | CSI0 to CSI7 | ar1335 | ✅ CSI0 | ✅ CSI0; CSI2, CSI3, CSI5 and CSI7 streaming together | ✅ | ✅ Raw 4208x3120 capture |
 | CDSP | Hexagon DSP | — | remoteproc | ✅ | ✅ | ✅ | ✅ FastRPC (`fastrpc_test`) |
 | Debug Serial Console (J19)| — | UART7 (115200 baud) | qcom-geni-serial | ✅ | ✅ | ✅ | ✅ |
 | DDR Memory | 8GB / 12GB LPDDR5 | — | — | ✅ 12GB | ✅ 8GB | ✅ 4GB | ✅ 8GB |
@@ -125,7 +125,9 @@ The board boots a multi-DTB **FIT image** (`dtb.bin`). The UEFI firmware
 from its CDT identity, loads the base DTB and **applies a fixed set of overlays**
 before handing the device tree to the kernel. That set is the **display** panel
 and the **AR1335 camera on CSI0**, plus the **CYPD6125 Type-C controller** on
-Rev 5 boards, which are the only ones that have it fitted.
+Rev 5 boards, which are the only ones that have it fitted. On the QCS8550 SBC
+there is also an AR1335 overlay for each of the other camera connectors,
+built but not applied (see [Camera overlays](#camera-overlays)).
 
 Which overlays are applied is defined in two places that must agree:
 
@@ -243,6 +245,58 @@ Apply only one display overlay at a time. The HDMI adapter runs DSI0 and DSI1
 as a dual DSI pair and supports up to 3840x2160 at 60 Hz. Its firmware ships as
 `lt9611c-firmware`; a blank adapter is flashed by the driver on its first boot,
 which takes about 2.5 minutes before the display comes up.
+
+##### Camera overlays
+
+Each of the eight camera connectors has its own AR1335 (IM-CCM-0009) overlay.
+The FIT applies only `-csi0` by default. Apply an overlay for each connector
+that has a camera fitted, in any combination:
+
+| Connector | Board label | Overlay | Sensor I2C |
+|---|---|---|---|
+| J40 | CSI 0 | `fdt-qcs8550-imdt-sbc-ar1335-csi0.dtbo` (default) | CCI0 bus 0 |
+| J57 | CSI 1 | `fdt-qcs8550-imdt-sbc-ar1335-csi1.dtbo` | CCI2 bus 0 |
+| J35 | CSI 2 | `fdt-qcs8550-imdt-sbc-ar1335-csi2.dtbo` | CCI0 bus 1 |
+| J58 | CSI 3 | `fdt-qcs8550-imdt-sbc-ar1335-csi3.dtbo` | CCI1 bus 0 |
+| J59 | CSI 4 | `fdt-qcs8550-imdt-sbc-ar1335-csi4.dtbo` | CCI1 bus 1, TCA9546A channel 0 |
+| J60 | CSI 5 | `fdt-qcs8550-imdt-sbc-ar1335-csi5.dtbo` | CCI1 bus 1, TCA9546A channel 1 |
+| J61 | CSI 6 | `fdt-qcs8550-imdt-sbc-ar1335-csi6.dtbo` | CCI1 bus 1, TCA9546A channel 2 |
+| J62 | CSI 7 | `fdt-qcs8550-imdt-sbc-ar1335-csi7.dtbo` | CCI1 bus 1, TCA9546A channel 3 |
+
+CSI4 to CSI7 share the always-on camera I2C bus through a TCA9546A I2C switch at
+0x74, so every sensor keeps the AR1335 address 0x36.
+
+> [!IMPORTANT]
+> Apply overlays only for connectors with a camera fitted. If one of the
+> applied overlays has no sensor behind it, CAMSS links none of the cameras,
+> and the pipeline service fails with "none linked to a CSI PHY".
+
+Up to five cameras can stream at once, one for each of the five CSIDs. The
+QCS8550's CSI6 and CSI7 PHYs are documented as two-lane, but the overlays run
+four lanes on J61 and J62 as the board wires them, and CSI7 streams at full
+resolution like the others.
+
+For example, with cameras on CSI2, CSI3, CSI5 and CSI7 of a Rev 5 board:
+
+```bash
+adb shell qcom-metadata-editor -u -i 1 \
+    -f fdt-qcs8550-imdt-sbc.dtb \
+    -f fdt-qcs8550-imdt-sbc-display.dtbo \
+    -f fdt-qcs8550-imdt-sbc-ar1335-csi2.dtbo \
+    -f fdt-qcs8550-imdt-sbc-ar1335-csi3.dtbo \
+    -f fdt-qcs8550-imdt-sbc-ar1335-csi5.dtbo \
+    -f fdt-qcs8550-imdt-sbc-ar1335-csi7.dtbo \
+    -f fdt-qcs8550-imdt-sbc-cypd6125.dtbo \
+    /mnt/dtb/qclinux_fit.img
+adb shell sync
+adb shell umount /mnt/dtb
+adb reboot
+```
+
+On a board that boots entry 2, give the same list without the CYPD6125 overlay
+to `-i 2`. To make a camera set the default for a build instead, list its
+overlays on the `imdt_qcs8550-sbc` lines of
+[`imdt-fit-dtb-compatible.inc`](conf/machine/include/imdt-fit-dtb-compatible.inc).
 
 ##### LT9611UXD firmware
 
@@ -834,32 +888,45 @@ To stream from the AR1335 (PN:IM-CCM-0009) it must first be connected to the SBC
 For additional information see the [datasheet](#references) for connection details.
 
 Once the AR1335 has been connected the board can then be powered on.
+Then apply the overlay for the connector it is on, as described in
+[Camera overlays](#camera-overlays). CSI0 is applied by default.
 
-Currently only CSI0 has been tested on the open source release.
+CSI0 is tested on the LAVA boards. CSI2, CSI3, CSI5 and CSI7 are tested
+streaming together on a Rev 5 board. CSI1, CSI4 and CSI6 have their overlays
+but have not had a camera fitted yet.
 
-#### Streaming with V4L2 for CSI0
+#### Streaming with V4L2
 
-The CSI0 media pipeline is configured automatically at boot by the
-`qcs8550-csi0-ar1335.service` systemd service, which runs the
-`/usr/sbin/qcs8550-csi0-ar1335.sh` `media-ctl` setup script once the
+The media pipelines are configured automatically at boot by the
+`qcs8550-ar1335.service` systemd service, which runs the
+`/usr/sbin/qcs8550-ar1335.sh` `media-ctl` setup script once the
 camss media device is available. No manual setup step is required.
 
-You can check that the pipeline came up with:
+The script sets up a pipeline for every AR1335 it finds, in CSI order. Each
+camera gets its own CSID and VFE (`csiphyN -> csidI -> vfeI_rdi0`), and the
+script prints the video device for each one. Check them with:
 
 ```bash
-systemctl status qcs8550-csi0-ar1335.service
+systemctl status qcs8550-ar1335.service
 ```
 
-The service configures the pipeline at the sensor's full native resolution
-(4208 × 3120, raw Bayer `SGRBG10P`). You can then stream frames into memory
-directly:
+```
+Pipeline created for ar1335 2-0036 on CSI2 (msm_csid0): /dev/video2
+Pipeline created for ar1335 3-0036 on CSI3 (msm_csid1): /dev/video5
+Pipeline created for ar1335 6-0036 on CSI5 (msm_csid2): /dev/video8
+Pipeline created for ar1335 8-0036 on CSI7 (msm_csid3): /dev/video11
+```
+
+Each pipeline runs at the sensor's full resolution (4208 × 3120, raw Bayer
+`SGRBG10P`). Stream frames into memory from one of the video devices:
 
 ```bash
-v4l2-ctl -d /dev/video0 --stream-mmap
+v4l2-ctl -d /dev/video2 --stream-mmap
 ```
 
-You may need to change the name of the video device as sometimes it can be
-`/dev/video1`.
+The video device numbers depend on the overlays applied, so take them from the
+service output, or run `/usr/sbin/qcs8550-ar1335.sh` again to print them.
+All the cameras can stream at the same time, at about 29 fps each.
 
 On the QCS6490 SBC (SoM 01) there is an AR1335 overlay for each of
 carrier CSI0 to CSI3 (J40, J57, J35, J58),
@@ -881,7 +948,7 @@ v4l2-ctl -d $(media-ctl -d /dev/media0 -e msm_vfe0_video0) --stream-mmap
 You can also pull a live preview from the AR1335 over the network using
 GStreamer and libcamera. This path uses `libcamerasrc`, which configures the
 camss media pipeline itself, so it works independently of the
-`qcs8550-csi0-ar1335.service` V4L2 setup above — no `media-ctl` step is needed.
+`qcs8550-ar1335.service` V4L2 setup above — no `media-ctl` step is needed.
 The board encodes MJPEG frames and streams them over stdout to a decoder
 running on your host machine.
 
