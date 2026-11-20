@@ -54,6 +54,9 @@ actions:
         # This build's FIT (base DTB and overlays), staged into /images by CI.
         # Empty or missing skips the dtb partition update. Set by the workflow.
         FIT_FILE: ''
+        # CSI ports with an AR1335 fitted: their overlays are the ones applied.
+        # Set per board by the workflow.
+        CAMERA_PORTS: '0'
         # ref (branch) inside that repo, and the OS name the DUT deploys under.
         OSTREE_REF: 'imdt-8550-sbc'
         OSTREE_OSNAME: 'nodistro'
@@ -147,7 +150,8 @@ actions:
           # enabled by hand survive every deploy and can swap the camera pipeline.
           # One -f per overlay: a single quoted list is stored as one bogus name, which
           # leaves UEFI with no DTB. Keep in step with KERNEL_DEVICETREE in imdt-8550-sbc.conf.
-          - 'if $SSH "command -v qcom-metadata-editor" >/dev/null 2>&1; then FIT=/mnt/dtb/qclinux_fit.img; BASE=fdt-qcs8550-imdt-sbc.dtb; DEF="fdt-qcs8550-imdt-sbc-display.dtbo fdt-qcs8550-imdt-sbc-ar1335-csi0.dtbo"; FIT_LIST=$($SSH "qcom-metadata-editor $FIT") || FIT_LIST=""; DT_RC=1; if [ -n "$FIT_LIST" ]; then DT_RC=0; for N in 1 2 3 4; do COMPAT=$(echo "$FIT_LIST" | sed -n "/conf-$N\$/{n;p}"); [ -n "$COMPAT" ] || continue; case "$COMPAT" in *subtype5) L="$BASE $DEF fdt-qcs8550-imdt-sbc-cypd6125.dtbo";; *) L="$BASE $DEF";; esac; FA=""; for X in $L; do FA="$FA -f $X"; done; $SSH "qcom-metadata-editor -u -i $N$FA $FIT" >/dev/null 2>&1 || DT_RC=1; done; $SSH sync || true; $SSH "umount /mnt/dtb" || true; fi; else DT_RC=2; fi'
+          # Only fitted cameras get an overlay: an empty one stops CAMSS linking any sensor.
+          - 'if $SSH "command -v qcom-metadata-editor" >/dev/null 2>&1; then FIT=/mnt/dtb/qclinux_fit.img; BASE=fdt-qcs8550-imdt-sbc.dtb; DEF="fdt-qcs8550-imdt-sbc-display.dtbo"; for P in $CAMERA_PORTS; do DEF="$DEF fdt-qcs8550-imdt-sbc-ar1335-csi$P.dtbo"; done; FIT_LIST=$($SSH "qcom-metadata-editor $FIT") || FIT_LIST=""; DT_RC=1; if [ -n "$FIT_LIST" ]; then DT_RC=0; for N in 1 2 3 4; do COMPAT=$(echo "$FIT_LIST" | sed -n "/conf-$N\$/{n;p}"); [ -n "$COMPAT" ] || continue; case "$COMPAT" in *subtype5) L="$BASE $DEF fdt-qcs8550-imdt-sbc-cypd6125.dtbo";; *) L="$BASE $DEF";; esac; FA=""; for X in $L; do FA="$FA -f $X"; done; $SSH "qcom-metadata-editor -u -i $N$FA $FIT" >/dev/null 2>&1 || DT_RC=1; done; $SSH sync || true; $SSH "umount /mnt/dtb" || true; fi; else DT_RC=2; fi'
           - $SSH "qcom-metadata-editor /mnt/dtb/qclinux_fit.img" || true
           - if [ "${DT_RC:-1}" = 0 ]; then lava-test-case dtb-overlays-default --result pass; elif [ "${DT_RC:-1}" = 2 ]; then lava-test-case dtb-overlays-default --result skip; else lava-test-case dtb-overlays-default --result fail; fi
           # ── Reboot into the new deployment ──────────────────────────────────

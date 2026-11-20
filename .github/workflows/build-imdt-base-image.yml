@@ -262,7 +262,7 @@ jobs:
   # lava-tests.yml from the board tag. Flags are always explicit: GHA loose
   # equality coerces null and false both to 0, so an absent key can't be
   # defaulted with `!= false` at the call site.
-  # 8550-8gb-1 is pi-tester-3's board, with the AR1335 on CSI0.
+  # 8550-8gb-1 is pi-tester-3's board, with AR1335s on CSI0 and CSI4.
   lava-8gb-1:
     needs: [setup, build]
     if: needs.build.result == 'success'
@@ -275,7 +275,7 @@ jobs:
       image-name: ${{ matrix.image-name }}
       board-tag: '8550-8gb-1'
       mem-min-mb: '4500'
-      has-camera: true
+      camera-ports: '0 4'
       # No SD card inserted in this fixture — flip once a card is fitted.
       has-sdcard: false
       # IW416 enumerates on SDIO but no driver binds with the current image.
@@ -286,7 +286,7 @@ jobs:
       expected-version: ${{ needs.build.outputs.version }}
     secrets: inherit
 
-  # 8550-8gb-2 is pi-tester-9's board. It has no camera on CSI0.
+  # 8550-8gb-2 is pi-tester-9's board, with AR1335s on CSI2, CSI3, CSI5 and CSI7.
   lava-8gb-2:
     needs: [setup, build]
     if: needs.build.result == 'success'
@@ -299,7 +299,7 @@ jobs:
       image-name: ${{ matrix.image-name }}
       board-tag: '8550-8gb-2'
       mem-min-mb: '4500'
-      has-camera: false
+      camera-ports: '2 3 5 7'
       has-sdcard: false
       # IW416 enumerates on SDIO but no driver binds with the current image.
       has-wifi: false

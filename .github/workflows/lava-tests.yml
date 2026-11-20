@@ -15,10 +15,10 @@ on:
         description: Minimum available memory (MB) expected on this board variant
         type: string
         default: '9000'
-      has-camera:
-        description: Whether the AR1335 camera module is attached to this board
-        type: boolean
-        default: true
+      camera-ports:
+        description: CSI ports with an AR1335 fitted, space separated (e.g. '0 4'); empty for none
+        type: string
+        default: '0'
       has-sdcard:
         description: Whether an SD card is inserted in this board's slot
         type: boolean
@@ -189,7 +189,7 @@ jobs:
       #  * docker-device jobs (ostree-deploy, ar1335-capture)
       #    reach the board over ssh, so SSH_HOST/SSH_PORT are set to the relay
       #    forwarding this board — the endpoint is a repo secret per board tag;
-      #  * the memory threshold and camera presence match the board.
+      #  * the memory threshold and fitted cameras match the board.
       - name: Prepare board-specific LAVA job definitions
         run: |
           # Each board is a harness host (pi-tester-3/9) with the DUT attached
@@ -215,7 +215,7 @@ jobs:
           fi
           DUT_SSH_PORT="${DUT_SSH_PORT:-22}"
           mkdir -p /tmp/lava-jobs
-          CAMERA_PRESENT="${{ inputs.has-camera && 'yes' || 'no' }}"
+          CAMERA_PORTS="${{ inputs.camera-ports }}"
           SDCARD_PRESENT="${{ inputs.has-sdcard && 'yes' || 'no' }}"
           WIFI_PRESENT="${{ inputs.has-wifi && 'yes' || 'no' }}"
           # The version the build job baked into the image; ssh-tests asserts
@@ -228,7 +228,7 @@ jobs:
                 -e "s|SSH_HOST: '[^']*'|SSH_HOST: '${DUT_SSH_HOST}'|" \
                 -e "s|SSH_PORT: '[^']*'|SSH_PORT: '${DUT_SSH_PORT}'|" \
                 -e "s|MEM_MIN_MB: '[^']*'|MEM_MIN_MB: '${{ inputs.mem-min-mb }}'|" \
-                -e "s|CAMERA_PRESENT: '[^']*'|CAMERA_PRESENT: '${CAMERA_PRESENT}'|" \
+                -e "s|CAMERA_PORTS: '[^']*'|CAMERA_PORTS: '${CAMERA_PORTS}'|" \
                 -e "s|SDCARD_PRESENT: '[^']*'|SDCARD_PRESENT: '${SDCARD_PRESENT}'|" \
                 -e "s|WIFI_PRESENT: '[^']*'|WIFI_PRESENT: '${WIFI_PRESENT}'|" \
                 -e "s|EXPECTED_IMDT_VERSION: '[^']*'|EXPECTED_IMDT_VERSION: '${EXPECTED_IMDT_VERSION}'|" \
@@ -268,14 +268,14 @@ jobs:
 
       # ── Job 3: ar1335 frame capture — camera boards only ───────────────
       - name: Submit ar1335-capture LAVA job
-        if: inputs.has-camera
+        if: inputs.camera-ports != ''
         run: |
           JOB_ID=$(lavacli --identity lava-ci jobs submit /tmp/lava-jobs/ar1335-capture.yaml)
           echo "ar1335-capture: $JOB_ID — http://${{ vars.LAVA_HOST }}/scheduler/job/$JOB_ID"
           echo "CAPTURE_JOB_ID=$JOB_ID" >> "$GITHUB_ENV"
 
       - name: Wait for ar1335-capture
-        if: inputs.has-camera
+        if: inputs.camera-ports != ''
         run: bash lava/wait-job.sh "$CAPTURE_JOB_ID"
 
       # Free the board as soon as the LAVA jobs are done, even on failure or

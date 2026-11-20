@@ -122,27 +122,29 @@ actions:
       name: ar1335-stream
       path: inline/ar1335-stream.yaml
       parameters:
-        # Set to anything other than 'yes' on boards without the AR1335
-        # camera module attached; the suite then reports skips instead of
-        # failing. Overridden per board by the CI workflow.
-        CAMERA_PRESENT: 'yes'
+        # CSI ports with an AR1335 fitted, e.g. '0 4'. Empty on boards without
+        # a camera; the suite then reports skips. Overridden per board by the
+        # CI workflow.
+        CAMERA_PORTS: '0'
       repository:
         metadata:
           format: Lava-Test Test Definition 1.0
           name: ar1335-stream
-          description: Configure the AR1335 CSI0 pipeline and stream frames with v4l2-ctl
+          description: Configure every AR1335 pipeline and stream frames from each with v4l2-ctl
         run:
           steps:
-          - if [ "$CAMERA_PRESENT" != "yes" ]; then echo "No AR1335 on this board - skipping camera suite"; lava-test-case pipeline-setup --result skip; lava-test-case sensor-enumerated --result skip; lava-test-case video-node --result skip; lava-test-case stream-30-frames --result skip; exit 0; fi
+          - if [ -z "$CAMERA_PORTS" ]; then echo "No AR1335 on this board - skipping camera suite"; lava-test-case pipeline-setup --result skip; lava-test-case sensor-enumerated --result skip; lava-test-case stream-all-together --result skip; exit 0; fi
+          - 'echo "Cameras expected on CSI: $CAMERA_PORTS"'
           - SETUP_OUT=$(sh /usr/sbin/qcs8550-ar1335.sh 2>&1) && SETUP_RC=0 || SETUP_RC=$?
           - 'echo "$SETUP_OUT"'
           - if [ "$SETUP_RC" = "0" ]; then lava-test-case pipeline-setup --result pass; else lava-test-case pipeline-setup --result fail; fi
-          - lava-test-case sensor-enumerated --shell sh -c "media-ctl -d /dev/media0 -p | grep -q ar1335"
-          - VIDEO_DEV=$(echo "$SETUP_OUT" | grep -o '/dev/video[0-9]*' | head -n1)
-          - VIDEO_DEV=${VIDEO_DEV:-/dev/video0}
-          - 'echo "Using video device: $VIDEO_DEV"'
-          - if [ -n "$VIDEO_DEV" ]; then lava-test-case video-node --result pass; else lava-test-case video-node --result fail; fi
-          - lava-test-case stream-30-frames --shell /usr/bin/timeout 60 v4l2-ctl -d "$VIDEO_DEV" --stream-mmap --stream-count=30
+          # One AR1335 entity per fitted camera, no more and no fewer.
+          - 'WANT=$(echo $CAMERA_PORTS | wc -w); HAVE=$(media-ctl -d /dev/media0 -p | grep -c "^- entity [0-9]*: ar1335 "); echo "AR1335 entities: $HAVE, expected $WANT"'
+          - if [ "$HAVE" = "$WANT" ]; then lava-test-case sensor-enumerated --result pass; else lava-test-case sensor-enumerated --result fail; fi
+          # Stream from each camera in turn, from the video device the script printed for it.
+          - 'for N in $CAMERA_PORTS; do DEV=$(echo "$SETUP_OUT" | sed -n "s|.* on CSI$N (.*): \(/dev/video[0-9]*\)$|\1|p"); echo "CSI$N: ${DEV:-<no pipeline>}"; if [ -n "$DEV" ]; then lava-test-case csi$N-stream-30-frames --shell /usr/bin/timeout 60 v4l2-ctl -d "$DEV" --stream-mmap --stream-count=30; else lava-test-case csi$N-stream-30-frames --result fail; fi; done'
+          # Then all of them at once, each on its own CSID and VFE.
+          - 'DEVS=$(echo "$SETUP_OUT" | grep -o "/dev/video[0-9]*"); if [ $(echo $CAMERA_PORTS | wc -w) -lt 2 ]; then lava-test-case stream-all-together --result skip; else rm -f /tmp/stream-all.fail; for D in $DEVS; do ( /usr/bin/timeout 60 v4l2-ctl -d $D --stream-mmap --stream-count=30 >/dev/null 2>&1 || echo $D >> /tmp/stream-all.fail ) & done; wait; if [ -n "$DEVS" ] && [ ! -s /tmp/stream-all.fail ]; then lava-test-case stream-all-together --result pass; else echo "failed: $(cat /tmp/stream-all.fail 2>/dev/null)"; lava-test-case stream-all-together --result fail; fi; fi'
 
     - from: inline
       name: sdcard

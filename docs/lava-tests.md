@@ -87,7 +87,7 @@ has no EFI variables.
 | `ostree-deploy` | `ostree-imdt-update` pulls the commit and stages it as a new deployment |
 | `root-unlocked` | ostree's immutable bit is cleared from the deployment roots, so `ssh-tests` can scp its overlay into `/lava-<id>` |
 | `dtb-fit-updated` | This build's FIT (base DTB and overlays) is installed on the `dtb` partition, so DT changes reach the board. It must arrive intact and parse first, and the old FIT is restored on failure (skipped if CI staged no FIT) |
-| `dtb-overlays-default` | The DT overlay list in the `dtb` partition's FIT is reset to the build's defaults before the reboot, since hand-enabled overlays otherwise survive every deploy (skipped if the DUT has no `qcom-metadata-editor`) |
+| `dtb-overlays-default` | The DT overlay list in the `dtb` partition's FIT is reset before the reboot to the display overlay, the board's camera overlays (`CAMERA_PORTS`) and, on Rev 5, CYPD6125, since hand-enabled overlays otherwise survive every deploy (skipped if the DUT has no `qcom-metadata-editor`) |
 | `reboot` | Device reboots and comes back with a **new** `boot_id` (a genuine reboot, immune to transient ssh drops) |
 | `deployment-switched` | Running deployment checksum differs from the pre-update one |
 | `boot-blessed` | No `+tries` BLS entry remains, i.e. the boot counter was blessed and the deployment will not roll back |
@@ -124,19 +124,25 @@ SDIO but no driver binds with the current image.
 |-----------|-------------|
 | `wifi-present` | `mlan0` (NXP IW416) interface is present in `ip link` |
 
-### `ar1335-stream` — Camera streaming (CSI0)
+### `ar1335-stream` — Camera streaming
 
-On boards without the camera module, all cases in this suite report `skip`
-(set `has-camera: false` for the board in `build-imdt-base-image.yml`, which
-flows into the `CAMERA_PRESENT` parameter). Both current boards have the
-camera attached.
+Each board lists the CSI ports that have an AR1335 fitted (`camera-ports` for
+the board in `build-imdt-base-image.yml`, which flows into the `CAMERA_PORTS`
+parameter). `ostree-deploy` applies the overlay for each of those ports and no
+others, and this suite checks and streams every one of them. On a board with no
+ports listed, the suite reports `skip`.
+
+| Board | Cameras |
+|---|---|
+| `8550-8gb-1` (pi-tester-3) | CSI0, CSI4 |
+| `8550-8gb-2` (pi-tester-9) | CSI2, CSI3, CSI5, CSI7 |
 
 | Test Case | Description |
 |-----------|-------------|
 | `pipeline-setup` | `/usr/sbin/qcs8550-ar1335.sh` exits 0 |
-| `sensor-enumerated` | `ar1335` appears in `media-ctl -d /dev/media0 -p` output |
-| `video-node` | A `/dev/videoN` node is reported by the setup script |
-| `stream-30-frames` | `v4l2-ctl --stream-mmap --stream-count=30` completes within 60 s |
+| `sensor-enumerated` | `media-ctl -d /dev/media0 -p` shows one `ar1335` entity per listed port |
+| `csiN-stream-30-frames` | For each listed port N, `v4l2-ctl --stream-mmap --stream-count=30` on the video device the script reported for CSI N completes within 60 s |
+| `stream-all-together` | Every camera streams 30 frames at the same time. Skipped with fewer than two cameras |
 
 ### `sdcard` — SD card
 
@@ -236,11 +242,11 @@ allowed for the service to start before the VNC server answers).
 
 ## Job 3 — AR1335 Frame Capture (`ar1335-capture`)
 
-Captures a raw frame from the AR1335 camera over ssh and de-mosaics it to a PNG, which is uploaded as a CI artifact. This job only runs on boards with the camera module attached (currently both). The output PNG is board-specific (`/images/<repo>/ar1335_<board-tag>.png`) so parallel board runs don't overwrite each other's frame.
+Captures a raw frame from the AR1335 camera over ssh and de-mosaics it to a PNG, which is uploaded as a CI artifact. This job only runs on boards with a camera listed (currently both), and captures from the camera on the lowest CSI port. The output PNG is board-specific (`/images/<repo>/ar1335_<board-tag>.png`) so parallel board runs don't overwrite each other's frame.
 
 | Test Case | Description |
 |-----------|-------------|
-| `pipeline-setup` | CSI0 pipeline script exits 0 (run via ssh) |
+| `pipeline-setup` | Camera pipeline script exits 0 (run via ssh) |
 | `capture-raw-frame` | `v4l2-ctl --stream-to` captures one raw frame to `/tmp/ar1335_frame.raw` |
 | `demosaic` | `demosaic.py` converts the raw frame to `/images/<repo>/ar1335_<board-tag>.png` |
 
