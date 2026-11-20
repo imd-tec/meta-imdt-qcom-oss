@@ -1,11 +1,25 @@
 #!/bin/sh
-# One CI job per LAVA board across repos. Runs on the LAVA server over ssh:
-#   board-lock.sh acquire <lock dir> <owner>  exit 0 taken, 1 held, 2 stale lock broken
-#   board-lock.sh release <lock dir> <owner>  removes the lock only if <owner> holds it
+# One CI job per LAVA board across repos. Forced command of the CI lock key
+# on the LAVA server, in ~/.ssh/authorized_keys:
+#   command="<path>/board-lock.sh <lock root>",restrict ssh-ed25519 AAAA... ci-board-lock
+# The workflow runs: ssh -i <lock key> <host> acquire|release <board-tag> <owner>
+#   acquire exits 0 taken, 1 held, 2 stale lock broken
+#   release removes the lock only if <owner> holds it
 set -u
+set -f
+ROOT=${1:?lock root}
+# shellcheck disable=SC2086 # split the client's words, globbing is off
+set -- ${SSH_ORIGINAL_COMMAND:-}
+if [ $# -ne 3 ]; then
+	echo "usage: acquire|release <board-tag> <owner>" >&2
+	exit 64
+fi
 CMD=$1
-LOCK=$2
+BOARD=$2
 OWNER=$3
+case $BOARD in "" | *[!A-Za-z0-9-]*) echo "bad board tag" >&2; exit 64 ;; esac
+case $OWNER in "" | *[!A-Za-z0-9._/#-]*) echo "bad owner" >&2; exit 64 ;; esac
+LOCK=$ROOT/$BOARD
 # Longer than any job can hold the board, so only a lock whose job died is broken
 STALE=$((4 * 3600))
 
@@ -13,7 +27,7 @@ holder() { cat "$LOCK/owner" 2>/dev/null || echo "<unknown>"; }
 
 case $CMD in
 acquire)
-	mkdir -p "$(dirname "$LOCK")"
+	mkdir -p "$ROOT"
 	if mkdir "$LOCK" 2>/dev/null; then
 		echo "$OWNER" > "$LOCK/owner"
 		date +%s > "$LOCK/since"
@@ -40,7 +54,7 @@ release)
 	fi
 	;;
 *)
-	echo "usage: $0 acquire|release <lock dir> <owner>" >&2
+	echo "usage: acquire|release <board-tag> <owner>" >&2
 	exit 64
 	;;
 esac

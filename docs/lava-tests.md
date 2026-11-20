@@ -45,12 +45,23 @@ commit.
 - Staged files older than three days are deleted before each build, and a run
   whose LAVA jobs all pass deletes its own.
 - The concurrency group serialises a repo's jobs per board, but not the two
-  repos against each other. So each `lava-test` job also takes a per-board lock,
-  `<LAVA_IMAGES_DIR>/.locks/<board-tag>`, with `lava/board-lock.sh` before it
-  deploys, and releases it once its LAVA jobs finish, even on failure. A job
-  waits up to 150 minutes for the lock. A lock older than four hours is treated
-  as left by a dead job and broken. To see who holds a board, read
-  `<LAVA_IMAGES_DIR>/.locks/<board-tag>/owner` on the LAVA server.
+  repos against each other. So each `lava-test` job also takes a per-board lock
+  on the LAVA server before it deploys, and releases it once its LAVA jobs
+  finish, even on failure. A job waits up to 150 minutes for the lock. A lock
+  older than four hours is treated as left by a dead job and broken. To see who
+  holds a board, read `<lock root>/<board-tag>/owner` on the LAVA server.
+
+The lock uses its own ssh key, the `LAVA_LOCK_SSH_KEY` secret in both repos. On
+the LAVA server, the key's `authorized_keys` entry makes `lava/board-lock.sh` its
+forced command, so the key can only take or release a board lock:
+
+```
+command="<path>/lava/board-lock.sh <LAVA_IMAGES_DIR>/.locks",restrict ssh-ed25519 AAAA... ci-board-lock
+```
+
+Install `lava/board-lock.sh` at `<path>` on the LAVA server and keep it in step
+with the repo. The workflow only sends `acquire|release <board-tag> <owner>`, and
+the script rejects anything else.
 
 ## Job 1 — OSTree Deploy (`ostree-deploy`)
 

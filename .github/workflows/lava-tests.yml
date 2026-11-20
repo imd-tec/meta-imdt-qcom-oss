@@ -124,6 +124,19 @@ jobs:
           printf '%s\n' "$LAVA_SSH_KEY" > ~/.ssh/id_lava
           chmod 600 ~/.ssh/id_lava
 
+      # The lock key can only run lava/board-lock.sh on the LAVA server, as the
+      # forced command in its authorized_keys entry (see docs/lava-tests.md).
+      - name: Install board lock ssh key
+        env:
+          LAVA_LOCK_SSH_KEY: ${{ secrets.LAVA_LOCK_SSH_KEY }}
+        run: |
+          if [ -z "$LAVA_LOCK_SSH_KEY" ]; then
+            echo "LAVA_LOCK_SSH_KEY secret is not set" >&2
+            exit 1
+          fi
+          printf '%s\n' "$LAVA_LOCK_SSH_KEY" > ~/.ssh/id_lava_lock
+          chmod 600 ~/.ssh/id_lava_lock
+
       # The concurrency group only serialises this repo's jobs. The private and
       # public repos share the boards, so a lock on the LAVA server keeps their
       # jobs from deploying to one board at once.
@@ -132,11 +145,10 @@ jobs:
         run: |
           OWNER="${{ github.repository }}#${{ github.run_id }}.${{ github.run_attempt }}/${{ inputs.image-name }}"
           echo "BOARD_LOCK_OWNER=$OWNER" >> "$GITHUB_ENV"
-          LOCK="${{ vars.LAVA_IMAGES_DIR }}/.locks/${{ inputs.board-tag }}"
-          SSH="ssh -i $HOME/.ssh/id_lava -o StrictHostKeyChecking=accept-new ${{ vars.LAVA_USER }}@${{ vars.LAVA_HOST }}"
+          SSH="ssh -i $HOME/.ssh/id_lava_lock -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new ${{ vars.LAVA_USER }}@${{ vars.LAVA_HOST }}"
           while :; do
             RC=0
-            $SSH sh -s -- acquire "$LOCK" "$OWNER" < lava/board-lock.sh || RC=$?
+            $SSH acquire "${{ inputs.board-tag }}" "$OWNER" || RC=$?
             case $RC in
               0) break ;;
               2) continue ;;
@@ -271,10 +283,9 @@ jobs:
       - name: Release the board lock
         if: always() && env.BOARD_LOCK_OWNER != ''
         run: |
-          LOCK="${{ vars.LAVA_IMAGES_DIR }}/.locks/${{ inputs.board-tag }}"
-          ssh -i "$HOME/.ssh/id_lava" -o StrictHostKeyChecking=accept-new \
+          ssh -i "$HOME/.ssh/id_lava_lock" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new \
             ${{ vars.LAVA_USER }}@${{ vars.LAVA_HOST }} \
-            sh -s -- release "$LOCK" "$BOARD_LOCK_OWNER" < lava/board-lock.sh || true
+            release "${{ inputs.board-tag }}" "$BOARD_LOCK_OWNER" || true
 
       # ── Results ─────────────────────────────────────────────────────────
       - name: Show all LAVA job results
@@ -507,7 +518,7 @@ jobs:
 
       - name: Cleanup
         if: always()
-        run: rm -f ~/.config/lavacli.yaml ~/.ssh/id_lava
+        run: rm -f ~/.config/lavacli.yaml ~/.ssh/id_lava ~/.ssh/id_lava_lock
 
       # Last step in the job: everything above needs the tunnel, including the
       # camera-frame rsync.
