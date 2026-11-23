@@ -239,12 +239,19 @@ The overlay choices for the J41 display connector are:
 |---|---|
 | IM-MSC-0006 7" DSI panel (default) | `fdt-qcs8550-imdt-sbc-display.dtbo` |
 | LT9611UXD DSI to HDMI adapter (IM-PCA-0055-01) | `fdt-qcs8550-imdt-sbc-dsi-lt9611uxd.dtbo` |
+| LT9611UXD adapter on DSI0 only, up to 4K30 | `fdt-qcs8550-imdt-sbc-dsi-lt9611uxd-single.dtbo` |
 | Nothing fitted | none |
 
 Apply only one display overlay at a time. The HDMI adapter runs DSI0 and DSI1
 as a dual DSI pair and supports up to 3840x2160 at 60 Hz. Its firmware ships as
 `lt9611c-firmware`; a blank adapter is flashed by the driver on its first boot,
 which takes about 2.5 minutes before the display comes up.
+
+The single DSI overlay drives the adapter from DSI0 into port A alone and
+supports up to 3840x2160 at 30 Hz. It leaves DSI1 free. Swap it in for
+`-dsi-lt9611uxd.dtbo` in the list above when the dual DSI overlay gives no
+picture at 1080p. It was checked at 1080p60 on a Rev 5 board with a Dell
+SE2722HX. The dual DSI overlay is still needed for 4K60.
 
 ##### Camera overlays
 

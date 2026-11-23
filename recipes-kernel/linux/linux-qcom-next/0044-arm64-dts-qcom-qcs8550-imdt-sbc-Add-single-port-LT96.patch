@@ -1,0 +1,142 @@
+From: William Bright <william.bright@imd-tec.com>
+Subject: [PATCH] arm64: dts: qcom: qcs8550-imdt-sbc: Add single port LT9611UXD
+ overlay
+
+Add a second overlay for the LT9611UXD adapter that drives it from DSI0
+alone into port A. It leaves DSI1 free and supports up to 3840x2160 at
+30 Hz. The dual DSI overlay is still needed for 4K60.
+
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+Upstream-Status: Inappropriate [IMDT board specific]
+---
+diff --git a/arch/arm64/boot/dts/qcom/Makefile b/arch/arm64/boot/dts/qcom/Makefile
+--- a/arch/arm64/boot/dts/qcom/Makefile
++++ b/arch/arm64/boot/dts/qcom/Makefile
+@@ -293,6 +293,7 @@ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-aim300-aiot.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-display.dtbo
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-dsi-lt9611uxd.dtbo
++dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-dsi-lt9611uxd-single.dtbo
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-ar1335-csi0.dtbo
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-pcie-keyb.dtbo
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-rb5gen2.dtb
+diff --git a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-dsi-lt9611uxd-single.dtso b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-dsi-lt9611uxd-single.dtso
+new file mode 100644
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-dsi-lt9611uxd-single.dtso
+@@ -0,0 +1,115 @@
++// SPDX-License-Identifier: BSD-3-Clause
++/*
++ * Copyright (c) 2026 IMD Technologies Ltd
++ *
++ * Lontium LT9611UXD DSI to HDMI adapter (IM-PCA-0055-01) on the display
++ * connector J41, driven by DSI0 alone into port A. This leaves DSI1 free
++ * and supports up to 3840x2160 at 30 Hz. For 4K60 use the dual DSI
++ * qcs8550-imdt-sbc-dsi-lt9611uxd overlay instead.
++ */
++
++/dts-v1/;
++/plugin/;
++
++#include <dt-bindings/gpio/gpio.h>
++#include <dt-bindings/interrupt-controller/irq.h>
++
++&{/} {
++	hdmi-connector {
++		compatible = "hdmi-connector";
++		type = "a";
++
++		port {
++			hdmi_con_in: endpoint {
++				remote-endpoint = <&lt9611_out>;
++			};
++		};
++	};
++};
++
++&tlmm {
++	lt9611_reset_default: lt9611-reset-default-state {
++		pins = "gpio133";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-disable;
++	};
++
++	lt9611_int_default: lt9611-int-default-state {
++		pins = "gpio88";
++		function = "gpio";
++		bias-disable;
++	};
++};
++
++/* J41 pins 40/44, the same bus as the touch controller */
++&i2c4 {
++	#address-cells = <1>;
++	#size-cells = <0>;
++	clock-frequency = <100000>;
++	status = "okay";
++
++	hdmi-bridge@49 {
++		compatible = "lontium,lt9611uxd";
++		reg = <0x49>;
++
++		interrupts-extended = <&tlmm 88 IRQ_TYPE_EDGE_FALLING>;
++		reset-gpios = <&tlmm 133 GPIO_ACTIVE_LOW>;
++
++		pinctrl-0 = <&lt9611_reset_default>, <&lt9611_int_default>;
++		pinctrl-names = "default";
++
++		/* The adapter derives its 3V3 and 1V2 rails from +DSI_5V */
++		vcc-supply = <&dsi_5v_en>;
++		vdd-supply = <&dsi_5v_en>;
++
++		ports {
++			#address-cells = <1>;
++			#size-cells = <0>;
++
++			port@0 {
++				reg = <0>;
++
++				lt9611_a: endpoint {
++					remote-endpoint = <&mdss_dsi0_out>;
++				};
++			};
++
++
++			port@2 {
++				reg = <2>;
++
++				lt9611_out: endpoint {
++					remote-endpoint = <&hdmi_con_in>;
++				};
++			};
++		};
++	};
++};
++
++&mdss {
++	status = "okay";
++};
++
++&mdss_dsi0 {
++	vdda-supply = <&vreg_l3e_1p2>;
++	status = "okay";
++};
++
++&mdss_dp0 {
++	status = "disabled";
++};
++
++&mdss_dsi0_out {
++	remote-endpoint = <&lt9611_a>;
++	data-lanes = <0 1 2 3>;
++	status = "okay";
++};
++
++&mdss_dsi0_phy {
++	vdds-supply = <&vreg_l1e_0p88>;
++	status = "okay";
++};
++
++
++
