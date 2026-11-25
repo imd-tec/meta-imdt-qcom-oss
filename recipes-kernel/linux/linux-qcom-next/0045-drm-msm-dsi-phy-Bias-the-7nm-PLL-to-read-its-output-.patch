@@ -1,0 +1,134 @@
+From a30b0ba34e71d45792ef498e1efced1bcf8d3938 Mon Sep 17 00:00:00 2001
+From: William Bright <william.bright@imd-tec.com>
+Date: Wed, 25 Nov 2026 12:06:45 +0000
+Subject: [PATCH] drm/msm/dsi/phy: Bias the 7nm PLL to read its output divider
+
+PLL_OUTDIV_RATE is in the PLL register block, which reads back as zero
+while the PLL is not biased. The output divider is a generic clock
+divider, so a rate recalculation while the display is off records a
+divide by one even when the hardware divides by two.
+
+The next rate change then programs the bit clock divider on top of the
+real output divider. With bonded DSI on the 8550 SBC this halves the
+link and pixel clocks, so 1080p60 is sent at 30 Hz and monitors that
+need 48 Hz or more reject it.
+
+Wrap the divider ops so the PLL is biased while the clock framework
+reads or writes the output divider, as the VCO ops already do.
+
+Signed-off-by: William Bright <william.bright@imd-tec.com>
+---
+ drivers/gpu/drm/msm/dsi/phy/dsi_phy_7nm.c | 68 ++++++++++++++++++++---
+ 1 file changed, 60 insertions(+), 8 deletions(-)
+
+diff --git a/drivers/gpu/drm/msm/dsi/phy/dsi_phy_7nm.c b/drivers/gpu/drm/msm/dsi/phy/dsi_phy_7nm.c
+index 984a66085dfb..b8ab83a3f990 100644
+--- a/drivers/gpu/drm/msm/dsi/phy/dsi_phy_7nm.c
++++ b/drivers/gpu/drm/msm/dsi/phy/dsi_phy_7nm.c
+@@ -80,6 +80,9 @@ struct pll_7nm_cached_state {
+ struct dsi_pll_7nm {
+ 	struct clk_hw clk_hw;
+ 
++	/* PLL_OUTDIV_RATE divider, only readable while the PLL is biased */
++	struct clk_divider out_div;
++
+ 	struct msm_dsi_phy *phy;
+ 
+ 	u64 vco_current_rate;
+@@ -103,6 +106,7 @@ struct dsi_pll_7nm {
+ };
+ 
+ #define to_pll_7nm(x)	container_of(x, struct dsi_pll_7nm, clk_hw)
++#define out_div_to_pll_7nm(x)	container_of(to_clk_divider(x), struct dsi_pll_7nm, out_div)
+ 
+ /*
+  * Global list of private DSI PLL struct pointers. We need this for bonded DSI
+@@ -624,6 +628,45 @@ static const struct clk_ops clk_ops_dsi_pll_7nm_vco = {
+ 	.unprepare = dsi_pll_7nm_vco_unprepare,
+ };
+ 
++/* PLL_OUTDIV_RATE reads back as zero unless the PLL is biased */
++static unsigned long dsi_pll_7nm_out_div_recalc_rate(struct clk_hw *hw,
++						      unsigned long parent_rate)
++{
++	struct dsi_pll_7nm *pll_7nm = out_div_to_pll_7nm(hw);
++	unsigned long rate;
++
++	dsi_pll_enable_pll_bias(pll_7nm);
++	rate = clk_divider_ops.recalc_rate(hw, parent_rate);
++	dsi_pll_disable_pll_bias(pll_7nm);
++
++	return rate;
++}
++
++static int dsi_pll_7nm_out_div_determine_rate(struct clk_hw *hw,
++					       struct clk_rate_request *req)
++{
++	return clk_divider_ops.determine_rate(hw, req);
++}
++
++static int dsi_pll_7nm_out_div_set_rate(struct clk_hw *hw, unsigned long rate,
++					 unsigned long parent_rate)
++{
++	struct dsi_pll_7nm *pll_7nm = out_div_to_pll_7nm(hw);
++	int ret;
++
++	dsi_pll_enable_pll_bias(pll_7nm);
++	ret = clk_divider_ops.set_rate(hw, rate, parent_rate);
++	dsi_pll_disable_pll_bias(pll_7nm);
++
++	return ret;
++}
++
++static const struct clk_ops clk_ops_dsi_pll_7nm_out_div = {
++	.recalc_rate = dsi_pll_7nm_out_div_recalc_rate,
++	.determine_rate = dsi_pll_7nm_out_div_determine_rate,
++	.set_rate = dsi_pll_7nm_out_div_set_rate,
++};
++
+ /*
+  * PLL Callbacks
+  */
+@@ -734,6 +777,7 @@ static int pll_7nm_register(struct dsi_pll_7nm *pll_7nm, struct clk_hw **provide
+ 		.flags = CLK_IGNORE_UNUSED,
+ 		.ops = &clk_ops_dsi_pll_7nm_vco,
+ 	};
++	struct clk_init_data out_div_init = {};
+ 	struct device *dev = &pll_7nm->phy->pdev->dev;
+ 	struct clk_hw *hw, *pll_out_div, *pll_bit, *pll_by_2_bit;
+ 	struct clk_hw *pll_post_out_div, *phy_pll_out_dsi_parent;
+@@ -750,15 +794,23 @@ static int pll_7nm_register(struct dsi_pll_7nm *pll_7nm, struct clk_hw **provide
+ 
+ 	snprintf(clk_name, sizeof(clk_name), "dsi%d_pll_out_div_clk", pll_7nm->phy->id);
+ 
+-	pll_out_div = devm_clk_hw_register_divider_parent_hw(dev, clk_name,
+-			&pll_7nm->clk_hw, CLK_SET_RATE_PARENT,
+-			pll_7nm->phy->pll_base +
+-				REG_DSI_7nm_PHY_PLL_PLL_OUTDIV_RATE,
+-			0, 2, CLK_DIVIDER_POWER_OF_TWO, NULL);
+-	if (IS_ERR(pll_out_div)) {
+-		ret = PTR_ERR(pll_out_div);
++	out_div_init.name = clk_name;
++	out_div_init.parent_hws = (const struct clk_hw *[]){ &pll_7nm->clk_hw };
++	out_div_init.num_parents = 1;
++	out_div_init.flags = CLK_SET_RATE_PARENT;
++	out_div_init.ops = &clk_ops_dsi_pll_7nm_out_div;
++
++	pll_7nm->out_div.reg = pll_7nm->phy->pll_base + REG_DSI_7nm_PHY_PLL_PLL_OUTDIV_RATE;
++	pll_7nm->out_div.shift = 0;
++	pll_7nm->out_div.width = 2;
++	pll_7nm->out_div.flags = CLK_DIVIDER_POWER_OF_TWO;
++	pll_7nm->out_div.hw.init = &out_div_init;
++
++	ret = devm_clk_hw_register(dev, &pll_7nm->out_div.hw);
++	if (ret)
+ 		goto fail;
+-	}
++
++	pll_out_div = &pll_7nm->out_div.hw;
+ 
+ 	snprintf(clk_name, sizeof(clk_name), "dsi%d_pll_bit_clk", pll_7nm->phy->id);
+ 
+-- 
+2.43.0
+
