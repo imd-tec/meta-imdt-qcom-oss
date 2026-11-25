@@ -12,14 +12,14 @@ Upstream-Status: Inappropriate [IMDT board specific]
 diff --git a/arch/arm64/boot/dts/qcom/Makefile b/arch/arm64/boot/dts/qcom/Makefile
 --- a/arch/arm64/boot/dts/qcom/Makefile
 +++ b/arch/arm64/boot/dts/qcom/Makefile
-@@ -293,6 +293,7 @@ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-aim300-aiot.dtb
+@@ -280,6 +280,7 @@ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-aim300-aiot.dtb
  dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc.dtb
  dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-display.dtbo
  dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-dsi-lt9611uxd.dtbo
 +dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-dsi-lt9611uxd-single.dtbo
  dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-ar1335-csi0.dtbo
- dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-pcie-keyb.dtbo
- dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-rb5gen2.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-ar1335-csi1.dtbo
+ dtb-$(CONFIG_ARCH_QCOM)	+= qcs8550-imdt-sbc-ar1335-csi2.dtbo
 diff --git a/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-dsi-lt9611uxd-single.dtso b/arch/arm64/boot/dts/qcom/qcs8550-imdt-sbc-dsi-lt9611uxd-single.dtso
 new file mode 100644
 --- /dev/null
