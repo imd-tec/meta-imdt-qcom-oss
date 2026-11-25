@@ -2,6 +2,9 @@
 # Set up every AR1335: csiphyN -> csidI -> vfeI_rdi0, I counting up from 0
 MEDIA=/dev/media0
 
+# Drop stale links, or a camera that probed late finds its CSID taken (EBUSY)
+media-ctl -d $MEDIA -r 2>/dev/null
+
 TOPO=$(media-ctl -d $MEDIA -p 2>/dev/null)
 
 # One "<phy number> <link flags> <sensor>" line per AR1335, in CSI PHY order
